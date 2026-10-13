@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Tekla.Structures;
+using Tekla.Structures.Geometry3d;
 using Tekla.Structures.Model;
 using TeklaAiAssistant.Core.Commands;
 using UiModelObjectSelector = Tekla.Structures.Model.UI.ModelObjectSelector;
@@ -113,51 +114,108 @@ public sealed class TeklaSessionManager : ITeklaSession, IDisposable
         return available;
     }
 
-    public IReadOnlyList<SelectedPartInfo> GetSelectedParts()
+    public ReadSelectionResult ReadSelection()
     {
         EnsureQueueThread();
         Volatile.Write(ref _lastSkippedNonPartCount, 0);
         var path = CheckConnectionAndModel();
-            var parts = new List<SelectedPartInfo>();
-            var skipped = 0;
-            // Confirmed by the Tekla.Structures.Model 2025.0.0 XML documentation:
+        var info = _model!.GetInfo();
+        var results = new List<SelectedObjectResult>();
+        var skipped = 0;
+        var workPlaneHandler = _model.GetWorkPlaneHandler();
+        var savedPlane = workPlaneHandler.GetCurrentTransformationPlane();
+        try
+        {
+            workPlaneHandler.SetCurrentTransformationPlane(new TransformationPlane());
             // AutoFetch is a static property used for all enumerators in the application.
             ModelObjectEnumerator.AutoFetch = true;
             var selected = new UiModelObjectSelector().GetSelectedObjects();
-        while (selected.MoveNext())
-        {
-            if (selected.Current is not Part part)
+            while (selected.MoveNext())
             {
-                skipped++;
-                continue;
-            }
+                if (selected.Current is not Part part)
+                {
+                    skipped++;
+                    continue;
+                }
 
-            var length = 0.0;
-            var lengthAvailable = part.GetReportProperty("LENGTH", ref length);
-            parts.Add(CreatePartInfo(part, lengthAvailable, length));
+                results.Add(CreateObjectInfo(part));
+            }
+        }
+        finally
+        {
+            workPlaneHandler.SetCurrentTransformationPlane(savedPlane);
         }
 
         EnsureSameModel(path);
         Volatile.Write(ref _lastSkippedNonPartCount, skipped);
-        _log?.Invoke($"Read {parts.Count} selected part(s); skipped {skipped} non-part selection(s). " +
-                     "LENGTH is a report value; millimetres are assumed, not independently verified.");
-        return parts.AsReadOnly();
+        _log?.Invoke($"Read {results.Count} selected part(s); skipped {skipped} non-part selection(s). " +
+                     "LENGTH and WEIGHT units are unverified; LENGTH currently assumes millimetres.");
+        return new ReadSelectionResult(
+            info.ModelName,
+            info.ModelPath,
+            results.Count + skipped,
+            results.Count,
+            skipped,
+            results.AsReadOnly());
     }
 
-    private static SelectedPartInfo CreatePartInfo(Part part, bool lengthAvailable, double length)
+    private static SelectedObjectResult CreateObjectInfo(Part part)
     {
+        var length = 0.0;
+        var weight = 0.0;
+        var lengthAvailable = part.GetReportProperty("LENGTH", ref length);
+        var weightAvailable = part.GetReportProperty("WEIGHT", ref weight);
         var partPosition = string.Empty;
         var assemblyPosition = string.Empty;
         var partPositionAvailable = part.GetReportProperty("PART_POS", ref partPosition);
         var assemblyPositionAvailable = part.GetReportProperty("ASSEMBLY_POS", ref assemblyPosition);
-        return new SelectedPartInfo(
-            part.Identifier.ID.ToString(CultureInfo.InvariantCulture),
-            part.Profile?.ProfileString ?? "<unavailable>",
-            part.Material?.MaterialString ?? "<unavailable>",
-            lengthAvailable && !double.IsNaN(length) && !double.IsInfinity(length) ? length : (double?)null,
-            partPositionAvailable && !string.IsNullOrWhiteSpace(partPosition) ? partPosition : "<unavailable>",
-            assemblyPositionAvailable && !string.IsNullOrWhiteSpace(assemblyPosition) ? assemblyPosition : "<unavailable>");
+        var assembly = part.GetAssembly();
+        var startPoint = (Point3DResult?)null;
+        var endPoint = (Point3DResult?)null;
+        string? beamType = null;
+        IReadOnlyList<Point3DResult>? contourPoints = null;
+
+        if (part is Beam beam)
+        {
+            beamType = beam.Type.ToString();
+            startPoint = ToPointResult(beam.StartPoint);
+            endPoint = ToPointResult(beam.EndPoint);
+        }
+        else if (part is ContourPlate contourPlate)
+        {
+            contourPoints = contourPlate.Contour?.ContourPoints?
+                .Cast<ContourPoint>()
+                .Select(ToPointResult)
+                .ToArray();
+        }
+        // PolyBeam geometry is intentionally not exposed in this MVP version.
+
+        return new SelectedObjectResult(
+            part.Identifier.ID,
+            part.Identifier.GUID.ToString(),
+            part.GetType().Name,
+            part.Name,
+            part.Profile?.ProfileString,
+            part.Material?.MaterialString,
+            part.Class?.ToString(),
+            partPositionAvailable && !string.IsNullOrWhiteSpace(partPosition) ? partPosition : null,
+            assemblyPositionAvailable && !string.IsNullOrWhiteSpace(assemblyPosition) ? assemblyPosition : null,
+            assembly?.Identifier.ID,
+            assembly?.Identifier.GUID.ToString(),
+            beamType,
+            startPoint,
+            endPoint,
+            contourPoints,
+            lengthAvailable && IsFinite(length) ? length : null,
+            weightAvailable && IsFinite(weight) ? weight : null,
+            new Dictionary<string, UdaValueResult>());
     }
+
+    private static Point3DResult ToPointResult(Point point)
+        => new(point.X, point.Y, point.Z);
+
+    private static bool IsFinite(double value)
+        => !double.IsNaN(value) && !double.IsInfinity(value);
 
     private void Run()
     {

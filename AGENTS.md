@@ -31,6 +31,8 @@ When `Install_2025.0_*.xml` and `NuGet_*.xml` disagree, the
 installed Tekla Structures build `2025.0.46985.0`.
 
 ## 4. Hard rules
+API authority = Install_2025.0 XML docs + metadata inspection of the installed Tekla 2025 DLLs. XML docs do not show inherited members.
+
 1. **Never invent Tekla API** classes, methods, properties or namespaces. Check `knowledge/api/` or a working example in `examples/`. If not found: stop, say so, and ask.
 2. Target **Tekla 2025 only**. Do not assume 2023/2024/2026 code is compatible. Note: matrix multiplication order changed in 2025.
 3. **Risk levels**: LOW = read/search/calculate. MEDIUM = create a few objects, change properties. HIGH = delete, move, bulk changes, macros. HIGH needs explicit user "yes" after showing what is selected and what will change. Enforce this in the executor code, not only in the UI.

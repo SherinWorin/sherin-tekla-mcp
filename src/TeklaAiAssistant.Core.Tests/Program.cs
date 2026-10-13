@@ -15,6 +15,9 @@ internal static class Program
         Run("discovery resolves the host Core dependency", TestDiscoveryResolvesHostCoreDependency, failures);
         Run("discovery then trusted load in the same process succeeds", TestDiscoveryThenTrustedLoad, failures);
         Run("discovery loads nothing", TestDiscoveryLoadsNothing, failures);
+        Run("full read result preserves model context and geometry boundaries", TestFullReadResult, failures);
+        Run("read command reports the full selection result", TestReadCommandFullResult, failures);
+        Run("missing UDA is represented explicitly", TestMissingUda, failures);
         Run("host invocation catches and logs command exceptions", TestHostInvocationBoundary, failures);
 
         Console.WriteLine("Core boundary tests: " + (failures.Count == 0 ? "PASS" : "FAIL"));
@@ -151,6 +154,60 @@ internal static class Program
             "command failure log was not specific");
     }
 
+    private static void TestFullReadResult()
+    {
+        var uda = new UdaValueResult("MISSING_UDA", "string", false, null);
+        var result = new ReadSelectionResult(
+            "LiveTest_Disposable.db1", "C:\\TeklaModels\\LiveTest_Disposable", 2, 1, 1,
+            new[]
+            {
+                new SelectedObjectResult(
+                    7, "guid-7", "Beam", "Beam 7", "UB406*140*46", "S235", "1",
+                    "b0(?)", "B0(?)", 8, "guid-8", "BEAM",
+                    new Point3DResult(1, 2, 3), new Point3DResult(4, 5, 6), null,
+                    3000, null, new Dictionary<string, UdaValueResult> { [uda.Name] = uda }),
+                new SelectedObjectResult(
+                    9, "guid-9", "PolyBeam", "Poly", "PL10", "S235", "2",
+                    null, null, null, null, null, null, null, null, null, null,
+                    new Dictionary<string, UdaValueResult>())
+            });
+
+        Assert(result.ModelName == "LiveTest_Disposable.db1", "model name was not preserved as-is");
+        Assert(result.ModelPath == "C:\\TeklaModels\\LiveTest_Disposable", "model path was not preserved");
+        Assert(result.ReportedPartCount == 1 && result.SkippedNonPartCount == 1,
+            "part/non-part counts were not preserved");
+        Assert(result.Objects[0].BeamType == "BEAM" && result.Objects[1].BeamType == null,
+            "BeamType boundary was not preserved");
+        Assert(result.Objects[1].StartPoint == null && result.Objects[1].EndPoint == null
+            && result.Objects[1].ContourPoints == null, "PolyBeam geometry was not null");
+    }
+
+    private static void TestReadCommandFullResult()
+    {
+        var session = new FakeSession(new ReadSelectionResult(
+            "LiveTest_Disposable.db1", "C:\\TeklaModels\\LiveTest_Disposable", 1, 1, 0,
+            new[] { new SelectedObjectResult(1, null, "Beam", null, null, null, null,
+                null, null, null, null, "COLUMN", null, null, null, null, null,
+                new Dictionary<string, UdaValueResult>()) }));
+        var log = new TestLogger();
+        var command = new TeklaAiAssistant.Commands.ReadSelectionCommand();
+        var result = command.Execute(new TestContext(log, session));
+
+        Assert(result.Success, "full read command failed");
+        Assert(result.Selection.ModelName == "LiveTest_Disposable.db1",
+            "full read command did not return model name");
+        Assert(result.Selection.Objects.Count == 1
+            && result.Selection.Objects[0].BeamType == "COLUMN",
+            "full read command did not return the expanded object result");
+    }
+
+    private static void TestMissingUda()
+    {
+        var value = new UdaValueResult("NOT_PRESENT", "double", false, null);
+        Assert(!value.Found && value.Value is null && value.ConfiguredType == "double",
+            "missing UDA was not represented as found=false and null");
+    }
+
     private static string Json(string readOnly = "true", string? omit = null,
         string? commandType = null)
     {
@@ -216,10 +273,24 @@ internal static class Program
         public void Error(string message, Exception? exception = null) => Errors.Add(message + " " + exception?.Message);
     }
 
+    private sealed class FakeSession : ITeklaSession
+    {
+        private readonly ReadSelectionResult result;
+
+        public FakeSession(ReadSelectionResult result) => this.result = result;
+        public bool IsConnected => true;
+        public ReadSelectionResult ReadSelection() => result;
+    }
+
     private sealed class TestContext : ICommandContext
     {
-        public TestContext(ILogger log) { Log = log; }
-        public ITeklaSession Session => throw new NotSupportedException();
+        public TestContext(ILogger log, ITeklaSession? session = null)
+        {
+            Log = log;
+            Session = session ?? new FakeSession(new ReadSelectionResult(
+                "", "", 0, 0, 0, Array.Empty<SelectedObjectResult>()));
+        }
+        public ITeklaSession Session { get; }
         public ILogger Log { get; }
         public BundleInfo Bundle => throw new NotSupportedException();
     }

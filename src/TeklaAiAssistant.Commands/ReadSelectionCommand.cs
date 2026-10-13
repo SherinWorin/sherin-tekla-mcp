@@ -17,20 +17,20 @@ public sealed class ReadSelectionCommand : ITeklaCommand
             if (!context.Session.IsConnected)
                 return CommandResult.Failed("Tekla is not connected to an open model.");
 
-            var parts = context.Session.GetSelectedParts();
-            if (parts.Count == 0)
+            var selection = context.Session.ReadSelection();
+            if (selection.ReportedPartCount == 0)
             {
                 const string clearMessage = "No parts are selected; the selection result is clear.";
                 context.Log.Info(clearMessage);
-                return new CommandResult(true, clearMessage, Array.Empty<SelectedPartInfo>());
+                return new CommandResult(true, clearMessage, selection);
             }
 
-            var unavailableLengths = parts.Count(part => !part.LengthMm.HasValue);
-            var message = $"Read {parts.Count} selected part(s). " +
+            var unavailableLengths = selection.Objects.Count(part => !part.LengthMm.HasValue);
+            var message = $"Read {selection.ReportedPartCount} selected part(s). " +
                           $"LENGTH report unavailable for {unavailableLengths} part(s). " +
-                          "Available LENGTH report values assume millimetres; units are not independently verified.";
+                          "LENGTH and WEIGHT units are unverified; LENGTH currently assumes millimetres.";
             context.Log.Info(message);
-            return new CommandResult(true, message, parts);
+            return new CommandResult(true, message, selection);
         }
         catch (Exception exception)
         {

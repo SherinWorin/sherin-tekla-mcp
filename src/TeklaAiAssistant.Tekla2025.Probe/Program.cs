@@ -75,10 +75,26 @@ internal static class Program
 
             log.Info("Command success: " + result.Success);
             log.Info(result.Message);
-            foreach (var part in result.Parts)
-                log.Info($"Part id={part.Id}; profile={part.Profile}; material={part.Material}; " +
+            log.Info($"Model name={result.Selection.ModelName}; model path={result.Selection.ModelPath}; " +
+                $"selected={result.Selection.SelectedObjectCount}; parts={result.Selection.ReportedPartCount}; " +
+                $"skipped non-parts={result.Selection.SkippedNonPartCount}");
+            foreach (var part in result.Objects)
+            {
+                log.Info($"Part id={part.Id}; guid={part.Guid ?? "<unavailable>"}; type={part.ObjectType}; " +
+                    $"beamType={part.BeamType ?? "<n/a>"}; name={part.Name ?? "<unavailable>"}; " +
+                    $"profile={part.Profile ?? "<unavailable>"}; material={part.Material ?? "<unavailable>"}; " +
+                    $"class={part.Class ?? "<unavailable>"}; PART_POS={part.PartPosition ?? "<unavailable>"}; " +
+                    $"ASSEMBLY_POS={part.AssemblyPosition ?? "<unavailable>"}; " +
+                    $"assemblyId={part.AssemblyId?.ToString(CultureInfo.InvariantCulture) ?? "<unavailable>"}; " +
+                    $"assemblyGuid={part.AssemblyGuid ?? "<unavailable>"}; " +
                     $"LENGTH assumed mm={part.LengthMm?.ToString("R", CultureInfo.InvariantCulture) ?? "<unavailable>"}; " +
-                    $"PART_POS={part.PartPosition}; ASSEMBLY_POS={part.AssemblyPosition}");
+                    $"WEIGHT kg unverified={part.WeightKg?.ToString("R", CultureInfo.InvariantCulture) ?? "<unavailable>"}");
+                if (part.StartPoint is not null || part.EndPoint is not null)
+                    log.Info($"Geometry id={part.Id}; StartPointMm={FormatPoint(part.StartPoint)}; " +
+                        $"EndPointMm={FormatPoint(part.EndPoint)}");
+                if (part.ContourPoints is not null)
+                    log.Info($"Geometry id={part.Id}; ContourPointsMm=[{string.Join(", ", part.ContourPoints.Select(FormatPoint))}]");
+            }
             Console.WriteLine(result.Message);
             if (args.Contains("--show-result"))
                 MessageBox.Show(result.Message + Environment.NewLine + "Log: " + log.Path,
@@ -119,4 +135,11 @@ internal static class Program
             throw new InvalidOperationException("The host-approved allowlist is empty.");
         return entries;
     }
+
+    private static string FormatPoint(Point3DResult? point)
+        => point is null
+            ? "<unavailable>"
+            : $"({point.Xmm.ToString("F1", CultureInfo.InvariantCulture)}, " +
+              $"{point.Ymm.ToString("F1", CultureInfo.InvariantCulture)}, " +
+              $"{point.Zmm.ToString("F1", CultureInfo.InvariantCulture)})";
 }

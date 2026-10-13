@@ -203,7 +203,7 @@ selection is active yet.
   uses `PEReader`/`MetadataReader` for metadata-only type checks.
 - Probe runs only against `C:\TeklaModels\LiveTest_Disposable` (disposable-model guard).
 - `PART_POS`/`ASSEMBLY_POS` show `(?)` when numbering is out of date. Not an API error.
-- `LENGTH` unit: assumed mm, pending manual check in Tekla Inquire.
+- `LENGTH` unit: verified as mm against point-to-point distance on the five selected beams.
 
 ## Metadata dependency pin verification — 2026-10-14
 
@@ -214,3 +214,6 @@ selection is active yet.
   `C:\TeklaModels\LiveTest_Disposable`: exit code 0, 5 selected parts read,
   with the same five part IDs, profiles, materials, lengths, and numbering
   outputs as the previous verified run.
+- AutoFetch is a static, process-wide setting; set to true in TeklaSessionManager.
+- Verified 2026-10-14: LENGTH = mm (matches point-to-point distance on 5 beams), WEIGHT = kg (46.32 kg/m on UB406*140*46).
+- Verified: points are global even with a non-global user work plane; plane restored after read.

@@ -7,3 +7,6 @@
 - [x] Pin System.Reflection.Metadata to 7.0.0 to match Tekla 2025 bin (7.0.22.51805); Immutable follows.
   Verified with matching probe/Tekla versions and SHA256 hashes; rebuild and hash re-approval completed.
 - Disposable-model guard path is hard-coded; move it to config (keep the guard).
+- PolyBeam geometry: verify PolyBeam contour access via DLL metadata, then add.
+- Live-test BeamType=COLUMN and ContourPlate contour points (not yet selected in a verified run).
+- Rebuild host logger to drop the old 'units unverified' wording (LENGTH/WEIGHT now verified).
