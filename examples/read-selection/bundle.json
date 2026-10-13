@@ -1,0 +1,9 @@
+{
+  "commandId": "model.read-selection",
+  "title": "Read selected parts",
+  "tooltip": "Read the current Tekla part selection without changing the model.",
+  "assemblySimpleName": "TeklaAiAssistant.Commands",
+  "commandAssembly": "TeklaAiAssistant.Commands.dll",
+  "commandType": "TeklaAiAssistant.Commands.ReadSelectionCommand",
+  "readOnly": true
+}

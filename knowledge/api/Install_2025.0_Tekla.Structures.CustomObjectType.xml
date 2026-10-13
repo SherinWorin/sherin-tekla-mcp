@@ -1,0 +1,421 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Tekla.Structures.CustomObjectType</name>
+    </assembly>
+    <members>
+        <member name="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase">
+             <summary>
+             Custom object type feature base for showing custom type properties in property pane.
+             </summary>
+             <example>
+             <code>
+             
+             using CommonObjects;
+             using CommonObjects.Constants;
+             using Tekla.Structures.Ui.WpfKit.Commands;
+             using System.ComponentModel;
+             using TSG = Tekla.Structures.Geometry3d;
+             using Tekla.Structures.Model;
+             using TSM = Tekla.Structures.Model;
+             using Tekla.Structures.Model.UI;
+             using System.Collections.Generic;
+             using System.Threading;
+             using Tekla.Structures.CustomObjectType;
+             
+             namespace ExampleBeamFeature
+             {
+                 // delegates
+                 private delegate void CommandRepository_CommandExecuting(string commandId);
+                 private delegate void PropertyPane_InitializeForCustomObjectTypeCreation(string customObjectType);
+                 
+                 // privates
+                 private TsCommand exampleBeamCommand;
+                 private TsCommand.CommandContext exampleBeamCommandMutator;
+                 private const string CustomBeam = "CustomBeam";
+             
+                 public class ExampleCustomBeamFeature : CustomObjectTypeFeatureBase
+                 {
+                     public ExampleCustomBeamFeature()
+                     {
+                         this.exampleBeamCommand = TsCommand.Create(CustomBeam, CommandAvailabilities.Modeling,
+                             _ =>
+                             {
+                                 this.Host.Invoke((PropertyPane_InitializeForCustomObjectTypeCreation m) => m(CustomBeam));
+                                 this.Host.Invoke((CommandRepository_CommandExecuting m) => m(this.exampleBeamCommand.Id));
+                                 this.CreateCustomBeam();
+                             },
+                             out this.exampleBeamCommandMutator);
+                     }
+                     
+                     public override void Starting(CancelEventArgs starting)
+                     {
+                         this.exampleBeamCommand.ShortText = this.Host.UI.GetLocalizedText("albl_Custom_beam");
+                         this.exampleBeamCommand.FullText = this.Host.UI.GetLocalizedText("albl_Custom_beam");
+                         this.exampleBeamCommand.IconResourceKey = "Brush.CommandGallery.ConcretePolybeam_Active";
+                         this.exampleBeamCommand.ToolTip = "Create custom beam";
+                         this.InitializeFeature(CustomBeam, "Custom beam", "", new Beam(), this.exampleBeamCommand, this.exampleBeamCommandMutator, "");
+                     }
+                     
+                     public override void Running(string[] arguments)
+                     {
+                         this.UpdatePropertyTemplate();
+                     }
+                     
+                     internal void CreateCustomBeam()
+                     {
+                         var thread = new Thread(() =>
+                         {
+                             try
+                             {
+                                 var picker = new Picker();
+                                 var points = picker.PickPoints(Picker.PickPointEnum.PICK_TWO_POINTS, "Pick start and end point of the custom beam");
+                                 if (points!= null &amp;&amp; points.Count == 2)
+                                 {
+                                     var beam = new Beam(points[0] as TSG.Point, points[1] as TSG.Point);
+            
+                                     // Insert beam instance to database
+                                     beam = this.Insert(beam);
+            
+                                     if (beam.Identifier.IsValid())
+                                     {
+                                         new Model().CommitChanges("Custom beam created");
+                                     }
+                                 }
+                             }
+                             catch { }
+                         });
+                         thread.Start();
+                     }
+                     
+                     private void UpdatePropertyTemplate()    
+                     {
+                         this.BuildPropertyTemplateFromBaseTemplate(Templates.Modeling.SteelBeam);
+                         this.AddPropertyGroupToPropertyPane("Prop", "Custom properties", this.GetProperties(), 1);
+                     }
+                     
+                     private List&lt;PropertyBase&gt; GetProperties()
+                     {
+                         var properties = new List&lt;PropertyBase&gt;(); 
+                         properties.Add(new MaterialProperty("CustomMat") { LayoutManipulatorType = typeof(MaterialLayoutManipulator), Label = "Custom material", Tooltip = "Custom material" };);
+                         return properties;
+                     }
+                 }
+             }
+             </code>
+             </example>
+        </member>
+        <member name="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.CommandRepository_TryAddCommand">
+            <summary>
+            Attempts to add the new command. The operation will fail if the command with the same ID already exists.
+            </summary>
+            <param name="command">The command.</param>
+            <remarks>The command's ID must not be null.</remarks>
+            <returns>True if succeeded.</returns>
+        </member>
+        <member name="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.CommandRepository_TryRemoveCommand">
+            <summary>
+            Attempts to remove a command.
+            </summary>
+            <param name="command">The command.</param>
+            <remarks>The command's ID must not be null.</remarks>
+            <returns>True if succeeded.</returns>
+        </member>
+        <member name="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.CommandRepository_CommandExecuting">
+            <summary>
+            Notifies that a registered command as been executing.
+            </summary>
+            <param name="commandId">The command's ID.</param>
+        </member>
+        <member name="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.PropertyRepository_GetTypePropertyTemplate">
+            <summary>
+            The get property template.
+            </summary>
+            <param name="type">The type.</param>
+            <returns>The <see cref="T:CommonObjects.PropertyTemplate" />.</returns>
+        </member>
+        <member name="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.PropertyPane_InitializeForCustomObjectTypeCreation">
+            <summary>
+            Initializes property pane for custom object type creation
+            </summary>
+            <param name="customObjectType">Name of the custom object type.</param>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.customTypeName">
+            <summary>
+            The custom type name.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.customTypeCommand">
+            <summary>
+            The creation command.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.propertyTemplate">
+            <summary>
+            The property pane template.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.title">
+            <summary>
+            The title string.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.helpTopic">
+            <summary>
+            The help topic string.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.templateKey">
+            <summary>
+            The template key.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.localization">
+            <summary>
+            The localization.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.localizationFile">
+            <summary>
+            The localization file name to load for the instance for the property pane.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.appliedAttributes">
+            <summary>
+            The applied attributes of custom object type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.propertyGroupsToAdd">
+            <summary>
+            The property groups to be added for custom object type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.propertyGroupsToDelete">
+            <summary>
+            The property groups to be deleted for custom object type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.events">
+            <summary>
+            The event handlers.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.modelEvents">
+            <summary>
+            The event handlers.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.isLocalized">
+            <summary>
+            The boolean value for indicating if the property pane is already localized.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.baseTemplateType">
+            <summary>
+            The base template type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.baseTemplateTypes">
+            <summary>
+            Supported base template types.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.templateUpdated">
+            <summary>
+            The bool for property pane template updated.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.PropertyRepository">
+            <summary>
+            The property repository.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.Localization">
+            <summary>
+            The localization instance for the property pane. Each property pane has its own localization instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.Starting(System.ComponentModel.CancelEventArgs)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.Running(System.String[])">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.Stopping(System.ComponentModel.CancelEventArgs)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.InitializeFeature(System.String,System.String,System.String,Tekla.Structures.Model.ModelObject,Tekla.Structures.Ui.WpfKit.Commands.TsCommand,Tekla.Structures.Ui.WpfKit.Commands.TsCommand.CommandContext,System.String)">
+            <summary>
+            Initializes needed properties of an instance of the <see cref="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase"/> class.
+            </summary>
+            <param name="name">The name of the custom type.</param>
+            <param name="title">The title of the UI.</param>
+            <param name="helpTopic">The help topic string.</param>
+            <param name="baseObject">The base type for custom object.</param>
+            <param name="command">The creation command for custom object.</param>
+            <param name="context">The command context for custom object.</param>
+            <param name="localizationFile">The name of localization file.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.BuildPropertyTemplateFromBaseTemplate(System.String)">
+            <summary>
+            Builds a property template for the instance of the <see cref="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase"/> class 
+            using exising template as a base type.
+            </summary>
+            <param name="baseTemplateType">The base template for custom object.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.AddPropertyGroup(System.String,System.String,System.Collections.Generic.List{CommonObjects.PropertyBase},System.Int32,System.Boolean)">
+            <summary>
+            Adds a property group to existing property template with index. 
+            Existing group names and indexes can be fetched with <see cref="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.GetPropertyGroupNamesFromPropertyTemplate"/> method.
+            </summary>
+            <param name="name">The name of the group.</param>
+            <param name="label">The label of the group.</param>
+            <param name="groupIndex">The index where the group will be added.</param>
+            <param name="properties">The list of properties in the group.</param>
+            <param name="isExpanded">The default expansion of the group, default = true.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.DeletePropertyGroup(System.Int32)">
+            <summary>
+            Delete a property group from existing property template based on index. 
+            Existing group names and indexes can be fetched with <see cref="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.GetPropertyGroupNamesFromPropertyTemplate"/> method.
+            </summary>
+            <param name="groupIndex">The index of deleted property group.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.GetPropertyGroupNamesFromPropertyTemplate">
+            <summary>
+            Gets current group names from existing custom object property template. 
+            Existing group names can be used in finding correct group index for 
+            <see cref="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.AddPropertyGroup(System.String,System.String,System.Collections.Generic.List{CommonObjects.PropertyBase},System.Int32,System.Boolean)"/> and <see cref="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.DeletePropertyGroup(System.Int32)"/> methods.
+            If the method is called before property pane is initialized, empty list may be returned.
+            </summary>
+            <returns>The list of current property group names.</returns>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.Insert``1(``0)">
+            <summary>
+            Inserts custom object to database.
+            </summary>
+            <param name="modelObject">The custom object instance.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.OnPropertyPaneInitialized">
+            <summary>
+            Called internally from property pane when property pane templates are initialized
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.PropertyGroupToAdd(CommonObjects.PropertyBaseGroup,System.Int32)">
+            <summary>
+            Adds a property group to existing property template with index. 
+            </summary>
+            <param name="propertyGroup">The property group.</param>
+            <param name="groupIndex">The index where the group will be added.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.PropertyGroupToDelete(System.Int32)">
+            <summary>
+            Delete a property group from existing property template based on index. 
+            Existing group names and indexes can be fetched with <see cref="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.GetPropertyGroupNamesFromPropertyTemplate"/> method.
+            </summary>
+            <param name="groupIndex">The index of deleted property group.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.ClearPropertyPaneTemplate">
+            <summary>
+            Clears a template for the instance of the <see cref="T:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase"/> class.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.Localize">
+            <summary>
+            Method to update translations and applied attributes.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.LoadLocalization">
+            <summary>
+            Loads a localization files for instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.CreatePropertyTemplateFromBaseTemplate(System.String)">
+            <summary>
+            Updates template based on existing template type.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.UpdatePropertyTranslations">
+            <summary>
+            Updates property translations for instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.IntializeAppliedAtributes(CommonObjects.PropertyTemplate,System.String)">
+            <summary>
+            Intializes applied attributes from template.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.AddDefaultValue(CommonObjects.PropertyBase,System.Collections.Generic.Dictionary{System.String,System.Object}@)">
+            <summary>
+            Adds default attribute for property.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.FillAppliedAttributes``1(System.Collections.Generic.Dictionary{System.String,System.Object},``0)">
+            <summary>
+            Fills object attributes with custom object attributes.
+            </summary>
+            <param name="attributes">The attributes for custom object.</param>
+            <param name="modelObject">The custom object instance.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.FillAppliedBoltAttributes``1(System.Collections.Generic.Dictionary{System.String,System.Object},``0)">
+            <summary>
+            Fills bolt attributes with custom object attributes.
+            </summary>
+            <param name="attributes">The attributes for custom object.</param>
+            <param name="modelObject">The custom object instance.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.FillAppliedWeldAttributes``1(System.Collections.Generic.Dictionary{System.String,System.Object},``0)">
+            <summary>
+            Fills weld attributes with custom object attributes.
+            </summary>
+            <param name="attributes">The attributes for custom object.</param>
+            <param name="modelObject">The custom object instance.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.SetUserAttributes(System.Collections.Generic.Dictionary{System.String,System.Object},Tekla.Structures.Model.ModelObject)">
+            <summary>
+            Sets additional attributes as UDAs from custom object attributes.
+            </summary>
+            <param name="attributes">The attributes for custom object.</param>
+            <param name="modelObject">The custom object instance.</param>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.CustomObjectTypeFeatureBase.GetDefaultValue(CommonObjects.PropertyBase)">
+            <summary>
+            Gets default attribute value for the property.
+            </summary>
+            <param name="property">The property.</param>
+            <returns>The validation result.</returns>
+        </member>
+        <member name="T:Tekla.Structures.CustomObjectType.PropertyCreator">
+            <summary>
+            Helper class for creating custom type properties for property pane.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.PropertyCreator.CreateGenericPropertiesOfPart(System.String)">
+            <summary>
+            Creates generic properties for a part base on given base type.
+            Templates.Modeling.SteelBeam is the default type.
+            If base type does not exist return empty list. 
+            </summary>
+            <param name="baseTemplateType">The base template type for custom object.</param>
+            <returns>The list of <see cref="T:CommonObjects.PropertyBase"/>.</returns>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.PropertyCreator.CreateNumberingPropertiesOfPart(System.String)">
+            <summary>
+            Creates numbering properties for a part.
+            Templates.Modeling.SteelBeam is the default type.
+            If base type does not exist return empty list. 
+            </summary>
+            <param name="baseTemplateType">The base template type.</param>
+            <returns>The list of <see cref="T:CommonObjects.PropertyBase"/>.</returns>
+        </member>
+        <member name="M:Tekla.Structures.CustomObjectType.PropertyCreator.CreatePositionPropertiesOfPart(System.String)">
+            <summary>
+            Creates position properties for a part.
+            Templates.Modeling.SteelBeam is the default type.
+            If base type does not exist return empty list. 
+            </summary>
+            <param name="baseTemplateType">The base template type.</param>
+            <returns>The list of <see cref="T:CommonObjects.PropertyBase"/>.</returns>
+        </member>
+    </members>
+</doc>

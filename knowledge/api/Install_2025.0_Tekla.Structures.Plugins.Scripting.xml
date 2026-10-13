@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Tekla.Structures.Plugins.Scripting</name>
+    </assembly>
+    <members>
+        <member name="T:Tekla.Structures.Internal.PluginsInterface">
+            <summary>
+            Plugins data
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Internal.PluginsInterface.Run(System.String)">
+            <summary>
+            Runs the specified parameter.
+            </summary>
+            <param name="param">The parameter.</param>
+            <returns>return result</returns>
+        </member>
+        <member name="M:Tekla.Structures.Internal.PluginsInterface.StartPlugin(System.String)">
+            <summary>
+            Starts the plugin.
+            </summary>
+            <param name="param">The parameter.</param>
+            <returns>result</returns>
+        </member>
+        <member name="M:Tekla.Structures.Internal.PluginsInterface.RunPlugin(System.String)">
+            <summary>
+            Runs the plugin.
+            </summary>
+            <param name="Param">The parameter.</param>
+            <returns>result</returns>
+        </member>
+        <member name="M:Tekla.Structures.Internal.PluginsInterface.DefinePluginInput(System.String)">
+            <summary>
+            Defines the plugin input.
+            </summary>
+            <param name="Param">The parameter.</param>
+            <returns>result</returns>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.Scripting.TSInvoker">
+            <summary>
+            Imlementation of ITSInvoker.
+            This implementation is a simple wrapper over Invoker in Tekla.Technology.Scripting
+            </summary>
+        </member>
+    </members>
+</doc>

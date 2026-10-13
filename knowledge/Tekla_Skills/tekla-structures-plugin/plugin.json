@@ -1,0 +1,9 @@
+{
+  "name": "tekla-structures",
+  "version": "0.1.0",
+  "description": "Tekla Structures 2025 workflows on top of the local Tekla connector: model QA, drawing issue (PDF/DWG), and material/bolt reports — tuned for the fewest possible tool calls.",
+  "author": {
+    "name": "Sherin Worin"
+  },
+  "keywords": ["tekla", "tekla-structures", "bim", "steel", "precast", "drawings", "qa"]
+}

@@ -1,0 +1,569 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Tekla.Structures.Plugins.PropertyPane</name>
+    </assembly>
+    <members>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyCreator.GetSingleProperty(Tekla.Structures.Plugins.PropertyPane.Single,System.String,System.String,System.String)">
+            <summary>
+            Create single property based on type.
+            </summary>
+            <param name="type">The type of the property.</param>
+            <param name="name">The name of the property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyCreator.GetWeldProperty(Tekla.Structures.Plugins.PropertyPane.WeldEnum,System.String,System.String,System.String,System.String)">
+            <summary>
+            Create weld properties based on type.
+            </summary>
+            <param name="type">The type of the property.</param>
+            <param name="leftName">The name of the possible left side property.</param>
+            <param name="rightName">The name of the possible right side property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyCreator.GetDualProperty(Tekla.Structures.Plugins.PropertyPane.Dual,System.String,System.String,System.String,System.String)">
+            <summary>
+            Create dual properties based on type
+            </summary>
+            <param name="type">The type of the property.</param>
+            <param name="firstPropertyName">The name of the first property.</param>
+            <param name="secondPropertyName">The name of the second property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyCreator.GetDropDownProperty(System.Collections.Generic.IEnumerable{System.String},System.String,System.String,System.String)">
+            <summary>
+            Create drop down property based on given values. Selected value is stored as integer.
+            </summary>
+            <param name="values">The visible values of the property.</param>
+            <param name="name">The name of the property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.PropertyPane.PropertyPaneType">
+            <summary>
+            The property pane type enum.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PropertyPaneType.Plugin">
+            <summary>
+            The plugin type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PropertyPaneType.CustomPart">
+            <summary>
+            The custom part type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PropertyPaneType.Connection">
+            <summary>
+            The connection type.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.PropertyPane.Single">
+            <summary>
+            The single property enum.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.None">
+            <summary>
+            The None.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.String">
+            <summary>
+            The string.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Double">
+            <summary>
+            The double.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Integer">
+            <summary>
+            The integer.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Boolean">
+            <summary>
+            The boolean.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Angle">
+            <summary>
+            The angle.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Distance">
+            <summary>
+            The distance.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.DateTime">
+            <summary>
+            The datetime.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.DistanceList">
+            <summary>
+            The distance list.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Mass">
+            <summary>
+            The mass.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Area">
+            <summary>
+            The area.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Single.Percent">
+            <summary>
+            The percent.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.PropertyPane.Catalog">
+            <summary>
+            The catalog property enum.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Catalog.None">
+            <summary>
+            The None.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Catalog.Profile">
+            <summary>
+            The profile.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Catalog.Shape">
+            <summary>
+            The shape.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Catalog.Material">
+            <summary>
+            The material.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Catalog.Bolt">
+            <summary>
+            The bolt.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Catalog.RebarGrade">
+            <summary>
+            The rebar grade.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.PropertyPane.WeldEnum">
+            <summary>
+            The weld enum property type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.None">
+            <summary>
+            The None.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.Around">
+            <summary>
+            The edge/around.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.Type">
+            <summary>
+            The weld type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.Contour">
+            <summary>
+            The contour none/flush/contour/concave.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.Finish">
+            <summary>
+            The finish.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.IntermittentType">
+            <summary>
+            The intermittent type.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.NdtInspectionType">
+            <summary>
+            The ndt inspection.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.PlacementType">
+            <summary>
+            The placement auto/main/secondary.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.Position">
+            <summary>
+            The position.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.PreparationType">
+            <summary>
+            The preparation plusx/minusx...
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.ProcessType">
+            <summary>
+            The process smaw/saw...
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.WeldEnum.WorkshopSite">
+            <summary>
+            The workshop/site.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.PropertyPane.Dual">
+            <summary>
+            The dual property enum.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.None">
+            <summary>
+            The None.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Numbering">
+            <summary>
+            The numbering.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.OnPlane">
+            <summary>
+            The on plane.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Depth">
+            <summary>
+            The depth.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.String">
+            <summary>
+            The dual string.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Integer">
+            <summary>
+            The dual integer.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Distance">
+            <summary>
+            The dual distance.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Angle">
+            <summary>
+            The dual angle.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Boolean">
+            <summary>
+            The dual boolean.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.Dual.Label">
+            <summary>
+            The dual label.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase">
+             <summary>
+             Plugin property pane feature base for showing plugin properties in property pane.
+             </summary>
+             <example>
+             <code>
+             
+             using System.Collections.Generic;
+             using Tekla.Structures.Plugins.PropertyPaneFeature;
+             
+             public class ExamplePluginPanelFeature : PluginPropertyPaneFeatureBase
+             {
+                 public ExamplePluginPanelFeature()
+                 {
+                     this.InitializeFeature("TeklaWPFExamplePlugin", "TeklaWPFExamplePlugin", string.Empty);
+                     this.BuildTemplate();
+                 }
+            
+                 private void BuildTemplate()
+                 {
+                     // Add properties group
+                     this.AddPropertyGroup("Properties", "Generic properties", true);
+                     
+                     // Add properties for proprerties group
+                     this.AddDualProperty("Properties", Dual.Numbering, "prefix", "startno", "albl_Numbering", "albl_Numbering");
+                     this.AddCatalogProperty("Properties", Catalog.Profile, "profile", "", "", "Profile", "Profile");
+                     this.AddSingleProperty("Properties", Single.String, "name", "Name", "Name");
+                     this.AddSingleProperty("Properties", Single.Distance, "offset", "Offset Z", "Offset Z");
+                     var values = new List&lt;string&gt;() { "Yes", "No", "Maybe" };
+                     this.AddDropDownProperty("Properties", values, "possiblity", "Possibility", "Possibility");
+                     
+                      // Add bolts group and properties
+                     this.AddPropertyGroup("Bolts", "Bolt groups", false);
+                     this.AddCatalogProperty("Bolts", Catalog.Bolt, "grade", "size", "", "Bolt", "Bolt");
+                     this.AddCatalogProperty("Bolts", Catalog.Bolt, "grade2", "size2", "", "Bolt2", "Bolt2");
+                     
+                      // Add rebars group and properties
+                     this.AddPropertyGroup("Rebars", "Reinforcement", false);
+                     this.AddCatalogProperty("Rebars", Catalog.RebarGrade, "rebargrade", "rebarsize", "bendradius", "Rebar", "Rebar");
+                     this.AddCatalogProperty("Rebars", Catalog.RebarGrade, "rebargrade2", "rebarsize2", "bendradius2", "Rebar2", "Rebar2");
+                 }
+             }
+             </code>
+             </example>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.plugin">
+            <summary>
+            The plugin.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.propertyTemplate">
+            <summary>
+            The property pane template.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.boltCatalog">
+            <summary>
+            The bolt catalog.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.helpTopic">
+            <summary>
+            The help topic string.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.templateKey">
+            <summary>
+            The template key.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.propertyGroups">
+            <summary>
+            The property pane template.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.localization">
+            <summary>
+            The localization.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.localizationFile">
+            <summary>
+            The localization file name to load for the instance for the property pane.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.createComponentButton">
+            <summary>
+            The boolean value for creating open component dialog button to the property pane.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.appliedAttributes">
+            <summary>
+            The boolean value for creating open component dialog button to the property pane.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.events">
+            <summary>
+            The event handlers.
+            </summary>
+        </member>
+        <member name="F:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.isLocalized">
+            <summary>
+            The boolean value for indicating if the property pane is already localized.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase"/> class.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.PropertyRepository">
+            <summary>
+            The property repository.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.Localization">
+            <summary>
+            The localization instance for the property pane. Each property pane has its own localization instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.Initialize">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.Running(System.String[])">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.Stopping(System.ComponentModel.CancelEventArgs)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.InitializeFeature(System.String,System.String,System.String,Tekla.Structures.Plugins.PropertyPane.PropertyPaneType,System.String,System.Boolean)">
+            <summary>
+            Initializes needed properties of an instance of the <see cref="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase"/> class.
+            </summary>
+            <param name="name">The name of the plugin.</param>
+            <param name="title">The title of the UI.</param>
+            <param name="helpTopic">The help topic string.</param>
+            <param name="type">The plugin type  <see cref="T:Tekla.Structures.Plugins.PropertyPane.PropertyPaneType"/>, default value is PropertyPaneType.Plugin.</param>
+            <param name="localizationFile">The name of localization file.</param>
+            <param name="createComponentButton">The boolean value for creating a component dialog button to the property pane.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.ClearPropertyPaneTemplate">
+            <summary>
+            Clears a template for the instance of the <see cref="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase"/> class.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.UpdatePropertyPaneTemplate">
+            <summary>
+            Updates a template for the instance of the <see cref="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase"/> class.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddPropertyGroup(System.String,System.String,System.Boolean)">
+            <summary>
+            Creates a property group to template. 
+            </summary>
+            <param name="name">The name of the group.</param>
+            <param name="label">The label of the group.</param>
+            <param name="isExpanded">The default expansion of the group, default = true.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddSingleProperty(System.String,Tekla.Structures.Plugins.PropertyPane.Single,System.String,System.String,System.String)">
+            <summary>
+            Create single property based on type.
+            </summary>
+            <param name="group">The property group name.</param>
+            <param name="type">The type of the property.</param>
+            <param name="name">The name of the property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddCatalogProperty(System.String,Tekla.Structures.Plugins.PropertyPane.Catalog,System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Create catalog properties based on type.
+            </summary>
+            <param name="group">The property group name.</param>
+            <param name="type">The type of the property.</param>
+            <param name="name">The name of the property.</param>
+            <param name="size">The size property used in bolt and rebar grade type.</param>
+            <param name="radius">The radius property used rebar grade type.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddWeldProperty(System.String,Tekla.Structures.Plugins.PropertyPane.WeldEnum,System.String,System.String,System.String,System.String)">
+            <summary>
+            Create weld properties based on type.
+            </summary>
+            <param name="group">The property group name.</param>
+            <param name="type">The type of the property.</param>
+            <param name="leftName">The name of the possible left side property.</param>
+            <param name="rightName">The name of the possible right side property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddDualProperty(System.String,Tekla.Structures.Plugins.PropertyPane.Dual,System.String,System.String,System.String,System.String)">
+            <summary>
+            Create dual properties based on type
+            </summary>
+            <param name="group">The property group name.</param>
+            <param name="type">The type of the property.</param>
+            <param name="firstPropertyName">The name of the first property.</param>
+            <param name="secondPropertyName">The name of the second property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddDropDownProperty(System.String,System.Collections.Generic.IEnumerable{System.String},System.String,System.String,System.String)">
+            <summary>
+            Create drop down property based on given values. Selected value is stored as integer.
+            </summary>
+            <param name="group">The property group name.</param>
+            <param name="values">The visible values of the property.</param>
+            <param name="name">The name of the property.</param>
+            <param name="label">The label of the property.</param>
+            <param name="tooltip">The label of the property.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.OnModuleManagerUpdate">
+            <summary>
+            Event handler to update translations and applied attributes.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.LoadLocalization">
+            <summary>
+            Loads a localization files for instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.UpdatePropertyTranslations">
+            <summary>
+            Updates property translations for instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.BuildPropertyPaneTemplate">
+            <summary>
+            Builds a template for the instance of the <see cref="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase"/> class.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.RegisterPropertyPaneTemplate">
+            <summary>
+            Registers a template for the instance of the <see cref="T:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase"/> class.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddPropertyToGroup(System.String,CommonObjects.PropertyBase)">
+            <summary>
+            Adds property to property group
+            </summary>
+            <param name="group">Property group name</param>
+            <param name="property">The property</param>
+            <returns>The <see cref="T:CommonObjects.PropertyTemplate"/>.</returns>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddSinglePropertyToAppliedAttributes(Tekla.Structures.Plugins.PropertyPane.Single,System.String)">
+            <summary>
+            Adds property to applied attributes.
+            </summary>
+            <param name="type">The property type.</param>
+            <param name="name">The property name.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddCatalogPropertyToAppliedAttributes(System.String,System.String,System.String)">
+            <summary>
+            Adds property to applied attributes.
+            </summary>
+            <param name="name">The property for name.</param>
+            <param name="size">The property for size.</param>
+            <param name="radius">The property for radius.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddWeldPropertyToAppliedAttributes(Tekla.Structures.Plugins.PropertyPane.WeldEnum,System.String,System.String)">
+            <summary>
+            Adds property to applied attributes.
+            </summary>
+            <param name="type">The property type.</param>
+            <param name="leftName">The property for left side name.</param>
+            <param name="rightName">The property for right side name.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.AddDualPropertyToAppliedAttributes(Tekla.Structures.Plugins.PropertyPane.Dual,System.String,System.String)">
+            <summary>
+            Adds property to applied attributes.
+            </summary>
+            <param name="type">The property type.</param>
+            <param name="firstPropertyName">The first property name.</param>
+            <param name="secondPropertyName">The second property name.</param>
+        </member>
+        <member name="M:Tekla.Structures.Plugins.PropertyPane.PluginPropertyPaneFeatureBase.ValidateProfile(CommonObjects.PropertyBase)">
+            <summary>
+            Validates profile.
+            </summary>
+            <param name="property">The property.</param>
+            <returns>The validation result.</returns>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,614 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Tekla.Structures.WebBrowser</name>
+    </assembly>
+    <members>
+        <member name="T:Tekla.Structures.WebBrowser.Handlers.HandlersParameters">
+            <summary>
+            Parameter class for browser handlers.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.Handlers.HandlersParameters.attachDownloadHandler">
+            <summary>
+            If Download handler needs to be attached.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.Handlers.HandlersParameters.showDialogDownloadHandler">
+            <summary>
+            If save file dialog needs to be shown in Download handler.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.Handlers.PopUpHandler">
+            <summary>
+            A handler to let link open in the default browser
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.Handlers.PopUpHandler.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Tekla.Structures.WebBrowser.Handlers.PopUpHandler"/> class.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.Handlers.PopUpHandler.OpenDefault(System.Object,Microsoft.Web.WebView2.Core.CoreWebView2NewWindowRequestedEventArgs)">
+            <summary>
+            Bind this function to the event of new window request
+            </summary>
+            <param name="sender"></param>
+            <param name="args"></param>
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.Handlers.RequestHandler">
+            <summary>
+            A handler to set request header to no-cache
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.Handlers.RequestHandler.#ctor(Tekla.Structures.WebBrowser.WebView2Wrapper)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Tekla.Structures.WebBrowser.Handlers.RequestHandler"/> class.
+            </summary>
+            <param name="webView2Wrapper"></param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.Handlers.RequestHandler.CoreWebView2_WebResourceRequested(System.Object,Microsoft.Web.WebView2.Core.CoreWebView2WebResourceRequestedEventArgs)">
+            <summary>
+            Bind this function to the event when there is a web resource request
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.IBrowser">
+            <summary>
+            Interface to wrap the web browser.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.IBrowser.Browser">
+            <summary>
+            Gets the FrameWorkElement which is the browser.
+            </summary>
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.IBrowser.BrowserFullyReadyEvent">
+            <summary>
+            Triggered when the browser is fully initialized and ready for everything.
+            May be triggered in non-UI thread.
+            </summary>
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.IBrowser.LoadErrorEvent">
+            <summary>
+            Triggered when the navigation fails.
+            May be triggered in non-UI thread.
+            </summary>
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.IBrowser.LoadSuccessEvent">
+            <summary>
+            Triggered when the navigation succeeds.
+            May be triggered in non-UI thread.
+            </summary>
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.IBrowser.LoadStartEvent">
+            <summary>
+            Triggered when the navigation starts.
+            May be triggered in non-UI thread.
+            </summary>
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.IBrowser.HistoryChanged">
+            <summary>
+            Triggered when there are changes in the navigation history.
+            HistoryChanged needed to verify that the CanGoBack or CanGoForward value has changed.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.IBrowser.IsInitialized">
+            <summary>
+            True, if the browser has been initialized fully, false otherwise
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.IBrowser.IgnoreBasicAuthenticationRequest">
+            <summary>
+            Set to true, to ignore BasicAuthenticationRequest, if set to false the browser will 
+            show a credentials dialog when a Basic HTTP Authentication request is encountered
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.Initialize(System.String,System.Int32,System.Boolean,System.Boolean)">
+            <summary>
+            Initializes the browser asynchronously. Call this in UI thread.
+            When the returned task is completed, the browser is ready to use. Note that the BrowserFullyReadyEvent is 
+            triggered before the task completes.
+            </summary>
+            <param name="address">The url to be navigated. If empty, navigate to nothing.</param>
+            <param name="portNumber">Port exposed for testing. Set advanced option XAT_FARMI_RUNNING to true to get it in use.</param>
+            <param name="needNoCacheHeader">Set it to true to have no-cache control header for web resource requests</param>
+            <param name="disableDevTools">Set it to true so when you cannot open devtool manually.</param>
+            <returns>Task representing the initialization</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.RegisterJsObjectOnly(System.String,System.Object)">
+            <summary>
+            Registers Js objects only without refresh support
+            https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addhostobjecttoscript?view=webview2-dotnet-1.0.1343.22
+            </summary>
+            <param name="objectName">object name to register</param>
+            <param name="objectToBind">obect to bind</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.RegisterJsObject(System.String,System.Object,System.Boolean)">
+            <summary>
+            Register an object for binding in Javascript.
+            In js, the object is exposed to window.objectName. 
+            If you pass isAsync=true, the functions exposed are all async, so the return value would be a promise.
+            </summary>
+            <param name="objectName">The name of the object in js.</param>
+            <param name="objectToBind">The object that will be bound in Javascript.</param>
+            <param name="isAsync">If true the object will be registered for async communication.</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.RegisterJsObjectAsync(System.String,System.Object,System.Boolean)">
+            <summary>
+            Recommended to use this one. Register an object for binding in Javascript under window.
+            If you pass isAsync=true, the functions exposed are all async, so the return value would be a promise.
+            </summary>
+            <param name="objectName">The name of the object in js.</param>
+            <param name="objectToBind">The object that will be bound in Javascript.</param>
+            <param name="isAsync">If true the object will be registered for async communication.</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.ExecuteJsScriptAsync(System.String)">
+            <summary>
+            Executes Javascript script asynchronously (but this method is not async. For that, use ExecuteJsScriptRealAsync).
+            If you want to make sure the order of executing, pass the js script as one string in one call.
+            </summary>
+            <param name="script">The script to execute.</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.ExecuteJsScriptRealAsync(System.String)">
+            <summary>
+            Executes Javascript script asynchronously and return the execution result string.
+            If BrowserFullyReadyEvent is not yet triggered, this will be scheduled to run later after that.
+            </summary>
+            <param name="script"></param>
+            <returns>Execution result</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.ShowDevTools">
+            <summary>
+            Show the developer tools of the browser. If Browser is not fully ready, do nothing.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.BindPopUpHandler">
+            <summary>
+            Make new window open in the default browser instead of a pop-up
+            </summary>
+            <returns>True if the binding succeeds, otherwise false</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.DisableDefaultErrorPage">
+            <summary>
+            Disable the default error page.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.Reload">
+            <summary>
+            Reload the page
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.LoadUrl(System.String)">
+            <summary>
+            Load the page with the url. If the browser is not fully ready, will load it once it's ready.
+            </summary>
+            <param name="url">Url message to load</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.LoadPlaceholderUrl(System.String)">
+            <summary>
+            Load the placeholder url just like normal load, but it will be treated as the placeholder url,
+            which means successfully loading this url won't trigger LoadSuccessEvent, 
+            and Reload() will still try to reload the original url.
+            </summary>
+            <param name="url">url load message</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.LoadString(System.String,System.String,System.String)">
+            <summary>
+            Load the html content. If the browser is not fully ready, will load it once it's ready.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.GoBack">
+            <summary>
+            Navigate to the previous page in navigation history. If Browser is not fully ready, do nothing.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.GoForward">
+            <summary>
+            Navigate to the next page in navigation history. If Browser is not fully ready, do nothing.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.CanGoBack">
+            <summary>
+            Gets whether the web view can navigate to the previous page.
+            </summary>
+            <value>True if the web view can navigate backward, otherwise false.</value>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.CanGoForward">
+            <summary>
+            Gets whether the web view can navigate to the next page.
+            </summary>
+            <value>True if the web view can navigate forwards, otherwise false.</value>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.ClearBrowsingDataAsync">
+            <summary>
+            Clear all browsing data from cache
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.RequestCacheFolderDeletionOnShutdown">
+            <summary>
+            Delete whole cache folder
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.PostMessage(System.String,System.String,System.String)">
+            <summary>
+            Post a message to Browser instance
+            </summary>
+            <param name="channel">channel of the message</param>
+            <param name="type">type of the message</param>
+            <param name="message">message</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.IBrowser.StopBrowser">
+            <summary>
+            Stops Browser Instance
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.TextBoxWrapper">
+            <summary>
+            Wrapper to mention Webview not available
+            </summary>
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.TextBoxWrapper.LoadErrorEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.TextBoxWrapper.LoadSuccessEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.TextBoxWrapper.BrowserFullyReadyEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.TextBoxWrapper.LoadStartEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.TextBoxWrapper.HistoryChanged">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.#ctor(System.String)">
+            <summary>
+            Constructor for text box
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.TextBoxWrapper.Browser">
+            <inheritdoc />
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.TextBoxWrapper.IsInitialized">
+            <inheritdoc />
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.TextBoxWrapper.IgnoreBasicAuthenticationRequest">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.Dispose">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.ExecuteJsScriptAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.ExecuteJsScriptRealAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.RegisterJsObjectOnly(System.String,System.Object)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.RegisterJsObject(System.String,System.Object,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.RegisterJsObjectAsync(System.String,System.Object,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.ShowDevTools">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.BindPopUpHandler">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.DisableDefaultErrorPage">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.Reload">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.LoadUrl(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.LoadPlaceholderUrl(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.LoadString(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.GoBack">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.GoForward">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.CanGoBack">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.CanGoForward">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.ClearBrowsingDataAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.PostMessage(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.RequestCacheFolderDeletionOnShutdown">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.StopBrowser">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.TextBoxWrapper.Initialize(System.String,System.Int32,System.Boolean,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.WebBrowserFactory">
+            <summary>
+            Factory class for creating web browser instances.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebBrowserFactory.GetCurrentProcessName">
+            <summary>
+            Gets or sets the method that gets current process name.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.CreateWebBrowserInstance(System.String,Tekla.Structures.WebBrowser.Handlers.HandlersParameters)">
+            <summary>
+            Creates instance of browser wrapper object that implements generic browser-independent interface.
+            Not recommended, use the other one. Default debugging port will be 9999.
+            </summary>
+            <param name="address">Website to load first.</param>
+            <param name="handlersParams">Obsolete.</param>
+            <returns>Browser wrapper object.</returns>
+            <exception cref="T:System.InvalidOperationException"></exception>
+            <deprecated>Use the other factory methods.</deprecated>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.CreateWebBrowserInstance(System.String,System.Int32,System.Boolean,System.Boolean)">
+            <summary>
+            Creates instance of browser wrapper object that implements generic browser-independent interface.
+            Recommended function to get a new browser wrapper. 
+            </summary>
+            <param name="address">The url to be navigated. If empty, navigate to nothing.</param>
+            <param name="portNumber">Port exposed for testing. Set advanced option XAT_FARMI_RUNNING to true to get it in use.</param>
+            <param name="needNoCacheHeader">Set it to true to have no-cache control header for web resource requests</param>
+            <param name="disableDevTools">Set it to true so when you cannot open devtool manually.</param>
+            <returns>Browser wrapper object.</returns>
+            <exception cref="T:System.InvalidOperationException"></exception>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.CreateWebBrowser(System.String)">
+            <summary>
+            Creates an instance of a browser wrapper object that implements the generic browser-independent <see cref="T:Tekla.Structures.WebBrowser.IBrowser"/> interface.
+            This returns the uninitialized browser instance. Call <see cref="M:Tekla.Structures.WebBrowser.IBrowser.Initialize(System.String,System.Int32,System.Boolean,System.Boolean)"/> method to initialize the browser
+            asynchronously.
+            </summary>
+            <param name="callerInfo">Caller info for debugging purposes.</param>
+            <returns>Browser wrapper object.</returns>
+            <exception cref="T:System.InvalidOperationException"></exception>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.GetWebView2Version">
+            <summary>
+            Check WebView2 Runtime version in user's machine. For TS internal use.
+            </summary>
+            <returns>version string. Empty string if webview2 runtime is not installed.</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.CheckBrowserExistence">
+            <summary>
+            Check for the version of webview2 runtime.
+            </summary>
+            <returns>Empty string if not installed. A version string if installed.</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.SetBrowserDebugging(System.Boolean)">
+            <summary>
+            If pass true to this, then it's possible to connect from the external debugger (selenium) to instances via the port exposed.
+            </summary>
+            <param name="isDebugging"></param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebBrowserFactory.SetPlaceHolderText(System.String)">
+            <summary>
+            Set the placeholder text to be shown when the browser dependency is not there.
+            </summary>
+            <param name="text"></param>
+        </member>
+        <member name="F:Tekla.Structures.WebBrowser.WebView2Wrapper.isFirstInstance">
+            <summary>
+            first CoreWebView2 instance to complete initialization will delete all cookies
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebView2Wrapper.CurrentLoadedUrl">
+            <inheritdoc />
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebView2Wrapper.Browser">
+            <inheritdoc />
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebView2Wrapper.IsInitialized">
+            <inheritdoc />
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebView2Wrapper.IgnoreBasicAuthenticationRequest">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadErrorEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadSuccessEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.WebView2Wrapper.BrowserFullyReadyEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadStartEvent">
+            <inheritdoc />
+        </member>
+        <member name="E:Tekla.Structures.WebBrowser.WebView2Wrapper.HistoryChanged">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.#ctor(System.String)">
+            <summary>
+            Create a new WebView2Wrapper. Call this in UI thread.
+            </summary>
+            <param name="callerInfo">Information about the caller for logging purposes</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.SetIsAutomatedTestRunning(System.Boolean)">
+            <summary>
+            If pass true to this, then it's possible to connect from the external debugger (selenium) to instances via the port exposed.
+            </summary>
+            <param name="fromTest"></param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.Initialize(System.String,System.Int32,System.Boolean,System.Boolean)">
+            <summary>
+            Initialize the WebView2. Call this in UI thread.
+            </summary>
+            <param name="address">Url to navigate. Can be empty</param>
+            <param name="portNumber">A port number for testing</param>
+            <param name="needNoCacheHeader">If need no cache control header for requests</param>
+            <param name="disableDevTools">If need to disable devtool</param>
+            <returns>Task representing the initialization</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.Dispose">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.ExecuteJsScriptAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.ExecuteJsScriptRealAsync(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.RegisterJsObjectOnly(System.String,System.Object)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.RegisterJsObject(System.String,System.Object,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.RegisterJsObjectAsync(System.String,System.Object,System.Boolean)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.ShowDevTools">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.BindPopUpHandler">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.DisableDefaultErrorPage">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.Reload">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadUrl(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadPlaceholderUrl(System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadString(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.GoBack">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.GoForward">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.CanGoBack">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.CanGoForward">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.ClearBrowsingDataAsync">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.PostMessage(System.String,System.String,System.String)">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.RequestCacheFolderDeletionOnShutdown">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.StopBrowser">
+            <inheritdoc />
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.BuildCommand(System.String,System.Boolean)">
+            <summary>
+            Get the command string to expose the object under window
+            </summary>
+            <param name="objectName">object name in js</param>
+            <param name="isAsync">if this object is registered async</param>
+            <returns>a string which can be executed in js</returns>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.InitWebView2(System.Int32)">
+            <summary>
+            Init the CoreWebView2
+            </summary>
+            <param name="portNumber">port for testing</param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.Browser_CoreWebView2InitializationCompleted(System.Object,Microsoft.Web.WebView2.Core.CoreWebView2InitializationCompletedEventArgs)">
+            <summary>
+            Triggered when the CoreWebView2 is initialized completed for this instance
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.SetNoCacheHeader">
+            <summary>
+            Basic no cache control header
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.CoreWebView2_NavigationStarting(System.Object,Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs)">
+            <summary>
+            Triggered when the navigation starts
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.BindPopUpHandlerInternal">
+            <summary>
+            Bind pop up handler (open new window in default browser)
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.RegisterOnStarting">
+            <summary>
+            Register JS objects when starting navigation. Triggered every time when loading url or reloading.
+            </summary>
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadHandler">
+            <summary>
+            Wrap the LoadError logic
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadHandler.OnNavigationCompleted(System.Object,Microsoft.Web.WebView2.Core.CoreWebView2NavigationCompletedEventArgs)">
+            <summary>
+            Nav completed
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:Tekla.Structures.WebBrowser.WebView2Wrapper.LoadHandler.OnNavStarting(System.Object,Microsoft.Web.WebView2.Core.CoreWebView2NavigationStartingEventArgs)">
+            <summary>
+            To record current nav url
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="T:Tekla.Structures.WebBrowser.WebViewPostMessage">
+            <summary>
+            For sending messages (like progress etc) to TS/JS.
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebViewPostMessage.Channel">
+            <summary>
+            Configuration Channel
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebViewPostMessage.Type">
+            <summary>
+            Type of the message
+            </summary>
+        </member>
+        <member name="P:Tekla.Structures.WebBrowser.WebViewPostMessage.Message">
+            <summary>
+            Message to post
+            </summary>
+        </member>
+    </members>
+</doc>

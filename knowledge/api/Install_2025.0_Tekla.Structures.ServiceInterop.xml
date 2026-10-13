@@ -1,0 +1,145 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Tekla.Structures.ServiceInterop</name>
+    </assembly>
+    <members>
+        <member name="T:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop">
+            <summary>
+            HeadlessTeklaStructuresInterop interop heloers
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.PreInitialize(System.String,System.String,System.String)">
+            <summary>
+            Pre-initialization.
+            </summary>
+            <param name="language">The language</param>
+            <param name="environment">Path to environment file</param>
+            <param name="role">Path to role file</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.StartTeklaStructures(System.String,System.String,System.String,System.String,System.Boolean,System.String)">
+            <summary>
+            Starts the tekla structures.
+            </summary>
+            <param name="modelFolder">The model folder.</param>
+            <param name="license">License to be used</param>
+            <param name="trimbleIdentityIdToken">The Trimble Identity token</param>
+            <param name="trimbleAccessToken">The Trimble access token</param>
+            <param name="useExistingLogin">Flag whether to use existing Online login from UI TS</param>
+            <param name="organizationId">The organization from which the Online license will be consumed</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.InitializeOpenApi">
+            <summary>
+            Initializes the OpenAPI for external processes and threads.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.WriteOut(System.String)">
+            <summary>
+            Writes the out.
+            </summary>
+            <param name="folder">The folder.</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.ReadIn(System.String)">
+            <summary>
+            Reads the in.
+            </summary>
+            <param name="folder">The folder.</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.Quit">
+            <summary>
+            Quits this instance.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.backWriteOut(System.String)">
+            <summary>
+            Write out.
+            </summary>
+            <param name="folder">The folder.</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.backReadIn(System.String)">
+            <summary>
+            Read in.
+            </summary>
+            <param name="folder">The folder.</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.SetUILessAkitUI">
+            <summary>
+            Sets the flag of AKit UI for UILess.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.tsInitWithoutAkit(System.Int32,System.String[])">
+            <summary>
+            Initial initialization
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.DisableUI">
+            <summary>
+            Disables the UI.
+            </summary>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.applSetApplicationLanguage(System.String)">
+            <summary>
+            Set application language.
+            </summary>
+            <param name="language">The language.</param>
+            <returns>if ok</returns>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.ApplicationInit(System.Int32,System.String)">
+            <summary>
+            ApplicationInit.
+            </summary>
+            <param name="narg">The narg.</param>
+            <param name="arg">The argument.</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.tsDoLogin(System.String,System.IntPtr,System.Boolean,System.String,System.String,System.Boolean,System.String,System.String,System.Int32,System.String)">
+            <summary>
+            Initializes the configuration.
+            <note>tsInitDefaultEnvAndRole needs to be called before!</note>
+            </summary>
+            <param name="profile">The profile.</param>
+            <param name="addOns">The add ons.</param>
+            <param name="licenseConsumedEarlier">Flag whether the license has been consumed earlier in TS Startup sequence</param>
+            <param name="trimbleIdentityIdToken">The trimble Identity id_token, if passed in.</param>
+            <param name="trimbleAccessToken">The access token.</param>
+            <param name="useExistingLogin">Flag whether to use existing Online login from UI TS.</param>
+            <param name="organizationId">The Organization Id in ATC from which the online license will be consumed.</param>
+            <param name="configId">The configuration id based on the organization, used when UI flow is in use.</param>
+            <param name="consumptionMode">The consumption mode to be used, default is 0 (online).</param>
+            <param name="source">The source to be used when UI flow is in use.</param>
+            <returns>0 if ok</returns>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.tsHeadlessOpenModel(System.String)">
+            <summary>
+            Opens the model.
+            </summary>
+            <param name="modelFolder">The model folder.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.tsWriteOut(System.Int32,System.String,System.String,System.String,System.String,System.String)">
+            <summary>
+            Opens the model.
+            </summary>
+            <param name="writeoutFullPacket">The flag for write out full packet or not, set false if 0, otherwise true.</param>
+            <param name="code">The attribute "Code" for "WriteOutRevisionInfo" instance.</param>
+            <param name="comment">The attribute "Comment" for "WriteOutRevisionInfo" instance.</param>
+            <param name="authenticationToken">The authentication token used to login.</param>
+            <param name="authorizationToken">The authorization token used to login.</param>
+            <param name="username">The username used to construct the User class.</param>
+            <returns></returns>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.tsInitDefaultEnvAndRole(System.String,System.String)">
+            <summary>
+            Sets environment and role to given values and reads all ini files.
+            </summary>
+            <param name="Environment">The environment to be used.If empty or null default environment will be used.</param>
+            <param name="Role">The role to be used. If empty or null default role will be used.</param>
+        </member>
+        <member name="M:Tekla.Structures.ServiceInterop.HeadlessTeklaStructuresInterop.applGetUserProfileByLicense(System.String)">
+            <summary>
+            gets ts license
+            </summary>
+            <param name="license">license</param>
+            <returns>licese file</returns>
+        </member>
+    </members>
+</doc>
