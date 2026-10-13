@@ -204,3 +204,13 @@ selection is active yet.
 - Probe runs only against `C:\TeklaModels\LiveTest_Disposable` (disposable-model guard).
 - `PART_POS`/`ASSEMBLY_POS` show `(?)` when numbering is out of date. Not an API error.
 - `LENGTH` unit: assumed mm, pending manual check in Tekla Inquire.
+
+## Metadata dependency pin verification — 2026-10-14
+
+- `System.Reflection.Metadata.dll` and `System.Collections.Immutable.dll` in the
+  probe `bin\Debug\net48` are pinned to file version `7.0.22.51805`, matching
+  `C:\TeklaStructures\2025.0\bin` byte-for-byte by SHA256.
+- The already-built probe then ran successfully against
+  `C:\TeklaModels\LiveTest_Disposable`: exit code 0, 5 selected parts read,
+  with the same five part IDs, profiles, materials, lengths, and numbering
+  outputs as the previous verified run.

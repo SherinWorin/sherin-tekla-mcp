@@ -8,6 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System.Runtime.Serialization" />
-    <PackageReference Include="System.Reflection.Metadata" Version="8.0.0" />
+    <PackageReference Include="System.Reflection.Metadata" Version="7.0.0" />
   </ItemGroup>
 </Project>

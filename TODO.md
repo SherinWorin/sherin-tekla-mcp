@@ -4,6 +4,6 @@
   bytes before enabling any model-modifying command.
 - Dev workflow: every Core change rebuilds Commands and changes its hash; design a dev-only allowlist
   flow that never applies to production models.
-- Pin System.Reflection.Metadata to 7.0.0 to match Tekla 2025 bin (7.0.22.51805); Immutable follows.
-  Requires rebuild + hash re-approval.
+- [x] Pin System.Reflection.Metadata to 7.0.0 to match Tekla 2025 bin (7.0.22.51805); Immutable follows.
+  Verified with matching probe/Tekla versions and SHA256 hashes; rebuild and hash re-approval completed.
 - Disposable-model guard path is hard-coded; move it to config (keep the guard).
