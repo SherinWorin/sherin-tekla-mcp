@@ -1,5 +1,10 @@
 # Sherin Tekla MCP
 
+[![CI](https://github.com/SherinWorin/sherin-tekla-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/SherinWorin/sherin-tekla-mcp/actions/workflows/ci.yml)
+![Tekla Structures 2025](https://img.shields.io/badge/Tekla%20Structures-2025-0063a3)
+![MCP](https://img.shields.io/badge/MCP-server-6e40c9)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+
 **An MCP server that lets Claude (or any MCP client) work with Tekla Structures 2025 - safely.**
 
 Built by **Sherin Worin** as part of the *AI Tekla Structures 2025 - Intelligent Modeling Tool* project.
@@ -61,6 +66,16 @@ docs/                       SETUP, ARCHITECTURE, TOOLS, API_NOTES, TESTING
 ## Status
 
 v0.1.0 - first version. Core logic is unit-tested and CI builds the Tekla 2025 version on Windows. **The live Tekla connection still has to be tested on your Tekla 2025 install** - start in read-only mode on a copy of a model. See [docs/TESTING.md](docs/TESTING.md) and [TODO.md](TODO.md).
+
+## Testers wanted
+
+This is an early version. If you have Tekla Structures 2025, you can help a lot in 15 minutes:
+
+1. Follow [docs/SETUP.md](docs/SETUP.md) (it starts **read-only**, so it cannot change your model).
+2. Run the first steps of [docs/TESTING.md](docs/TESTING.md) on a **copy** of a model.
+3. Open a **[Tekla test report](https://github.com/SherinWorin/sherin-tekla-mcp/issues/new?template=tekla-test-report.yml)** - what worked, what did not.
+
+Ideas for tools (connections, plates, drawings, your own modeling rules)? Open an issue. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 

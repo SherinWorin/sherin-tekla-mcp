@@ -1,0 +1,40 @@
+name: Tekla test report
+description: Tell us how the server worked in your Tekla Structures 2025
+title: "[Test] Tekla 2025.x - "
+labels: ["test-report"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Tekla version
+      description: From tekla_get_connection_info (Model.dll file version), e.g. 2025.0.46985.0
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: Claude Desktop / other
+  - type: checkboxes
+    id: steps
+    attributes:
+      label: What worked (docs/TESTING.md section 4)
+      options:
+        - label: 1 Connection info
+        - label: 2 Read selection
+        - label: 3 Coordinates stay global with a local work plane
+        - label: 4 Find objects / counts match Tekla
+        - label: 5 Quantity report + CSV
+        - label: 6 Validation + highlight
+        - label: 7 Write refused in read-only
+        - label: 8 Create beam (preview -> confirm -> verified)
+        - label: 10 Modify
+  - type: textarea
+    id: problems
+    attributes:
+      label: What did not work
+      description: The exact message from the tool, and what you asked Claude. Please do not paste confidential model data.
+  - type: textarea
+    id: ideas
+    attributes:
+      label: Tools or rules you would like next

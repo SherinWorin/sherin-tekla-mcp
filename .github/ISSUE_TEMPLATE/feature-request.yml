@@ -1,0 +1,15 @@
+name: Tool or rule idea
+description: Suggest a new tool or a modeling rule
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should the AI be able to do?
+      placeholder: e.g. "Create base plates under the selected columns using our standard"
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: Rules / numbers / standards involved
