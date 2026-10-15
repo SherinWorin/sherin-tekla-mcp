@@ -26,6 +26,8 @@ Every push runs: unit tests + smoke test on Linux (net8.0 mock), and the full Wi
 
 ## 4. Live test in Tekla 2025 (manual - do this on a COPY of a model)
 
+Use the disposable test model `C:\TeklaModels\LiveTest_Disposable`, never a project model.
+
 Record results in [API_NOTES.md](API_NOTES.md) (Live 2025 column) and [../CHANGELOG.md](../CHANGELOG.md).
 
 | # | Step | Expected |

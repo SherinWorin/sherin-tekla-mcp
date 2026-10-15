@@ -41,7 +41,7 @@ Edit `config\settings.json` **next to the exe** (comments are allowed):
 | `MaxObjectsPerWrite` / `PerRead` / `ToScan` | 200 / 1000 / 50000 | Hard limits per call. |
 | `ConfirmTokenMinutes` | `10` | How long a preview can be applied. |
 | `MinMemberLengthMm` | `10` | Shorter members are refused/flagged. |
-| `TeklaBinDir` | empty | Only if auto-detect fails, e.g. `C:\\Program Files\\Tekla Structures\\2025.0\\bin` |
+| `TeklaBinDir` | empty | Only if auto-detect fails. Auto-detect checks the running Tekla, `C:\Program Files\Tekla Structures\2025.0\bin` and `C:\TeklaStructures\2025.0\bin` (your install). |
 | `LogDirectory`, `ExportDirectory` | empty | Default `%LOCALAPPDATA%\SherinTeklaMcp\logs` and `\exports` |
 | `RulesDirectory` | empty | Default `config\rules` next to the exe |
 

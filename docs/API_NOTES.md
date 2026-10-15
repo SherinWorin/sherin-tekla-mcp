@@ -1,6 +1,12 @@
 # Tekla Open API notes (Tekla Structures 2025)
 
-Every Tekla API member used in `src/SherinTeklaMcp.Tekla` is listed here with how it was checked. **Status "compiles" means it is confirmed by the CI build against the official Tekla 2025.0.0 NuGet packages; "live" means tested in a running Tekla 2025.** Nothing has been tested live yet - fill in the last column as you test.
+Every Tekla API member used in `src/SherinTeklaMcp.Tekla` is listed here with how it was checked. **All of them compile against the official Tekla 2025.0.0 NuGet packages (CI build `build-windows-tekla2025`, first green run 2026-10-15).** "Live 2025" means tested in a running Tekla 2025 with this server - fill it in as you test.
+
+Already verified live on Tekla **2025.0.46985.0** (`C:\TeklaStructures\2025.0\bin`) by the AI-TEKLA MVP (commit `76eef39`, same Open API calls):
+- report property `LENGTH` is in **mm** (matches point-to-point distance on 5 beams), `WEIGHT` is in **kg** (46.32 kg/m on UB406*140*46);
+- points read in the global plane are global even when the user has a local work plane, and restoring the plane in `finally` works;
+- `ContourPoint` inherits `Geometry3d.Point` (X/Y/Z) - confirmed from DLL metadata;
+- `Beam.Type` (BeamType) is readable - not used yet here (see open questions).
 
 | API | Used for | Source of truth | Live 2025 |
 |---|---|---|---|
@@ -14,7 +20,7 @@ Every Tekla API member used in `src/SherinTeklaMcp.Tekla` is listed here with ho
 | `Part.PartNumber.Prefix/StartNumber`, `AssemblyNumber.Prefix/StartNumber` | numbering series | teknovizier server (pythonnet) | TODO |
 | `Part.Position.Plane/Depth/Rotation` and `Position.PlaneEnum/DepthEnum/RotationEnum` | position | tempalg1n | TODO |
 | `Beam.StartPoint/EndPoint`, `ContourPlate.Contour.ContourPoints`, `PolyBeam.Contour` | geometry | tempalg1n | TODO |
-| `ModelObject.GetReportProperty("LENGTH"/"WEIGHT", ref double)`, `("PART_POS"/"ASSEMBLY_POS", ref string)` | quantities | tempalg1n | TODO - confirm WEIGHT is kg on your environment |
+| `ModelObject.GetReportProperty("LENGTH"/"WEIGHT", ref double)`, `("PART_POS"/"ASSEMBLY_POS", ref string)` | quantities | tempalg1n | units verified by the AI-TEKLA MVP (mm, kg) |
 | `ModelObject.GetAllUserProperties(ref Hashtable)`, `GetUserProperty(name, ref string)`, `SetUserProperty(name, string)` | UDAs | tempalg1n | TODO |
 | `new Beam(Point, Point)`, `.Insert()`, `.Modify()`, `.Delete()`, `Model.CommitChanges()` | writes | tempalg1n | TODO |
 | `Model.UI.ModelObjectVisualization.SetTemporaryState(List<Identifier>, Color)` | highlight | tempalg1n | TODO |
@@ -37,6 +43,6 @@ Bin folder search order: `TeklaBinDir` in settings -> `TEKLA_BIN_DIR` -> folder 
 
 ## Open questions (verify live)
 
-- Columns are created as vertical `Beam` objects (the same Open API class Tekla uses for columns). Whether Tekla 2025 lists them with the "column" defaults (numbering, position) has to be checked; `Beam.Type` was not used because it is not confirmed in the references.
+- Columns are created as vertical `Beam` objects (the same Open API class Tekla uses for columns). The AI-TEKLA MVP reads `Beam.Type` (BeamType), so setting `Type = COLUMN` on created columns is a likely v0.2 improvement - live-test `BeamType=COLUMN` first (also open in the MVP).
 - Tool annotations (`readOnlyHint`/`destructiveHint`) are written in the tool descriptions for now. The MCP C# SDK attribute properties for them were not used because no reference confirms them for SDK 1.4.0.
 - Tekla reconnect after a Tekla restart: the server drops its `Model` and tries again, but the Open API may need a server restart (restart Claude Desktop).
