@@ -1,0 +1,17 @@
+{
+  "Name": "boundary-wall",
+  "Description": "Boundary wall: 400x200 columns with standard grill panels between them. Values from the AI-TEKLA project brief - confirm against the project standard before production use.",
+  "StandardPanelLengthMm": 3190,
+  "PanelHeightMm": 1000,
+  "GapMm": 10,
+  "MinPanelLengthMm": 300,
+  "ColumnWidthAlongWallMm": 400,
+  "ColumnWidthAcrossWallMm": 200,
+  "ColumnSpacingMinMm": 3500,
+  "ColumnSpacingMaxMm": 3600,
+  "Notes": [
+    "Gap applies at every panel end: column-panel and panel-panel.",
+    "Column width along the wall is 400 mm (column set with its 400 side along the wall). Change ColumnWidthAlongWallMm if the column is turned.",
+    "MinPanelLengthMm (300) is an assumption - set it to the shortest grill your workshop accepts."
+  ]
+}

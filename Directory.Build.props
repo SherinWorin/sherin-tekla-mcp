@@ -1,0 +1,16 @@
+<Project>
+  <!-- Shared settings for every project. Projects target netstandard2.0, net48 and net8.0,
+       so nothing framework-specific belongs here. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Version>0.1.0</Version>
+    <Authors>Sherin Worin</Authors>
+    <Company>Sherin Worin</Company>
+    <Product>Sherin Tekla MCP</Product>
+    <Copyright>Copyright (c) 2026 Sherin Worin</Copyright>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

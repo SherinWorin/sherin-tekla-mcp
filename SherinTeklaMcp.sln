@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{938D0560-FB73-4D65-9C52-F96DADCE5729}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SherinTeklaMcp.Core", "src\SherinTeklaMcp.Core\SherinTeklaMcp.Core.csproj", "{6D3BC04C-DD3C-4236-89BE-E24C4F3A1A52}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SherinTeklaMcp.Tekla", "src\SherinTeklaMcp.Tekla\SherinTeklaMcp.Tekla.csproj", "{23296945-23E2-4C28-BDC5-1309168A4466}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SherinTeklaMcp.Server", "src\SherinTeklaMcp.Server\SherinTeklaMcp.Server.csproj", "{B04885EF-1491-4DD3-9522-945C7A6348CA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{15148373-A82D-41F2-A3EC-3E3AE991A754}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SherinTeklaMcp.Core.Tests", "tests\SherinTeklaMcp.Core.Tests\SherinTeklaMcp.Core.Tests.csproj", "{7AA6E561-5E93-459C-AE93-87662D9BC314}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6D3BC04C-DD3C-4236-89BE-E24C4F3A1A52}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D3BC04C-DD3C-4236-89BE-E24C4F3A1A52}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D3BC04C-DD3C-4236-89BE-E24C4F3A1A52}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D3BC04C-DD3C-4236-89BE-E24C4F3A1A52}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23296945-23E2-4C28-BDC5-1309168A4466}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23296945-23E2-4C28-BDC5-1309168A4466}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23296945-23E2-4C28-BDC5-1309168A4466}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23296945-23E2-4C28-BDC5-1309168A4466}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B04885EF-1491-4DD3-9522-945C7A6348CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B04885EF-1491-4DD3-9522-945C7A6348CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B04885EF-1491-4DD3-9522-945C7A6348CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B04885EF-1491-4DD3-9522-945C7A6348CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7AA6E561-5E93-459C-AE93-87662D9BC314}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7AA6E561-5E93-459C-AE93-87662D9BC314}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7AA6E561-5E93-459C-AE93-87662D9BC314}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7AA6E561-5E93-459C-AE93-87662D9BC314}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6D3BC04C-DD3C-4236-89BE-E24C4F3A1A52} = {938D0560-FB73-4D65-9C52-F96DADCE5729}
+		{23296945-23E2-4C28-BDC5-1309168A4466} = {938D0560-FB73-4D65-9C52-F96DADCE5729}
+		{B04885EF-1491-4DD3-9522-945C7A6348CA} = {938D0560-FB73-4D65-9C52-F96DADCE5729}
+		{7AA6E561-5E93-459C-AE93-87662D9BC314} = {15148373-A82D-41F2-A3EC-3E3AE991A754}
+	EndGlobalSection
+EndGlobal

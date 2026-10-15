@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tekla-free logic: models, geometry, rules, quantities, validation, safety, logging,
+       the write pipeline and the mock backend. netstandard2.0 so both the net48 (Tekla) and
+       net8.0 (mock / tests) builds can use it. Never reference Tekla here. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>SherinTeklaMcp.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+</Project>

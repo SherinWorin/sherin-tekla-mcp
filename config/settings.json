@@ -1,0 +1,36 @@
+{
+  // Sherin Tekla MCP - settings. Read once at start-up: restart the MCP client after editing.
+  // Comments are allowed in this file.
+
+  // SAFE START: true = every model-changing tool is refused (read, search, report, select still work).
+  // Set to false when you are ready to let the AI create/modify objects (each change still needs your confirmation).
+  "ReadOnly": true,
+
+  // Delete stays off unless you set this to true (each delete still needs your confirmation).
+  "AllowDelete": false,
+
+  // A create/modify touching more objects than this is HIGH risk.
+  "HighRiskObjectCount": 20,
+
+  // Hard limits per call.
+  "MaxObjectsPerWrite": 200,
+  "MaxObjectsPerRead": 1000,
+  "MaxObjectsToScan": 50000,
+
+  // Minutes a preview's confirm token stays valid.
+  "ConfirmTokenMinutes": 10,
+
+  // Parts shorter than this (mm) are flagged by validation and refused by create.
+  "MinMemberLengthMm": 10,
+
+  // Tekla 2025 bin folder. Empty = auto-detect (running Tekla, then the standard install folder).
+  // Example: "C:\\Program Files\\Tekla Structures\\2025.0\\bin"
+  "TeklaBinDir": "",
+
+  // Empty = %LOCALAPPDATA%\SherinTeklaMcp\logs and ...\exports
+  "LogDirectory": "",
+  "ExportDirectory": "",
+
+  // Empty = the config\rules folder next to the server
+  "RulesDirectory": ""
+}
