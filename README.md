@@ -84,3 +84,4 @@ Design ideas (not code) learned from [teknovizier/tekla_mcp_server](https://gith
 ## License
 
 MIT - see [LICENSE](LICENSE). Tekla and Trimble are trademarks of Trimble Inc.; this project is not affiliated with Trimble. Tekla DLLs are not included - they are loaded from your own licensed installation.
+[![M8ven Score](https://m8ven.ai/badge/mcp/sherinworin-sherin-tekla-mcp-15tlyj?v=d803da16f10daa6533891ad3f0921a72)](https://m8ven.ai/mcp/sherinworin-sherin-tekla-mcp-15tlyj?s=readme)
