@@ -1,0 +1,14 @@
+{
+  "modelPath": "C:\\TeklaModels\\LiveTest_Disposable",
+  "outerLengthMm": 240000,
+  "outerWidthMm": 180000,
+  "openingLengthMm": 140000,
+  "openingWidthMm": 80000,
+  "outerRoofHeightMm": 35000,
+  "innerRoofHeightMm": 45000,
+  "radialSectors": 32,
+  "ringCount": 4,
+  "profile": "CHS273*10",
+  "material": "S355",
+  "class": "MCP_TEST_STADIUM"
+}

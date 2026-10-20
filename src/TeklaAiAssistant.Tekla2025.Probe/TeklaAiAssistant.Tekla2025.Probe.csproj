@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Content Include="../../extensions/**/*.json" CopyToOutputDirectory="PreserveNewest" LinkBase="extensions" />
+    <Content Include="../../config/stadium-concept.json" CopyToOutputDirectory="PreserveNewest" LinkBase="config" />
   </ItemGroup>
   <Target Name="StageReadSelectionCommand" AfterTargets="Build">
     <Copy SourceFiles="../TeklaAiAssistant.Commands/bin/$(Configuration)/net48/TeklaAiAssistant.Commands.dll"

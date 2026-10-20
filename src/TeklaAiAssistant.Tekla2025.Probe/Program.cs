@@ -23,6 +23,15 @@ internal static class Program
             var stateDirectory = Path.Combine(localAppData, "TeklaAiAssistant");
             log = new HostLog(stateDirectory);
             Console.WriteLine("Result log: " + log.Path);
+            if (args.Contains("--create-stadium"))
+            {
+                var confirmed = args.Contains("--confirm-create-stadium");
+                var configPath = Path.Combine(AppContext.BaseDirectory, "config", "stadium-concept.json");
+                var generator = new StadiumConceptGenerator(configPath);
+                var created = generator.Run(confirmed, log.Info);
+                Console.WriteLine($"Created and verified {created} conceptual stadium beams.");
+                return 0;
+            }
             if (args.Any(arg => arg != "--show-result" && arg != "--inspect-settings"))
                 throw new ArgumentException("Only --show-result and --inspect-settings are supported.");
             if (args.Contains("--inspect-settings"))

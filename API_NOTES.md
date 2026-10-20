@@ -217,3 +217,13 @@ selection is active yet.
 - AutoFetch is a static, process-wide setting; set to true in TeklaSessionManager.
 - Verified 2026-10-14: LENGTH = mm (matches point-to-point distance on 5 beams), WEIGHT = kg (46.32 kg/m on UB406*140*46).
 - Verified: points are global even with a non-global user work plane; plane restored after read.
+
+## Conceptual stadium generator — 2026-10-14
+
+- On `C:\TeklaModels\LiveTest_Disposable`, the controlled host generator inserted
+  and read back 320 `MCP_TEST_` conceptual stadium-roof beams using the verified
+  Tekla 2025 Beam constructor, Profile/ProfileString, Material/MaterialString,
+  Insert, CommitChanges, SelectModelObject, and Identifier.IsValid APIs.
+- Configuration: 240000 x 180000 mm outer oval, 140000 x 80000 mm opening,
+  32 sectors, 4 rings, roof heights 35000–45000 mm, profile `CHS273*10`,
+  material `S355`. No existing objects were modified or deleted.

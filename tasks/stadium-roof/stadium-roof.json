@@ -1,0 +1,101 @@
+{
+  "_comment": "Stadium roof parameters (mm). Read by tasks/stadium-roof/stadium_geometry.py --config. Section points: [h, z]; h=0 outer ground line, h=1 inner edge, negative = outward bulge.",
+  "ORIGIN": [
+    0.0,
+    230000.0,
+    0.0
+  ],
+  "OUTER_A": 135000.0,
+  "OUTER_B": 115000.0,
+  "OUTER_N": 4.0,
+  "INNER_A": 78000.0,
+  "INNER_B": 58000.0,
+  "INNER_N": 4.5,
+  "N_RIBS": 48,
+  "SECTION": [
+    [
+      0.0,
+      0
+    ],
+    [
+      -0.07,
+      8000
+    ],
+    [
+      -0.115,
+      17000
+    ],
+    [
+      -0.13,
+      26000
+    ],
+    [
+      -0.105,
+      34000
+    ],
+    [
+      -0.045,
+      41000
+    ],
+    [
+      0.05,
+      46000
+    ],
+    [
+      0.18,
+      49000
+    ],
+    [
+      0.34,
+      51000
+    ],
+    [
+      0.5,
+      52000
+    ],
+    [
+      0.66,
+      52500
+    ],
+    [
+      0.82,
+      52800
+    ],
+    [
+      1.0,
+      53000
+    ]
+  ],
+  "SKIRT_DROP": 9000.0,
+  "DEPTH_FACADE": 3000.0,
+  "DEPTH_ROOF": 4500.0,
+  "DEPTH_EDGE": 2500.0,
+  "INNER_RING_EVERY": 2,
+  "BRACE_EVERY": 4,
+  "MATERIAL": "S355J2H",
+  "PROFILES": {
+    "OUTER_CHORD": "PD457*16",
+    "INNER_CHORD": "PD355.6*12.5",
+    "DIAGONAL": "PD219.1*8",
+    "POST": "PD168.3*8",
+    "RING": "PD273*10",
+    "INNER_RING": "PD219.1*8",
+    "BRACE": "PD114.3*6",
+    "COMPRESSION_RING": "PD610*20",
+    "BASE_RING": "PD508*16",
+    "SKIRT": "PD273*10"
+  },
+  "CLASSES": {
+    "OUTER_CHORD": 2,
+    "INNER_CHORD": 4,
+    "DIAGONAL": 7,
+    "POST": 4,
+    "RING": 6,
+    "INNER_RING": 6,
+    "BRACE": 13,
+    "COMPRESSION_RING": 13,
+    "BASE_RING": 13,
+    "SKIRT": 4
+  },
+  "PREFIX": "ST_"
+}

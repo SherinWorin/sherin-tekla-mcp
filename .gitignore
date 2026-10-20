@@ -2,3 +2,6 @@ bin/
 obj/
 .vs/
 *.user
+
+# opencode agent workspace - node_modules and local session artifacts
+.opencode/

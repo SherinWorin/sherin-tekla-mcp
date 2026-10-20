@@ -1,0 +1,23 @@
+{
+  "members": 3504,
+  "by_type": {
+    "ST_BASE_RING": 48,
+    "ST_BRACE": 288,
+    "ST_COMPRESSION_RING": 48,
+    "ST_DIAGONAL": 528,
+    "ST_INNER_CHORD": 528,
+    "ST_INNER_RING": 288,
+    "ST_OUTER_CHORD": 576,
+    "ST_POST": 576,
+    "ST_RING": 576,
+    "ST_SKIRT": 48
+  },
+  "min_length_mm": 2500,
+  "max_length_mm": 22032,
+  "z_range_mm": [
+    0,
+    53000
+  ],
+  "total_length_m": 38211
+}
+written: members_48.csv
