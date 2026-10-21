@@ -61,7 +61,26 @@ tests/                      Unit tests (no Tekla needed)
 config/                     settings.json and rules/*.json
 scripts/smoke_test.py       Talks to the server like an MCP client (used by CI)
 docs/                       SETUP, ARCHITECTURE, TOOLS, API_NOTES, TESTING
+macros/wall-framing/        A standalone Tekla 2025 drawing macro (see below)
 ```
+
+## Also in this repository: the wall-framing auto-dimensioner
+
+A **standalone drawing macro** for Tekla Structures 2025, independent of the MCP
+server: it reproduces the annotations of a `WALL FRAMING LAYOUT` GA drawing
+(stud chains, band chains, top outline, overall dimensions, north run,
+wall-panel marks, section marks, notes).
+
+- It finds the drawing by its **title**, not by a fixed mark, so the same file
+  works on every computer of a project.
+- It **never writes into an issued or frozen drawing** - the macro refuses it.
+- The rules live in their own assembly with **no Tekla reference**; the macro
+  and the rules are merged into one `.cs` file for the Tekla macro catalog.
+- A deployment package (`macros/wall-framing/package/WallFramingAutoDimension.zip`)
+  installs it on another computer in two file copies.
+
+See [macros/wall-framing/README.md](macros/wall-framing/README.md) and
+[macros/wall-framing/INSTALL_NOTES.txt](macros/wall-framing/INSTALL_NOTES.txt).
 
 ## Status
 

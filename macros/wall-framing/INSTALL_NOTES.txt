@@ -1,0 +1,225 @@
+================================================================================
+INSTALLATION NOTES
+Wall Framing Auto-Dimension macro  -  Tekla Structures 2025
+================================================================================
+
+WHAT THIS IS
+------------
+A macro that draws the wall framing dimensions of a "WALL FRAMING LAYOUT"
+GA drawing, the way they are drawn in the issued reference drawing of the
+P142 COREL REEF project.
+
+The macro does NOT work on a fixed drawing number.  It finds the drawing by
+its TITLE, so it works on every computer of the project, whatever mark the
+wall layout drawing happens to have there.
+
+  * it works on the drawing that is open, when that drawing is a wall layout
+  * otherwise it activates the wall layout drawing of the model
+  * it NEVER writes into a drawing that is issued or frozen
+    (the issued reference drawing of the project is frozen, so it is safe)
+
+
+WHAT IS IN THE FOLDER
+---------------------
+  README.txt                            this overview, in brief
+  INSTALL_NOTES.txt                     this file
+  install.ps1                           the installer (method B, optional)
+  source\
+    P142_WF_AutoDimension_merged.cs      THE FILE THAT GOES INTO TEKLA
+    P142_WF_AutoDimension.bmp            the icon for the ribbon
+    P142_WF_AutoDimension.cs             the macro source   (only for a re-build)
+    WF_Rules.cs                          the rules source  (only for a re-build)
+    build.ps1                            the build script   (only for a re-build)
+  docs\                                 the documentation set
+
+Only TWO files are actually installed: the merged .cs and the .bmp.  The
+rest is there so that the macro can be rebuilt on this computer if it ever
+needs changing.
+
+Nothing else is needed.  There is no DLL to register, no NuGet package, no
+MSBuild project and no Python.  The rules and the macro are merged into
+ONE .cs file.
+
+
+================================================================================
+METHOD A  -  MANUAL  (Command Prompt (Windows) or Explorer, no scripts)
+================================================================================
+
+STEP 1 - Get the two files
+---------------------------
+  Either
+
+    a) build them from source (needs Visual Studio 2022 or the Build Tools):
+
+         cd source
+         powershell -NoProfile -File build.ps1
+
+       and use the two files it writes into  source\bin\ :
+
+         P142_WF_AutoDimension_merged.cs
+         P142_WF_AutoDimension.bmp
+
+    b) or take them out of the deployment package:
+
+         WallFramingAutoDimension.zip
+           -> source\P142_WF_AutoDimension_merged.cs
+           -> source\P142_WF_AutoDimension.bmp
+
+STEP 2 - Find the macro catalog folder
+---------------------------------------
+  It is
+
+      <Tekla installation>\Environments\common\macros\drawings\
+
+  for example
+
+      C:\TeklaStructures\2025.0\Environments\common\macros\drawings\
+
+  If you are not sure where Tekla is installed, look in the Start menu, or
+  in Tekla itself:  File > Catalog > Drawings > Macros.
+
+STEP 3 - Copy the two files in
+-------------------------------
+  Command Prompt (Windows)
+
+      copy "<folder>\P142_WF_AutoDimension_merged.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
+      copy "<folder>\P142_WF_AutoDimension.bmp"       "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+
+  where %TEKLA% is the Tekla installation, for example
+
+      set TEKLA=C:\TeklaStructures\2025.0
+
+  In Explorer: open the two folders, copy the two files, and RENAME
+
+      P142_WF_AutoDimension_merged.cs   ->   P142_WF_AutoDimension.cs
+
+  The rename matters: the name of the .cs file IS the name of the macro on
+  the ribbon.  Leave it as "_merged" and the ribbon will show
+  "P142_WF_AutoDimension_merged".
+
+  If a file called P142_WF_AutoDimension.cs is already in the folder, it is
+  an older version - overwrite it.
+
+STEP 4 - Check for a hidden extension
+--------------------------------------
+  Make sure the file is not "P142_WF_AutoDimension.cs.txt" or similar.
+  In Explorer:  View > Show > File name extensions.
+
+
+================================================================================
+METHOD B  -  THE INSTALLER SCRIPT  (where PowerShell is available)
+================================================================================
+
+  Command Prompt (Windows)
+
+      powershell -NoProfile -File install.ps1 -WhatIfOnly     (dry run)
+      powershell -NoProfile -File install.ps1                 (install)
+
+  The script finds the Tekla installation by itself (TEKLA_HOME,
+  C:\TeklaStructures\*, C:\Program Files\Tekla Structures\*, the other
+  drives; a 2025 installation is preferred) and copies the two files into
+  the macro catalog.
+
+  If it does not find it:
+
+      powershell -NoProfile -File install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
+
+
+================================================================================
+AFTER THE INSTALL
+================================================================================
+
+1. START TEKLA STRUCTURES 2025.
+   If Tekla was already open while you copied the files, RESTART it - the
+   macro catalog is read only at start-up.
+
+2. Open the GA drawing whose title holds "WALL FRAMING LAYOUT".
+   It does NOT matter what mark that drawing has.
+
+3. Run the macro:
+       Applications > Macros > P142_WF_AutoDimension
+
+4. A message box appears:
+       "Wall framing annotations: 37 created, 0 failed, 0 skipped."
+   and the path of the log file.
+
+5. The drawing is saved by the macro itself.  Nothing else to do.
+
+
+FIRST-RUN CHECKLIST
+-------------------
+  what to look at              what it should say
+  ---------------------------  ------------------------------------------------
+  first line of the log        "the active drawing [xx] is the wall layout
+                                drawing"
+  the panel count              "wall panels: 11"  (or however many that model
+                                has)
+  the result                   "0 failed"
+  the issued drawing           UNTOUCHED - the macro refuses a frozen drawing
+                                and says so
+
+  If the log says
+      "no part matched the prefix 'BP4-WP' - the wall panels were found
+       automatically"
+  that is fine and expected on a project with a different naming: the macro
+  detected the wall panels by themselves.
+
+  The log is written next to the macro file, or in the temporary folder when
+  the macro was started from the catalog.  The name is
+  wfdim_log_<mark>.txt
+
+
+TROUBLESHOOTING
+---------------
+  nothing appears on the ribbon
+      Tekla was already open when you copied the files -> RESTART TEKLA.
+
+  the ribbon shows "P142_WF_AutoDimension_merged"
+      the .cs file was not renamed -> rename it to P142_WF_AutoDimension.cs
+
+  Tekla refuses to compile the macro
+      open  File > Catalog > Drawings > Macros,  right-click the macro,
+      choose "Compile" and read the error.
+      The file must be UTF-8 WITHOUT a byte-order mark.  If you edited it
+      in Notepad and saved it, check the encoding.
+
+  "No wall layout drawing to work on"
+      the active drawing is issued or frozen, or the model has no wall
+      layout drawing.  The message says which case it is.
+
+  the macro creates nothing
+      the drawing has no view that looks straight down.  A GA drawing has
+      one; a detail drawing may not.
+
+  the objects disappear after the run
+      the drawing was not saved.  The macro saves it, but if you ran an
+      older version of the macro, save the drawing by hand (Ctrl+S).
+
+
+OPTIONAL - REBUILD THE MACRO
+-----------------------------
+  Only needed if you want to change the source.  It needs Visual Studio
+  2022 (any edition) or the Visual Studio Build Tools, for the compiler.
+
+  Command Prompt (Windows)
+
+      cd source
+      powershell -NoProfile -File build.ps1
+
+  The build script finds Tekla and the C# compiler by itself, and it
+  compiles the merged file a second time, so a broken merge can never
+  reach the catalog.  Then copy the two files into the macro catalog
+  again (step 3 of method A).
+
+  The build script writes into  source\bin\  - nothing outside the macro
+  folder is touched.  The -Deploy switch writes straight into the Tekla
+  installation; install.ps1 does the same thing and is the one to use on
+  another computer.
+
+
+WHO TO ASK
+----------
+  The rules of the drawing are written down in  docs\WALL_FRAMING_RULES.md
+  The Tekla 2025 API facts this project relies on are in  docs\API_NOTES.md
+  The build and the test harnesses are described in  docs\SETUP.md
+                                                     and  docs\TESTING.md

@@ -1,0 +1,10 @@
+# The build output of the macro (the merged source, the DLLs, the icon).
+source/bin/
+
+# The exploded deployment package - the zipped one next to it is the one
+# that is published.
+package/WallFramingAutoDimension/
+
+# The reference dumps of the project model (see tests/reference/README.md).
+tests/reference/*.txt
+tests/reference/*.json

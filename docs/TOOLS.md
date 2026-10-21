@@ -49,3 +49,18 @@ All four take `intent` (the user's request, logged), `apply` (false = preview) a
 ```
 
 Risk rules: create/modify up to `HighRiskObjectCount` objects = MEDIUM, more = HIGH, delete = HIGH. Refused when `ReadOnly` is true, when delete is not allowed, above `MaxObjectsPerWrite`, for unknown GUIDs, unknown profiles/materials, invalid points, members shorter than `MinMemberLengthMm`, or a missing/expired/mismatched token.
+
+---
+
+## Not an MCP tool: the wall-framing auto-dimensioner
+
+`macros/wall-framing/` holds a **standalone drawing macro** for Tekla Structures
+2025. It is not called through this server: it is run from the Tekla ribbon
+(*Applications ▸ Macros ▸ P142_WF_AutoDimension*) and it writes **drawing**
+objects, not model objects.
+
+It draws the annotations of a `WALL FRAMING LAYOUT` GA drawing. The drawing is
+found by its **title**, never by a fixed mark, and a drawing that is **issued or
+frozen is never written to**.
+
+See [macros/wall-framing/README.md](../macros/wall-framing/README.md).
