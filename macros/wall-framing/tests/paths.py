@@ -32,6 +32,18 @@ SOURCE = MACRO / "source"                      # the C# sources
 BIN = SOURCE / "bin"                          # the build output
 
 
+def _has_dumps(folder: Path) -> bool:
+    """Does the folder really hold the reference dumps?
+
+    tests\\reference exists in the public repository, but it holds only a
+    README and a .gitignore: the dumps themselves are not published.  A
+    folder that exists but is empty of dumps must not stop the search.
+    """
+    if not folder.is_dir():
+        return False
+    return any(folder.glob("*.txt")) or any(folder.glob("*.json"))
+
+
 def _find_reference() -> Path:
     """Where the reference dumps are.
 
@@ -40,6 +52,9 @@ def _find_reference() -> Path:
       1. the WF_REFERENCE environment variable
       2. tests\\reference of this tree
       3. the reference-data folder of a development tree
+
+    A folder that exists but holds no dumps is skipped, so that the empty
+    tests\\reference of the public repository does not hide the real one.
     """
     env = os.environ.get("WF_REFERENCE", "").strip()
     if env:
@@ -47,13 +62,14 @@ def _find_reference() -> Path:
         if p.is_dir():
             return p
     local = HERE / "reference"
-    if local.is_dir():
+    if _has_dumps(local):
         return local
     for base in (Path.home() / "projects",):
         if not base.is_dir():
             continue
         for tree in base.glob("**/HANDOVER/reference-data"):
-            return tree
+            if _has_dumps(tree):
+                return tree
     return local
 
 

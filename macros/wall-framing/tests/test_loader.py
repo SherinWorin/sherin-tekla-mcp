@@ -19,7 +19,7 @@ from pathlib import Path
 
 import clr  # noqa: E402
 import System  # noqa: E402
-from System.Reflection import Assembly  # noqa: E402
+from System.Reflection import Assembly, BindingFlags  # noqa: E402
 
 TEKLA = os.environ.get("TEKLA_HOME", r"C:\TeklaStructures\2025.0")
 APP = Path(os.environ["LOCALAPPDATA"]) / "P142" / "WallFraming"
@@ -83,12 +83,74 @@ def main():
             print("  the Pro module has no entry point")
             return 1
         print("  the Pro module is loaded and has its entry point")
+
+        # ---- the version handshake
+        # The Pro module is built against the rules assembly, and the two
+        # have to be of the same version.  A mixed installation - a new
+        # core with an old Pro module - makes every call of the module
+        # fail with a bare "Method not found", so it is checked here.
+        print("  the version handshake:")
+        rules_version = read_rules_version(core)
+        pro_version = read_pro_version(pro_type)
+        if rules_version is None:
+            print("    the rules assembly carries no version number - it is "
+                  "older than the macro")
+            return 1
+        if pro_version is None:
+            print("    the Pro module carries no version number - it is older "
+                  "than the rules, and the Pro stages would fail on every "
+                  "object")
+            return 1
+        if rules_version != pro_version:
+            print(f"    FAIL: the Pro module was built for version "
+                  f"{pro_version} of the rules, and the installed rules are "
+                  f"version {rules_version}.  Install the modules again.")
+            return 1
+        print(f"    OK: the rules and the Pro module are both version "
+              f"{rules_version}")
     else:
         print(f"  the Pro module is not installed ({pro_path}) - the free edition")
 
     print()
     print("the loader chain is OK")
     return 0
+
+
+def read_rules_version(core):
+    """The version of the rules assembly that the core was built against.
+
+    The core holds the rules assembly as a reference, so the assembly
+    that is really loaded beside it is the one the Pro module will be
+    called against.  It is looked for in the folder of the core, which
+    is where the runtime finds it too.
+    """
+    try:
+        folder = Path(core.Location).parent
+        path = folder / "WF_Rules.dll"
+        if not path.is_file():
+            return None
+        rules = Assembly.LoadFrom(str(path))
+        t = rules.GetType("P142.WallFraming.WfRules")
+        if t is None:
+            return None
+        f = t.GetField("ApiVersion", BindingFlags.Public | BindingFlags.Static)
+        if f is None:
+            return None
+        return int(f.GetRawConstantValue())
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def read_pro_version(pro_type):
+    """The version of the rules the Pro module was built against."""
+    try:
+        f = pro_type.GetField("RulesApiVersion",
+                               BindingFlags.Public | BindingFlags.Static)
+        if f is None:
+            return None
+        return int(f.GetRawConstantValue())
+    except Exception:  # noqa: BLE001
+        return None
 
 
 if __name__ == "__main__":
