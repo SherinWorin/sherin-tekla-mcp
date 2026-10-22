@@ -36,26 +36,94 @@
       three day trial, a machine binding on three hashes, a clock-rollback
       rule, and the owner's key tool `WF_KeyGen.exe`. 42 checks, no Tekla
       needed.
+* [x] **The macro works on a model with many wall layout drawings**
+      (`MODEL-2`, 19 writable drawings, 234 wall panels):
+  * the macro works on **every** wall layout drawing of the model, one
+    after the other, and not only on the one that is open (R8.2);
+  * the panels of a drawing are the **assemblies the drawing shows**
+    (R8.5), so a block is never dimensioned on the drawing of another
+    block;
+  * the parts are grouped by the **id of the assembly**, not by
+    `ASSEMBLY_POS`, because two assemblies can carry the same position
+    (R9.3);
+  * the `ASSEMBLY_POS` is read from the **assembly** and not from the
+    part, because that model leaves it off its parts;
+  * a **ledge wall** — a wall with more than one bottom track — runs
+    from the first track to the last one (R9.4).
+* [x] **R2.2 — an opening without a door frame** (a gap in the wall): the
+      jambs and the mullion of such an opening are ordinary members of
+      the wall and are measured at their **centre**.  The old model has
+      no opening of this kind, so nothing there changed.
+* [x] **`tests/test_upgrade.py`** — the rules against the new model: 205
+      of 291 chains are a subset of a hand-made chain, 0 failures.  It
+      reads only; it writes nothing into the model.
+* [x] **The version handshake between the core and the Pro module.**
+      The rules carry `WfRules.ApiVersion`, the Pro module carries the
+      version it was built for, and the core reads both **at run time**
+      and refuses a mixed installation with a message that says what to
+      do.  A mixed set used to look like a broken macro — 234 bare
+      `Method not found` failures.  `tests/test_version_handshake.py`
+      (4 checks) and `tests/test_loader.py` cover it.
+* [x] **The section marks are found in every view of a drawing.**  The
+      first view of a drawing is not always the plan view — two of the
+      drawings of the new model have an unnamed container view in front
+      of it, and their section marks were counted as zero.  The count
+      and the copy now walk all the views.
+* [x] **The section marks come from the right drawing.**  The reference
+      is the preferred mark when it really carries section marks, then a
+      **hand-made** wall layout drawing (issued or frozen); a drawing
+      the macro would work on is never used as a reference.  In the new
+      model `[50]` carries none and `[72]` carries five (S1–S5).
+* [x] **The Pro rules were run against the new model** — 19 of 19
+      drawings, no failures, 234 wall panel marks placed.  The Pro rules
+      are pure computation, so they can be checked against a live model
+      without drawing anything.
+* [x] **The client's own work is safe from the cleanup.**  The 19
+      writable wall layout drawings hold 502 dimension sets, 28 section
+      marks, 69 texts and 2142 marks between them, and **not one** of
+      them carries the macro's tag — so the cleanup of a previous run
+      can never touch them.
+* [x] **The rebuilt modules are deployed on this computer.**  All five
+      are in `%LOCALAPPDATA%\P142\WallFraming\`, byte for byte the ones
+      the build wrote, and the handshake says *the rules and the Pro
+      module are both version 2*.  The macro catalog holds the **thin
+      loader** (10768 bytes, no rule in it) and no merged source.
+      `tests/test_loader.py` checks the whole chain.
 
 ## Next
 
+* [ ] **One run of the macro against the new model.** The rules are
+      checked (`test_upgrade.py`), and the Pro **rules** were run against
+      the 19 drawings (19 of 19, no failures, 234 panel marks placed),
+      but the **writing** path has never run against `MODEL-2`:
+      one run over the 19 wall layout drawings, then `dump_dims.py` on
+      two or three of them and a look at the result.  The frozen drawings
+      ([50], [72] and all the `WALL_PANEL` and `BASE, CEILING, WALL`
+      drawings) must not change.
+* [ ] **The 163 stations that the macro measures and the hand-made
+      drawings do not.**  Most of them belong to the **ledge wall (LW)**
+      family, whose drawings measure no opening at all, and to the
+      details that live in the **per-panel drawings** of the new model.
+      They have to be looked at one by one: each one is either a rule
+      that is wrong or a drawing that is incomplete.
 * [ ] **Run the Pro path against a live Tekla.** The Pro stages were
       moved out of the macro into `WF_Pro.dll` and the Pro rules into
       `WF_Rules_Pro.dll` after the drawing was finished.  The harnesses
       prove that the *rules* were moved without changing an answer (12 of
-      18 chains, angle 11/11, leader 9/11, offset 9/11), but that the
-      Pro module **writes** the same objects in the same places is not
-      proven.  One run of the macro with a Pro licence, followed by
-      `cmp_chains.py` and `audit_50_57.py`, settles it.
+      18 chains, angle 11/11, leader 9/11, offset 9/11), and the Pro
+      rules were run against the 19 drawings of the new model (19 of 19,
+      no failures) — but that the Pro module **writes** the same objects
+      in the same places is not proven.  One run of the macro with a Pro
+      licence, followed by `cmp_chains.py` and `audit_50_57.py`, settles
+      it.
 * [ ] **The owner pastes the public key** into `PublicKeyXml` in
       `source/WF_License.cs` (it is still the placeholder
       `REPLACE_WITH_THE_PUBLIC_KEY`) and rebuilds.  Until that is done,
       **no key verifies** — the engine and the tools are ready, but the
       licence cannot be issued end to end.
-* [ ] **Deploy the macro to the catalog.** `powershell -NoProfile -File
-      source/build.ps1 -Deploy` writes into the Tekla installation; that
-      step needs a human to run it. On another computer the package's
-      `install.ps1` does it.
+* [ ] **The macro on the OTHER computers.** On another computer the
+      package's `install.ps1` does it (dry run first with
+      `-WhatIfOnly`).  It has not been run on the second computer yet.
 * [ ] **Check the north run on the sheet.** It is placed 30 mm north of
       the wall it measures, because the reference drawing puts it on top
       of the top outline. Look at [57] and confirm the placement reads
@@ -119,6 +187,15 @@
   **without** those centres. Either [50] is inconsistent, or there is a
   rule that has not been found. Until that is settled the rule measures
   the lintel-bearing edge only.
+  **The new model settles it in favour of the rule:** of the 56 openings
+  with a door frame, the hand-made drawings measure the **edge** of the
+  jamb in 52 and the **centre** in 1.  The centre is the exception, not
+  the rule.
+* **The ledge-wall (LW) family of the new model measures no opening at
+  all.**  Either the LW drawings are incomplete, or an opening of that
+  kind is drawn differently.  The macro measures the jamb centres and the
+  mullion of a gap (R2.2); that is the rule the drawings agree on
+  elsewhere, but the LW drawings disagree with it 14 times out of 28.
 * **The position of a mark along its leader** is a drafter's choice in
   [50] and is not reproducible. The macro puts the label at the centre
   of the panel.

@@ -60,7 +60,11 @@ difference is written down.
 ### `Tekla.Structures.Model`
 
 `Model`, `Part` (`ProfileName`, `StartPoint`, `EndPoint`), `Beam`,
-`ContourPlate`, `ReportProperty` (`ASSEMBLY_POS`), `Identifier`.
+`ContourPlate`, `ReportProperty` (`ASSEMBLY_POS`), `Identifier`,
+**`Part.GetAssembly()`**, **`Assembly.Identifier.ID`**,
+**`Assembly.GetReportProperty(name, ref value)`**,
+`ModelObjectSelector`, `WorkPlaneHandler`, `TransformationPlane`,
+`Solid` (`MinimumPoint`, `MaximumPoint`).
 
 ### `Tekla.Structures.Geometry3d`
 
@@ -70,7 +74,7 @@ difference is written down.
 
 `IMacroRuntime`, `MacroEntryPointAttribute`.
 
-## The eight traps
+## The thirteen traps
 
 ### 1. `CommitChanges()` does not persist — `SaveActiveDrawing()` does
 
@@ -197,6 +201,130 @@ tell whether a drawing may be written to.  A frozen drawing is still
 **readable** through `GetSheet()` (trap 6) — the issued reference drawing
 [50] of this project is frozen, and the macro copies the section marks out
 of it.
+
+### 9. The drawing API has NO `AssemblyIdentifier`
+
+A GA drawing shows the assemblies of one block, and the macro has to know
+which.  The **drawing** side gives the id of the **model part**
+(`ModelObject.ModelIdentifier.ID`); there is no member that gives the id of
+the assembly the part belongs to.
+
+The join therefore has to be made on the **model** side:
+
+```csharp
+// model side: the assembly of every wall part
+TSM.Assembly asm = part.GetAssembly();
+int assemblyId = asm.Identifier.ID;          // the key of the group
+
+// drawing side: the model parts the view shows
+DrawingObjectEnumerator en = view.GetAllObjects();
+while (en.MoveNext())
+{
+    ModelObject mo = en.Current as ModelObject;
+    int id = mo.ModelIdentifier.ID;          // the id of the MODEL PART
+    ...                                       // look the assembly up in the map
+}
+```
+
+The map is built once per run and is cleared when the model is read again.
+
+### 10. `ASSEMBLY_POS` can live on the assembly only
+
+`Part.GetReportProperty("ASSEMBLY_POS", ref value)` returns **nothing** on
+a model that writes the position on the assembly — and the assembly
+carries it:
+
+```csharp
+string apos = "";
+asm.GetReportProperty("ASSEMBLY_POS", ref apos);   // the assembly first
+if (string.IsNullOrEmpty(apos))
+    p.GetReportProperty("ASSEMBLY_POS", ref apos);   // then the part
+```
+
+The macro reads the assembly first and falls back to the part, so both
+kinds of model work.
+
+The position is a **name**, not an identity: two different assemblies can
+carry the same `ASSEMBLY_POS`, so the parts are grouped by the **id of the
+assembly** and the position is only used to name the panel on the drawing.
+
+### 11. A drawing's title is FOUR separate fields, and they must be searched one by one
+
+`Title1`, `Title2`, `Title3` and `Name` are four independent strings.
+A title phrase can be **split across two of them**:
+
+| drawing | `Title2` | `Title3` |
+|---|---|---|
+| `[75]`…`[93]` (the per-block drawings of `MODEL-2`) | `BASE, CEILING, WALL ` | `FRAMING LAYOUT` |
+
+Glue those two fields together and the drawing holds the phrase
+`WALL FRAMING LAYOUT` — it would be picked up as a wall layout drawing.
+**The macro searches every field on its own**, so it never is.
+
+Measured on `MODEL-2` (695 drawings):
+
+| the title rule | drawings it matches |
+|---|---|
+| per field — **the macro** | 21 |
+| joined with a space | 21 |
+| glued without a space | **40** |
+
+The 19 extra drawings are the per-block drawings `[75]`…`[93]`. They are
+frozen and issued as well, so even a false positive would be refused —
+but the per-field test is the thing that keeps the selection honest, and
+it is what the macro does.
+
+### 12. The FIRST view of a drawing is not always the plan view
+
+`Drawing.GetSheet().GetViews()` gives the views of a drawing in the
+order they sit in the sheet, and the first one is not always the plan
+view.  In `MODEL-2` two of the wall layout drawings (`[139]` and
+`[145]`) have an **unnamed container view** in front of their plan
+view:
+
+| drawing | view 0 | view 1 |
+|---|---|---|
+| `[139]` `BP02-WPL` | `(unnamed)` — 0 section marks | `Plan 0` — 2 section marks |
+| `[145]` `BP05M-WPL` | `(unnamed)` — 0 section marks | `Plan 0` — 1 section mark |
+
+The macro finds the plan view by its **coordinate system** (looking
+straight down: `AxisX.Z` and `AxisY.Z` both zero) and not by its
+position in the list — see `WfCore.DimensionDrawing`.
+
+A count that walks the views and stops at the first one therefore
+reports **zero** for a drawing that does carry the objects.  Every count
+over the views of a drawing has to walk **all** of them.
+
+### 13. A section mark is in the MODEL coordinates, the layout is in the VIEW coordinates
+
+`SectionMark.LeftPoint` and `SectionMark.RightPoint` are the two ends of
+the cutting line **in the model coordinates of the model** — they are
+where the line is in the *model*, not where it is drawn on the sheet.
+
+The wall layout of a drawing, on the other hand, is in the coordinates of
+the **plan view** of that drawing: `WfCore.ReadWallParts` reads the
+solids in the work plane of `view.DisplayCoordinateSystem`, so the panels
+are in that system.
+
+The two are the same only when the plan view is aligned with the model —
+and it is, in the drawings of `MODEL-2` (origin `0,0`, axes
+`1,0` and `0,1`), but nothing guarantees it.  A view that is rotated or
+moved gives a layout in a *different* system, and a section line of
+another block then looks as if it were on the walls.
+
+The comparison is therefore made in one system: the point of the line is
+brought into the system of the view first.  The coordinate system of a
+view is given by its `Origin` and its two `Axis` vectors, so the point is
+projected on them:
+
+```csharp
+double dx = p.X - cs.Origin.X, dy = p.Y - cs.Origin.Y, dz = p.Z - cs.Origin.Z;
+double x = dx * cs.AxisX.X + dy * cs.AxisX.Y + dz * cs.AxisX.Z;
+double y = dx * cs.AxisY.X + dy * cs.AxisY.Y + dz * cs.AxisY.Z;
+```
+
+`CoordinateSystem` has **no** transform method of its own (it has only
+`Origin`, `AxisX` and `AxisY`); the projection above is the whole of it.
 
 ## Units
 

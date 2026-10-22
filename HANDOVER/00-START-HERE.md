@@ -70,14 +70,19 @@ Pro rules) live in the **dev** tree, under
 takes them from there with `-ProPath`, and the dev tree is the only place
 where the Pro package is built.
 
-> **The dev tree's `macros\` folder still holds the OLD, pre-tiering free
+> **The dev tree's `macros\` folder used to hold the OLD, pre-tiering free
 > sources** (`P142_WF_AutoDimension.cs` of about 49000 bytes, `WF_Rules.cs`
-> of about 44000 bytes, and their own `build.ps1` and `install.ps1`).
-> They are **superseded** and are **not** the two editions' code.  The
-> tiered free sources — the loader, `WF_Core.cs`, `WF_License.cs`,
-> `WF_KeyGen.cs` — exist **only** in the published tree.  **Edit, build,
-> test and package in the published tree.**  Take *only* the `private\`
-> folder from the dev tree, through `-ProPath`.
+> of about 44000 bytes, and their own `build.ps1`).  They were **moved out
+> of the way** on 2026-10-22 into `macros\_legacy_2026-10-22\`, with a
+> `READ-ME-FIRST.txt` that says what they are and why they must not be
+> built, installed or sent to anybody.  What is left in the dev tree's
+> `macros\` is: `wall-framing\private\` (the Pro sources), the
+> customer-facing `INSTALL_NOTES.txt`, `install.ps1` and
+> `PACKAGE_README.txt`, and a copy of the current packages in
+> `package\`.  The tiered free sources — the loader, `WF_Core.cs`,
+> `WF_License.cs`, `WF_KeyGen.cs` — exist **only** in the published tree.
+> **Edit, build, test and package in the published tree.**  Take *only*
+> the `private\` folder from the dev tree, through `-ProPath`.
 
 ## Where the design lives
 
@@ -93,7 +98,7 @@ not from here:
 | `macros/wall-framing/docs/WALL_FRAMING_RULES.md` | every rule of the drawing, with the reference set it was derived from, and the six hand edits that are deliberately not reproduced |
 | `macros/wall-framing/docs/API_NOTES.md` | the Tekla 2025 members actually used, and where the documentation and the behaviour disagree |
 | `macros/wall-framing/docs/SETUP.md` | how to install and how to check the install, step by step |
-| `macros/wall-framing/docs/TESTING.md` | the seven test sections, and what is **not** tested |
+| `macros/wall-framing/docs/TESTING.md` | the eight test sections, and what is **not** tested |
 | `macros/wall-framing/docs/TODO.md` | what is done and what is open |
 | `macros/wall-framing/docs/README.md` | the index of the macro's documentation |
 | `macros/wall-framing/docs/CHANGELOG.md` | the history of the macro |
@@ -113,6 +118,37 @@ GA drawings in it:
 | [56] | `BASE FRAMING LAYOUT` | open | the other layout — a different rule set, a different macro |
 | [49] | `CEILING FRAMING LAYOUT` | open | — |
 | BP4-WP.* | `WALL_PANEL` | open | the assembly drawings of the 11 panels; not touched |
+
+### The second model
+
+```
+C:\TeklaStructuresModels\<the second client model>
+```
+
+`MODEL-2` is a neutral name used throughout this repository for the
+second client model — the name of the model itself is **not** published
+here.  It is in the private tree, and the dumps of the model are the
+files `asm_parts_MODEL2.txt` and `dims_MODEL2.txt` of the dev tree.
+
+A real project with **19 writable wall layout drawings** (`BP01`…`BP10`,
+`BP01M`…`BP10M`, scale 1:15) and 234 wall panels.  The macro was checked
+against it and changed for it (the panels of a drawing are the assemblies
+the drawing shows; every wall layout drawing of the model is worked on).
+
+**The frozen drawings of that model are [50] and [72], and every drawing
+named `WALL_PANEL` or `BASE, CEILING, WALL`.**  They are never written to.
+
+The selection was **measured on the live model**: of the 695 drawings,
+21 match the wall-layout title rule, 2 of them are frozen and refused,
+and **19** are the targets.  The rule searches the four title fields
+**one by one** — glued together they would match 40 drawings instead of
+21, because the per-block drawings split the phrase over two fields
+(trap 17 of [04-TEKLA-2025-API-TRAPS.md](04-TEKLA-2025-API-TRAPS.md)).
+
+Its hand-made drawings contradict each other, so they are **not** a rule
+set: the macro reproduces the rule, not the hand work.  See
+[01-STATE-OF-PLAY.md](01-STATE-OF-PLAY.md) and
+`macros/wall-framing/docs/WALL_FRAMING_RULES.md`.
 
 ## The one thing to know before touching anything
 

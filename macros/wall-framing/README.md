@@ -6,9 +6,11 @@ the band chains of the layout, the top outline, the overall dimensions, the
 north run, the wall-panel marks, the section marks and the notes.
 
 It was written for the P142 COREL REEF BP4 mockup, where the issued reference
-drawing **[50]** "WALL FRAMING LAYOUT" was the model for the annotations. The
-macro does **not** work on a fixed drawing number: it finds the wall layout
-drawing by its **title**, so the same file works on every computer of a project.
+drawing **[50]** "WALL FRAMING LAYOUT" was the model for the annotations, and
+it was checked against a second model, **MODEL-2**, which has 19 wall
+layout drawings instead of one. The macro does **not** work on a fixed drawing
+number: it finds the wall layout drawing by its **title**, so the same file
+works on every computer of a project.
 
 | | |
 |---|---|
@@ -37,7 +39,7 @@ macros/wall-framing/
   docs/
     README.md              the full description of the macro
     ARCHITECTURE.md        the layers, the data flow, the target selection
-    API_NOTES.md           the Tekla 2025 API facts and the eight traps found
+    API_NOTES.md           the Tekla 2025 API facts and the ten traps found
     LICENSING.md           the two editions, the trial and the key workflow
     SETUP.md               how to build, install and run it
     TESTING.md             the test harnesses
@@ -53,6 +55,7 @@ macros/wall-framing/
     test_license.py        the licence engine  (no Tekla needed)
     test_loader.py         the deployment: the modules load and the licence answers
     test_target_selection.py  which drawing the macro works on
+    test_upgrade.py        the rules on a model with many wall layout drawings
     cmp_chains.py          the generated drawing against the reference
     test_marks.py          the mark placement
     audit_50_57.py         the state of both drawings
@@ -72,13 +75,18 @@ The **mark is never used** to recognise a drawing:
 
 1. the **active** drawing is used when its title holds `WALL FRAMING`,
    `WALL LAYOUT` or `WALL FRAMING LAYOUT`;
-2. otherwise the wall layout drawing of the model is looked up and
-   **activated**;
+2. otherwise **every** wall layout drawing of the model that may be written
+   to is worked on, one after the other — a model has one wall layout
+   drawing per block;
 3. a drawing that is **issued or frozen is never written to** — the macro
-   stops and says so.
+   skips it and says so.
 
 Step 3 is what protects the issued reference drawing of a project: it is
 frozen, so the macro refuses it even when it is the active drawing.
+
+The **wall panels of a drawing are the assemblies the drawing shows**: a GA
+drawing shows the assemblies of its own block and of no other, so a block is
+never dimensioned on the drawing of another block.
 
 The **panel prefix** (`BP4-WP` in the P142 project) is only a preference as
 well: when it matches nothing, the wall panels are found automatically from
@@ -157,6 +165,10 @@ python test_license.py
 assembly nor the licence engine has a Tekla reference. The other harnesses
 need a running Tekla Structures and `pythonnet`; see
 [docs/TESTING.md](docs/TESTING.md).
+
+`test_upgrade.py` compares the rules with the wall layout drawings that are
+already in the model — it needs no reference dump and it **writes nothing**:
+it is the harness to run against a new model.
 
 The **reference dumps** the harnesses compare against (the model parts and
 the measured dimension sets of the issued drawing) are **not** in this

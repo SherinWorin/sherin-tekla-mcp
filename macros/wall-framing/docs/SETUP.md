@@ -214,7 +214,7 @@ point `UserMacros.Macro.Execute(Drawing, Result)`, saves the drawing and
 prints the log.
 
 ```
-active drawing: [57]  P021.64_SD_MI_BP1 M/U_ST-103
+active drawing: [57]  the wall framing layout
 --- running macro ---
 --- done: ok=True made=37 failed=0 saved=True
 ```

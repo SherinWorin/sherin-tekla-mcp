@@ -57,7 +57,14 @@ Everything in `macros/wall-framing/docs/TODO.md` under **Done** is done:
 - the **north run** (R6);
 - the 11 **wall-panel marks**, with the text angle, the leader line and the
   label offset derived from the model;
-- the 5 **section marks**, copied from the reference drawing;
+- the 5 **section marks**, copied from the reference drawing — and the
+  reference is now the hand-made drawing of the **same block**
+  (`[87] BP07M-10001` for `BP07M`), with the lines checked against the
+  layout of the drawing that is being dimensioned.  The check is a rule
+  of the Pro rules (`WfRulesPro.SectionLinesInLayout`) and it is tested
+  without Tekla by `tests/test_section_lines.py`; the Pro rules carry a
+  version number of their own, so a Pro module and a Pro rules assembly
+  of different builds are refused.
 - the 3 **notes**;
 - **idempotency** — the output is tagged with a user property and replaced on
   a re-run, never duplicated;
@@ -76,6 +83,34 @@ Everything in `macros/wall-framing/docs/TODO.md` under **Done** is done:
   day trial from the first run, a machine binding on three hashes, a
   clock-rollback rule, and the owner's key tool `WF_KeyGen.exe`.  42
   checks, no Tekla needed.
+- the macro works on a **model with many wall layout drawings** — it was
+  checked against **`MODEL-2`** (4887 parts, 234 wall panels, 19
+  writable wall layout drawings) and changed for it:
+  - it works on **every** wall layout drawing of the model, one after the
+    other, not only on the one that is open;
+  - the panels of a drawing are the **assemblies the drawing shows**, so
+    a block is never dimensioned on the drawing of another block;
+  - the parts are grouped by the **id of the assembly**, not by
+    `ASSEMBLY_POS` — two assemblies can carry the same position;
+  - the `ASSEMBLY_POS` is read from the **assembly**, because that model
+    leaves it off its parts;
+  - a **ledge wall** (more than one `BOTTOM_TRACK`) runs from the first
+    track to the last one;
+  - **R2.2** — an opening **without a door frame** (a gap in the wall) is
+    measured at the **centre** of its members: the jambs are ordinary
+    members of the wall, and so is the mullion between them.  The old
+    model has no opening of this kind, so nothing there changed.
+- **`tests/test_upgrade.py`** — the rules against the new model.  It
+  **reads only**.  205 of 291 chains are a subset of a hand-made chain,
+  132 are the same, 0 failures.
+- the **target selection was measured on the live model** — of the 695
+  drawings of `MODEL-2`, 21 match the title rule, 2 of them
+  ([50] and [72]) are frozen and refused, and **19** are the targets.  No
+  `WALL_PANEL`, no `LEDGE WALL` and no per-block drawing is ever picked
+  up.  The rule searches the four title fields **one by one**: glued
+  together they would match 40 drawings instead of 21 (the per-block
+  drawings have the phrase split over two fields).  This is trap 17 of
+  [04-TEKLA-2025-API-TRAPS.md](04-TEKLA-2025-API-TRAPS.md).
 
 ### What it reproduces, measured
 
@@ -87,6 +122,10 @@ Everything in `macros/wall-framing/docs/TODO.md` under **Done** is done:
 | mark offset | 9 / 11 |
 | objects per run | 37 (0 failed, 0 skipped) |
 | [50] after the run | 18 dimsets / 126 marks / 5 section marks / 3 texts — **unchanged** |
+| the rules on `MODEL-2` | 205 of 291 chains are a subset of a hand-made chain (70 %), 132 are the same, 0 failures |
+| the target selection on `MODEL-2` | 21 of 695 drawings match the title rule, 2 are frozen and refused, **19** are the targets |
+| the section marks of the 19 targets | every one of them carries its **own** section lines (1 or 2), and every one of them **keeps** them — the reference is a hand-made drawing, never another block's drawing |
+| the version handshake | the rules and the Pro module are both **version 2**; a mismatch is now reported as such instead of as 234 `Method not found` failures |
 
 The six chains that do **not** match are **hand edits of the issued drawing**
 — a value typed by hand (2999.32 instead of 2981.82), extra jamb centres
@@ -112,6 +151,10 @@ owners.  The short version:
 | 6 | **the package has never been run on a second computer** — the installer is dry-run here only | `package/` |
 | 7 | **the two macros have no shared style** — the base-framing macro `P142_BF_AutoDimension.cs` and the wall-framing macro do not share a style definition, so the two drawings do not look the same | the dev tree |
 | 8 | **a plugin instead of a macro** — the rules assembly is already separate, so it can be lifted into a plugin unchanged | later |
+| 9 | **DONE — the modules are deployed.**  All five are in `%LOCALAPPDATA%\P142\WallFraming\`, byte for byte the ones the build wrote, and the handshake says *the rules and the Pro module are both version 2*.  `tests/test_loader.py` ends with *the loader chain is OK* | `source/build.ps1 -Deploy` |
+| 9a | **DONE — the macro catalog holds the thin loader.**  `C:\TeklaStructures\2025.0\Environments\common\macros\drawings\P142_WF_AutoDimension.cs` is the 10768-byte loader, byte for byte the one of the repository, and no merged source is there any more.  The leftover `WF_Rules.cs` (the old merged Pro source, 44655 bytes) was **deleted from the catalog on 2026-10-22**; it is kept in the **private** tree at `macros\_legacy_2026-10-22\WF_Rules.cs` (SHA256 `D4734D04…78E4`, the same bytes), and it is **not** in the public repository, because it holds the Pro stages | `macros/wall-framing/source/P142_WF_AutoDimension.cs` |
+| 10 | **the writing path has never run on the new model** — the rules are checked, but one real run over the 19 wall layout drawings of `MODEL-2` is still to be done | `docs/TODO.md` |
+| 11 | **the 163 stations** that the macro measures and the hand-made drawings of the new model do not — most of them belong to the ledge-wall (LW) family, whose drawings measure no opening at all.  Each one is either a rule that is wrong or a drawing that is incomplete | `tests/test_upgrade.py` |
 
 ## The MCP server — what is done
 

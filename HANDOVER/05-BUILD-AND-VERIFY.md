@@ -115,6 +115,21 @@ copy "macros\wall-framing\source\bin\WF_Rules.dll"   "%APP%\"
 copy "macros\wall-framing\source\bin\WF_License.dll" "%APP%\"
 ```
 
+For the **Pro** edition the two Pro modules go with them — and they
+belong together with the three above, because the Pro module is built
+against the rules:
+
+```
+copy "macros\wall-framing\source\bin\WF_Pro.dll"      "%APP%\"
+copy "macros\wall-framing\source\bin\WF_Rules_Pro.dll" "%APP%\"
+```
+
+A **mixed** set — a new core with an old Pro module, or the other way
+round — is now reported as such by the version handshake, instead of
+failing once per object with a bare `Method not found`.  If that
+message comes up, copy all five again; do not try to fix it in the
+code.
+
 **The loader is about 8000 bytes** — it is a thin file, not the whole
 macro.  A file of about 94000 bytes is the **old** merged source; it holds
 the Pro stages and must not be installed.
@@ -125,17 +140,20 @@ the Pro stages and must not be installed.
 
 ## D. Run the harnesses
 
-Seven harnesses, on two levels.
+Eight harnesses, on two levels.
 
 | harness | needs Tekla | what it proves |
 |---|---|---|
 | `tests/test_rules.py` | **no** | the rules produce the right numbers, and the panels are found automatically |
 | `tests/test_license.py` | **no** | the key verifies, the trial is three days, the machine is bound |
 | `tests/test_marks.py` | **no** | the marks are placed like the ones of the reference (a Pro rule) |
-| `tests/test_loader.py` | **no** (the assemblies are loaded) | the deployment is complete: the core and the Pro module load, and the licence answers |
+| `tests/test_section_lines.py` | **no** | the section lines that belong to a layout are told from the lines of another block (a Pro rule) |
+| `tests/test_version_handshake.py` | **no** | the rules and the Pro module can tell when they are of different versions |
+| `tests/test_loader.py` | **no** (the assemblies are loaded) | the deployment is complete: the core and the Pro module load, the licence answers, and the **installed** modules are of the same version |
 | `tests/cmp_chains.py` | yes | the drawing that was written contains the right chains |
 | `tests/test_target_selection.py` | yes | the macro works on the right drawing and refuses an issued one |
 | `tests/audit_50_57.py` | yes | both drawings are in a sane state, and [50] was not touched |
+| `tests/test_upgrade.py` | yes | the rules hold on a model with many wall layout drawings (`MODEL-2`) |
 
 ### The rules, the licence and the loader — no Tekla needed
 
@@ -145,8 +163,10 @@ Seven harnesses, on two levels.
 cd macros\wall-framing
 python tests\test_rules.py
 python tests\test_license.py
+python tests\test_version_handshake.py
 python tests\test_loader.py
 python tests\test_marks.py
+python tests\test_section_lines.py
 ```
 
 Expected:
@@ -154,16 +174,18 @@ Expected:
 ```
 exact chain matches: 12 / 18
 42 passed, 0 failed
+FAILURES: 0
 the loader chain is OK
 exact mark placements: 7 / 11
   text angle  (rule-derived):  11 / 11
   leader line (rule-derived):   9 / 11
   label offset(rule-derived):   9 / 11
+12 passed, 0 failed
 ```
 
 `test_marks.py` needs the **Pro rules** (`WF_Rules_Pro.dll`), so it needs
 a build with `-ProPath`.  Without them it says so and stops without a
-failure.
+failure.  The same is true of `test_section_lines.py`.
 
 The six chains that do not match are the **hand edits of the issued
 drawing** — documented in `docs/WALL_FRAMING_RULES.md`, and deliberately
@@ -186,6 +208,7 @@ cd macros\wall-framing
 python tests\test_target_selection.py
 python tests\cmp_chains.py
 python tests\audit_50_57.py
+python tests\test_upgrade.py
 ```
 
 Expected:
@@ -195,6 +218,11 @@ Expected:
 | `test_target_selection.py` | 2 of 2 tests pass |
 | `cmp_chains.py` | 12 of 18 chains exact |
 | `audit_50_57.py` | [50] = 18 dimsets / 126 marks / 5 section marks / 3 texts — **unchanged** |
+| `test_upgrade.py` | 205 of 291 chains are a subset of a hand-made chain, 0 failures |
+
+`test_upgrade.py` needs **no reference dump**: it compares the rules with
+the drawings that are already in the model, and it **writes nothing** — it
+is the harness to run against a new model.
 
 **`audit_50_57.py` is the safety check.**  If [50] changed, something wrote
 to the issued drawing — see R1 in [03-HARD-RULES.md](03-HARD-RULES.md).

@@ -116,6 +116,83 @@ the project uses [semantic versioning](https://semver.org/).
 * The documentation set: `README.md`, `ARCHITECTURE.md`, `API_NOTES.md`,
   `LICENSING.md`, `SETUP.md`, `TESTING.md`, `TODO.md`, `CHANGELOG.md` and
   the rewritten `WALL_FRAMING_RULES.md`.
+* **Support for a model with many wall layout drawings.** The rules were
+  checked against a second model, `MODEL-2` (4887 parts, 234 wall
+  panels, 19 writable wall layout drawings), and the macro was changed
+  so that it works on it:
+  * **R8.2 — every wall layout drawing of the model is worked on**, one
+    after the other, when the drawing that is open is not one of them.
+    The macro switches the active drawing itself, because the drawing
+    API only writes into the drawing that is open.
+  * **R8.5 — the panels of a drawing are the assemblies the drawing
+    shows.**  A GA drawing shows the assemblies of its own block and of
+    no other, so the macro cannot dimension a wall that is not on the
+    drawing it is dimensioning.  The join is made on the model side
+    (`Part.GetAssembly()`), because the drawing API has no
+    `AssemblyIdentifier`.
+  * **R9.3 — the parts are grouped by the id of the assembly**, not by
+    `ASSEMBLY_POS`: two different assemblies can carry the same position,
+    and a drawing that shows one of them must not dimension the other.
+  * **R9.4 — a ledge wall** (a wall built with more than one
+    `BOTTOM_TRACK`) runs from the start of the first track to the end of
+    the last one, instead of the extent of one track.
+  * **R2.2 — an opening without a door frame** (a gap in the wall, where
+    the jambs have no touching partner) is measured at the **centre** of
+    its members: the jambs are ordinary members of the wall and so is the
+    mullion between them.  The old model has no opening of this kind, so
+    nothing there changed.
+  * The `ASSEMBLY_POS` is read from the **assembly** and not from the
+    part, because that model leaves the position off its parts; the
+    position of the part is used when the assembly has none.
+* **`tests/test_upgrade.py`** — the rules against a model with many wall
+  layout drawings.  It **reads only**: it never writes into the model or
+  into a drawing.  It reports how many of the chains of the macro are a
+  subset of a hand-made chain, how many are the same, and it lists every
+  station the macro measures that the drawing does not.  Current result
+  on `MODEL-2`: 205 of 291 chains are a subset (70 %), 132 are the
+  same, 0 failures.
+* **The target selection was measured on the live model.**  Of the 695
+  drawings of `MODEL-2`, 21 match the wall-layout title rule; two of
+  them ([50] and [72]) are frozen and are refused, and **19** are the
+  targets.  No `WALL_PANEL`, no `LEDGE WALL` and no per-block drawing is
+  ever picked up.
+* **A version handshake between the core and the Pro module.**  The Pro
+  module (`WF_Pro.dll`) is a separate assembly that is built against the
+  rules assembly (`WF_Rules.dll`) and is loaded by reflection at run
+  time.  When the two are of different versions the module calls members
+  of the rules that no longer exist, and **every** one of its calls fails
+  with a bare `Method not found` — which says nothing about the cause.
+  A mixed installation therefore looks like a broken macro.  So:
+  * the rules carry `WfRules.ApiVersion`, and the Pro module carries the
+    version it was built for as `WfPro.RulesApiVersion` — a constant, so
+    it cannot drift away from the rules by accident;
+  * the core reads both numbers **at run time** (a constant is fixed
+    when the core is compiled, so it would report the version the rules
+    had at build time, not the one that is on the disk) and refuses to
+    call a module of a different version.  The message says what to do:
+    *install the modules again*.
+  * `tests/test_version_handshake.py` checks the comparison, and
+    `tests/test_loader.py` now checks the **installed** modules against
+    each other, so a mixed installation is found before it is run.
+* **The Pro module is looked for NEXT TO THE CORE** and only then in the
+  app folder.  The modules belong together: a build that is tested from
+  its own folder cannot pick up the module of an older installation by
+  accident.
+* **The Pro rules were run against the new model.**  Every Pro rule —
+  the top outline, its stations, the north run and the placement of the
+  wall panel marks — was run for every one of the 19 writable wall
+  layout drawings of `MODEL-2`: **19 of 19, no failures**, and
+  **234** wall panel marks placed.  That is the same 234 that failed
+  with `get_A0()` before — so the rebuild really did fix them all.  The
+  Pro rules are pure computation, so they can be checked against a live
+  model without drawing anything.
+* **The client's own work was checked to be safe from the cleanup.**
+  The macro deletes the objects of a previous run of *itself* before it
+  writes, and it recognises them by a user property it sets on
+  everything it creates.  The 19 writable wall layout drawings of
+  `MODEL-2` hold between them 502 dimension sets, 28 section
+  marks, 69 texts and 2142 marks — **not one of them carries the
+  macro's tag**, so the cleanup will never touch them.
 
 ### Changed
 
@@ -139,9 +216,61 @@ the project uses [semantic versioning](https://semver.org/).
 * The harnesses find the reference dumps through the **`WF_REFERENCE`**
   environment variable when they are not in `tests/reference/`, and say
   clearly when they are missing.
+* **The model is read once for a whole run.** Every drawing of a model
+  shares its plan coordinate system, so the read is skipped when the
+  coordinate system has not changed.  The read was repeated for every
+  drawing before.
+* **Each drawing is saved as soon as it is finished**, so that a failure
+  in a later drawing does not lose the work of an earlier one.
+* **The deployment and the Pro package carry `WF_Rules_Pro.dll`** as
+  well.  The installed set is then the five modules that belong
+  together — a mixed set is what the version handshake now reports.
+* The macro can be run **without saving**, for a test that wants to see
+  what it would draw and then leave the drawing as it was
+  (`WfCore.Execute(..., save: false)`).  The hand-made drawings of a
+  project are the reference the macro is measured against, and they must
+  stay as they are.
 
 ### Fixed
 
+* **The section marks were copied from the block NEXT DOOR.**  The Pro
+  module copies the hand-placed section lines of a reference drawing, and
+  the reference was looked for among the hand-made drawings of the model
+  that carry section marks.  The **first** one was taken, and in a model
+  of many blocks that is the drawing of another block: in
+  `MODEL-2` the five lines of `[72]` (the drawing of the **BP1 M/U**
+  block) were put into the drawing of **BP07M**, whose
+  walls are at X 72012 … 74788 — the lines landed about 68 m to the left
+  of the layout, on the side of the sheet.  The reference is now the
+  hand-made drawing of the **same block** (`[87] BP07M-10001` for
+  `BP07M`), and its lines are checked against the layout of the drawing
+  that is being dimensioned before they are used.
+* **The test of a section line is a RULE now.**  It is
+  `WfRulesPro.SectionLinesInLayout` in the Pro rules
+  (`WF_Rules_Pro.dll`, no Tekla reference), it is tested without Tekla by
+  the new `tests/test_section_lines.py`, and the Pro rules carry a
+  version number of their own: a Pro module and a Pro rules assembly of
+  different builds are now refused, instead of failing on a member that
+  is not there.
+* **The section marks were looked for in the WRONG drawing.**  The Pro
+  module copies the hand-placed section lines of a reference drawing, and
+  the reference was looked for among the wall layout drawings of the
+  model.  In a model with many blocks that is wrong: every block has its
+  own wall layout drawing, and the section lines of one block would be
+  put into the drawing of another one.  The reference is now a **hand-made
+  drawing** — issued or frozen — and the preferred mark is used first.
+* **The section marks were counted in the FIRST view only.**  The first
+  view of a drawing is not always the plan view: two of the drawings of
+  `MODEL-2` have an unnamed container view in front of it, and
+  their section marks were therefore counted as **zero**.  Every count
+  over the views of a drawing now walks all of them.
+* **The Pro module failed on every object of a mixed installation.**
+  The deployed `WF_Pro.dll` was built against an older rules assembly,
+  in which `WfPanel.A0` was a property; the new rules made it a field,
+  and the old module then failed with
+  `Method not found: 'Double P142.WallFraming.WfPanel.get_A0()'` — 234
+  times, once per wall panel mark.  The version handshake reports this
+  as a deployment problem instead of as 234 unrelated failures.
 * **The trial could never start.** On the very first run the state holds
   the "first" stamp but not yet the "last" one, and the clock-rollback
   check then subtracted an hour from `DateTime.MinValue`, which throws.
@@ -163,6 +292,14 @@ the project uses [semantic versioning](https://semver.org/).
   `source\bin\` where somebody could have picked it up and installed it.
   The build now deletes the three merged artefacts before it starts, and
   says so.
+* **`tests/test_loader.py` could not read the version of the installed
+  rules.**  It looked for the rules type in the **core** assembly, but
+  the type lives in `WF_Rules.dll`, so the lookup returned nothing and
+  the harness reported *"the rules assembly carries no version number"*
+  whatever was installed.  The macro itself was never affected — it
+  reads the version of the assembly its own types come from.  The
+  harness now reads `WF_Rules.dll` from the folder of the core, which
+  is where the runtime takes it from.
 
 ## 2026-10-22
 

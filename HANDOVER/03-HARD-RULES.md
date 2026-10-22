@@ -34,7 +34,9 @@ The GitHub repository `SherinWorin/sherin-tekla-mcp` is **public**.
 * the **reference dumps** — `asm_parts.txt` (247 wall parts: identifiers,
   profiles, coordinates), `full_50.txt` / `full_57.txt` (the full annotation
   dump of the two drawings), `marks_50.json`, `dims_50.txt`, `dims_57.txt`,
-  `model_walls.txt`, `wall_panels.txt`;
+  `model_walls.txt`, `wall_panels.txt`, and the two dumps of the **second**
+  model, `asm_parts_MODEL2.txt` (3875 wall parts) and `dims_MODEL2.txt` (the
+  dimension sets of the 19 wall layout drawings of `MODEL-2`);
 * the **model folder** itself and anything copied out of it;
 * the **name of the issued drawing** where it identifies the client.
 
@@ -201,3 +203,30 @@ drawing.**  Those six hand edits are documented in
 `macros/wall-framing/docs/WALL_FRAMING_RULES.md` and are deliberately **not**
 reproduced: they cannot be derived from the model, and baking them in would
 make the macro wrong on every other project.
+
+---
+
+## R12 — The hand-made drawings of the second model are not a rule set.
+
+`MODEL-2` has 19 wall layout drawings, and they **contradict each
+other**:
+
+* the **WP13** family measures the **centres** of the jambs of an opening;
+  the **ledge-wall (LW)** family measures **no** opening at all;
+* the WP8 panel of the *old* model measures the centre of the outer jamb
+  of its openings, and the WP7 panel — the same construction — measures
+  none;
+* one hand-edited value differs from the model by 10 mm.
+
+**The macro reproduces the rule, not the hand work.**  A rule is taken
+from the cases where the drawings agree with each other; where they
+disagree, the disagreement is recorded and the rule stands.
+
+The 163 stations that `tests/test_upgrade.py` reports as "measured by the
+macro and not by the drawing" are **not** a list of bugs: most of them
+belong to the ledge-wall family, whose drawings are simply incomplete, and
+the rest are the panel details that live in the per-panel drawings of that
+model.  Each one still has to be looked at by a person (open item A10).
+
+**Never hard-code a number that came from a hand edit** — that applies to
+the second model exactly as it applies to the first.

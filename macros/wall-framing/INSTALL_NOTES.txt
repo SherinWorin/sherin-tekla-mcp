@@ -41,6 +41,7 @@ WHAT IS IN THE FOLDER
     WF_Rules.dll                          the free rules
     WF_License.dll                        the licence engine
     WF_Pro.dll                            the Pro stages (Pro package only)
+    WF_Rules_Pro.dll                      the Pro rules (Pro package only)
     WF_Core.cs, WF_Rules.cs,              the sources (only for a re-build)
     WF_License.cs, WF_KeyGen.cs,
     build.ps1
@@ -81,7 +82,7 @@ STEP 1 - Get the files
          P142_WF_AutoDimension.cs     (the loader)
          P142_WF_AutoDimension.bmp     (the icon)
          WF_Core.dll  WF_Rules.dll  WF_License.dll
-         (WF_Pro.dll as well, in the Pro package)
+         (WF_Pro.dll and WF_Rules_Pro.dll as well, in the Pro package)
 
     b) or take them out of the deployment package:
 
@@ -91,6 +92,8 @@ STEP 1 - Get the files
            -> source\WF_Core.dll
            -> source\WF_Rules.dll
            -> source\WF_License.dll
+           -> source\WF_Pro.dll            (Pro package only)
+           -> source\WF_Rules_Pro.dll      (Pro package only)
 
   >> THE FILE THAT GOES INTO TEKLA IS "P142_WF_AutoDimension.cs"  (about
      8000 bytes).  It is the LOADER.  It must NOT contain the word
@@ -131,12 +134,15 @@ STEP 4 - Copy the modules
 
       set APP=%LOCALAPPDATA%\P142\WallFraming
       if not exist "%APP%" mkdir "%APP%"
-      copy "<folder>\WF_Core.dll"    "%APP%\"
-      copy "<folder>\WF_Rules.dll"   "%APP%\"
-      copy "<folder>\WF_License.dll" "%APP%\"
-      copy "<folder>\WF_Pro.dll"     "%APP%\"
+      copy "<folder>\WF_Core.dll"      "%APP%\"
+      copy "<folder>\WF_Rules.dll"     "%APP%\"
+      copy "<folder>\WF_License.dll"   "%APP%\"
+      copy "<folder>\WF_Pro.dll"       "%APP%\"
+      copy "<folder>\WF_Rules_Pro.dll" "%APP%\"
 
-  The last line is only in the Pro package.
+  The last two lines are only in the Pro package.  Copy ALL the modules of
+  the package, never only some of them: they are one build, and a mixed
+  set is refused by the macro with "install the modules again".
 
 STEP 5 - Check for a hidden extension
 --------------------------------------
@@ -271,6 +277,11 @@ TROUBLESHOOTING
   the Pro annotations do not appear although the licence is Pro
       the module WF_Pro.dll is not in %LOCALAPPDATA%\P142\WallFraming\.
       Only the free package was installed.
+
+  "the Pro module was built for version x of the rules"
+      the five modules in %LOCALAPPDATA%\P142\WallFraming\ are not of one
+      build.  Copy the package again, complete.  Do not try to fix it in
+      the code.
 
 
 OPTIONAL - REBUILD THE MACRO

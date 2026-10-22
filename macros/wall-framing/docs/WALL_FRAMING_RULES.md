@@ -1,11 +1,22 @@
-# Wall-layout dimensioning rules (P142 BP4 MOCKUP)
-
-Derived from GA drawing **[50] "WALL FRAMING LAYOUT"** of model
-`P142-COREL REEF_BP4_MOCKUP-R00`.
+# Wall-layout dimensioning rules
 
 The rules live in **`source/WF_Rules.cs`** — a file with *no* Tekla
 reference, so they can be unit-tested without a running Tekla Structures.
 `source/P142_WF_AutoDimension.cs` reads the model and calls them.
+
+## The two reference models
+
+The rules are derived from **two** models, and every rule has to hold in
+both of them:
+
+| model | reference drawing | what it is |
+|---|---|---|
+| `P142-COREL REEF_BP4_MOCKUP-R00` | **[50] "WALL FRAMING LAYOUT"** (issued, frozen) | the model the macro was written on: 11 wall panels, one wall layout drawing |
+| `MODEL-2` | 20 wall layout drawings (`BP01`…`BP10`, `BP01M`…`BP10M`, scale 1:15) | a real project: 234 wall panels in 19 writable wall layout drawings |
+
+The first model is the one the rules were **written** against; the second is
+the one they were **checked** against, and it is where the two rules that
+the first model could not show (R2, R8) come from.
 
 | check | command | result |
 |---|---|---|
@@ -15,6 +26,7 @@ reference, so they can be unit-tested without a running Tekla Structures.
 | which drawing the macro works on | `python tests/test_target_selection.py` | 2 of 2 tests pass |
 | mark placement vs [50] | `python tests/test_marks.py` | angle 11/11, leader 9/11, offset 9/11 |
 | state of both drawings | `python tests/audit_50_57.py` | counts, mark angles, section geometry |
+| the rules against the new model | `python tests/test_upgrade.py` | 205 of 291 chains are a subset of a hand-made chain |
 
 ## The model
 
@@ -27,6 +39,12 @@ Light-gauge-steel (LGS) wall panels, grouped by the model report property
 
 Parts are read as `BEAM` and `CONTOURPLATE` model objects, in the plan
 view's `DisplayCoordinateSystem`.
+
+The new model `MODEL-2` is built the same way — the same part names,
+the same 35 mm stud, the same 63 mm track and the same 12.5 mm board — but
+it holds **234** wall panels in **19** writable wall layout drawings, one
+per block, and a panel can be a **ledge wall**: a wall that steps out of
+the line of the wall behind it, built with more than one `BOTTOM_TRACK`.
 
 Geometry constants that the rules depend on:
 
@@ -48,6 +66,18 @@ Geometry constants that the rules depend on:
 > The band chains use the **absolute** box; using the panel-axis-relative
 > extent gives a chain that is off by the 1 mm board overhang.
 
+> **The position of the assembly.** `ASSEMBLY_POS` is read from the
+> **assembly**, not from the part, because a model may leave it off its
+> parts: in `MODEL-2` the parts carry nothing, and the position is
+> only written on the assembly.  The position of the part is used when the
+> assembly has none, so the old model keeps working.
+>
+> The position is **not** an identity: two different assemblies can carry
+> the same `ASSEMBLY_POS`.  The parts are therefore grouped by the **id of
+> the assembly** they belong to (`WfPart.Key`), and the position is only a
+> name.
+
+
 ## R1 — bay chain (one dimension set per wall panel)
 
 `WfRules.ChainStations(panel, tol)`. Along the panel's own axis:
@@ -58,16 +88,64 @@ Geometry constants that the rules depend on:
    (`BP4-WP11` in [50]);
 3. every stud contributes its **centre**;
 4. a stud **flush with a panel end** is skipped — the panel end measures it;
-5. a stud **inside a lintel** (i.e. in an opening) is skipped;
+5. a stud **inside an opening** is skipped — *unless the opening has no
+   door frame*, where the stud is a mullion of the wall and is measured
+   like any other member (see R2);
 6. a run of **touching** studs contributes **one** value: the shared face
    between the first and the second stud of the run.
 
 ## R2 — opening stations (merged into the panel's chain)
 
-`WfRules.OpeningStations(panel, tol)`. An opening is a **pair of adjacent
-jambs**. The lintel bears on one of them, and the opening is measured at
-the **outer edge of that jamb** (the edge the lintel bears on). The other
-jamb of the pair is not measured.
+`WfRules.OpeningStations(panel, tol)`. An opening is a lintel and the
+**jambs that hold it**, and there are **two kinds** of it. The kind is
+decided by the jambs alone, never by the lintel:
+
+* a **door frame** is a **pair of adjacent jambs**: the jamb that holds the
+  lintel has a **touching partner**;
+* a **gap** in the wall is an opening whose jambs have **no touching
+  partner** — there is no door frame, the two jambs are the end studs of
+  the wall either side of the opening.
+
+`WfRules.IsOpenGap(panel, lintel, tol)` tells the two apart.
+
+### R2.1 — an opening with a door frame
+
+The lintel bears on one of the two jambs of the pair, and the opening is
+measured at the **outer edge of that jamb** (the edge the lintel bears on).
+The other jamb of the pair is not measured.
+
+**Verified on the new model:** the edge of the jamb is measured in
+**52 of 56** cases; the **centre** of the jamb in **1 of 56**.  So the
+edge is the rule and the centre is the exception.
+
+### R2.2 — an opening without a door frame (a gap)
+
+The jambs that hold the lintel are **ordinary members of the wall** — they
+are the end studs of the wall either side of the opening — so they are
+measured at their **centre**, like any other stud.  The **mullion** that
+stands in the gap is an ordinary member of the wall as well, and it is
+measured at its centre too (this falls out of R1.5: a stud inside an
+opening that has no door frame is measured).
+
+**Verified on the new model:**
+
+| what | how often the hand-made drawing measures it |
+|---|---|
+| the centre of the mullion in the gap | **20 of 21** |
+| the centre of a jamb of the gap | **14 of 28** |
+| the edge of a jamb of the gap | **0 of 28** |
+
+The edge of a gap jamb is **never** measured, so the centre is the rule.
+The jamb centre is only drawn in half of the cases, but the drawing that
+leaves it out is a drawing that leaves out most of the opening — the
+LW (ledge wall) family of the new model measures **no** opening at all.
+The rule is the same in every case: a gap is made of ordinary members, and
+ordinary members are measured at their centre.
+
+> This rule came out of the new model.  The old model has **no** opening
+> without a door frame, so nothing there changed when it was added: the
+> old model still gives 12 of 18 exact chains.
+
 
 ## R3 — band chain (one dimension set per edge of the layout)
 
@@ -206,6 +284,13 @@ mark is therefore never used to recognise a drawing.
 `WALL FRAMING`, `WALL LAYOUT`, `WALL FRAMING LAYOUT`** (any of `Title1`,
 `Title2`, `Title3`, `Name`, case-insensitive).
 
+**Every field is searched on its own, and the fields are not joined.**
+A phrase can be split over two fields: the per-block drawings of the new
+model have `Title2 = "BASE, CEILING, WALL "` and
+`Title3 = "FRAMING LAYOUT"`, and glued together they hold
+`WALL FRAMING LAYOUT`.  The per-field test is what leaves them alone
+(see the trap 17 of the hand-over pack).
+
 In the model of this project that is exactly two drawings: **[50]** and
 **[57]**, both with `Title2 = "WALL FRAMING LAYOUT"`. The panel drawings
 are named `WALL_PANEL` and the other layout drawings are named
@@ -213,7 +298,13 @@ are named `WALL_PANEL` and the other layout drawings are named
 matches.
 
 **R8.2 — the target is the active drawing when it is a wall layout
-drawing; otherwise the wall layout drawing of the model is activated.**
+drawing; otherwise EVERY wall layout drawing of the model that may be
+written to is worked on, one after the other.**
+
+The new model has **21** wall layout drawings — one per block — and the
+blocks are far apart in the model.  Working on one of them means working
+on all of them, because the model as a whole is what gets laid out.
+Two of the 21 are frozen, so **19** of them are worked on.
 
 **R8.3 — an issued or frozen drawing is never written to.** The macro
 stops and reports it. The issued reference drawing of the project is
@@ -228,23 +319,40 @@ frozen, so this is what protects it.
 | BP4-WP.1 … 11 | WALL_PANEL | yes | not a target |
 
 **R8.4 — the reference drawing** (the one the section marks are copied
-from) is looked up by its preferred mark first, and by its title
-otherwise. It is only ever read.
+from) is the hand-made drawing of the **same block**; the preferred mark
+is used when the model has no drawing of that block. It is only ever read.
+
+**R8.5 — the panels of a drawing are the assemblies the drawing shows.**
+
+A GA drawing shows the assemblies of **its own block** and of no other.
+The macro therefore takes the wall panels out of the **assemblies that
+the drawing shows**, and not out of the whole model.
+
+This is what makes a model with many blocks work: the macro cannot
+dimension a wall that is not on the drawing it is dimensioning.  When the
+drawing shows no wall assembly at all — an empty view, or a model whose
+assemblies are not shown in the drawing — the panels are found the old
+way, by the name of the assembly (R9).
+
+The drawing API has **no** `AssemblyIdentifier`: the part → assembly map
+is built on the **model** side (`Part.GetAssembly()`), and the drawing
+gives the id of the model part.  The two are joined in
+`WfCore.ShownAssemblies`.
+
 
 ## R9 — the wall panels of a model
 
-The wall panels are the groups of parts that share the model report
-property `ASSEMBLY_POS`. The prefix of this project is `BP4-WP`, but that
-is only a **preference**: on another computer the model may use another
-prefix.
+The wall panels are the groups of parts that belong to the **same
+assembly**. The prefix of this project is `BP4-WP`, but that is only a
+**preference**: on another computer the model may use another prefix.
 
 **R9.1 — the configured prefix wins.** `WfRules.BuildPanels(parts,
-prefix, tol)` groups the parts by `ASSEMBLY_POS` and keeps the groups
-that start with the prefix.
+prefix, tol)` groups the parts by their assembly and keeps the groups
+whose name starts with the prefix.
 
 **R9.2 — when the prefix matches nothing, the panels are found
 automatically.** `WfRules.BuildPanelsAuto(parts)` groups the parts by
-`ASSEMBLY_POS` and keeps the groups that are a **wall assembly**: the
+their assembly and keeps the groups that are a **wall assembly**: the
 group holds a `BOTTOM_TRACK`, a `TOP_TRACK`, a `STUD` and a
 `GYPSUM_BOARD`, and no part whose name starts with `CEILING`.
 
@@ -253,6 +361,108 @@ The second condition is what keeps the ceiling panels of the model
 `BP4-BF1` and `BP4-CF1` are not walls either: they have no gypsum board.
 
 Both ways find the same 11 panels in this model (`tests/test_rules.py`).
+
+**R9.3 — the groups are keyed by the assembly, not by the position.**
+
+`ASSEMBLY_POS` is a **name**, not an identity: in the new model two
+different assemblies carry the same position, and a drawing that shows
+one of them must not dimension the other.  The parts are therefore
+grouped by the **id of the assembly** they belong to
+(`WfRules.GroupKey`), and the position is only used to name the panel on
+the drawing.
+
+`WfRules.BuildPanelsForAssemblies(parts, keys, tol)` keeps **only** the
+assemblies whose key is in the set — the set that the drawing shows
+(R8.5).  A group that is shown in a drawing is not always a wall: a
+ceiling panel is built like a wall and a vanity post is not a wall at
+all, so the wall test of R9.2 still applies.
+
+**R9.4 — a ledge wall runs from the first track to the last one.**
+
+A **ledge wall** (a wall that steps out of the line of the wall behind
+it) is built with **more than one `BOTTOM_TRACK`**.  The panel axis is
+the direction of the **longest** of them, and the panel runs from the
+start of the first track that is parallel to that axis to the end of the
+last one — not from the start to the end of one track.  Without this the
+ledge wall of the new model loses its far end.
+
+
+## The new model (MODEL-2) — what it changed and what it did not
+
+`MODEL-2` holds 4887 parts in 503 assemblies, of which 3875 are
+wall parts and 292 assemblies carry walls.  The 234 wall panels are
+spread over **19 writable wall layout drawings** (`BP01`…`BP10`,
+`BP01M`…`BP10M`, scale 1:15) — all of them in **one** display coordinate
+system.  Two further drawings, [50] and [72], are frozen.
+
+The model also holds **per-panel drawings** (`[BP1-WP.10] WALL_PANEL`) and
+**per-block drawings** (`[BP76] BP01M-10001`, `BASE, CEILING, WALL`).
+Those are issued and frozen, and the macro never touches them.
+
+### The selection was measured on the live model
+
+The model holds **695 drawings**.  The rule of R8.1 was run over all of
+them, with the macro's own test:
+
+| | drawings |
+|---|---|
+| the model | 695 |
+| match the title rule, per field — **the macro** | 21 |
+| match the title rule, joined with a space | 21 |
+| match the title rule, glued without a space | 40 |
+| **the targets: writable wall layout drawings** | **19** |
+
+The 21 are the 19 `BP01`…`BP10M` drawings, plus [50] and [72] — both
+**frozen**, and both **refused**.  The 19 extra drawings of the last row
+are the per-block drawings `[75]`…`[93]`, whose title phrase is split
+over two fields; they are frozen and issued as well, so they would be
+refused even if the rule had matched them.
+
+
+### The hand-made drawings of the new model are not a rule set
+
+The wall layout drawings of the new model are **hand-made**, and they do
+not agree with each other:
+
+* the **WP13 family** measures the **centres** of the jambs of an opening;
+  the **LW (ledge wall) family** measures **no** opening at all;
+* the WP8 panel of the **old** model measures the centre of the outer
+  jamb of its openings, and the WP7 panel — the same construction —
+  measures none;
+* the WP4 panel of the old model measures the **centres** of a touching
+  stud run, while the same construction in the new model is measured at
+  the **shared face**;
+* one hand-edited value differs from the model by 10 mm (31947.5 against
+  a stud centre of 31957.5).
+
+Chasing those differences would be chasing hand-made noise, and the
+hand-over pack forbids hard-coding a number that came from a hand edit.
+The rules are therefore taken from the cases where the drawings **agree**
+with each other, and the cases where they disagree are left to the rule.
+
+### The right measure is a subset, not equality
+
+The hand-made drawings of the new model use **wall-line chains** — one
+chain that spans several panels — while the macro gives every panel its
+own chain.  The two can never be equal, so the test is the weaker one:
+**is the chain of the macro contained in one chain of the drawing?**
+
+```
+the chains of the macro are a SUBSET of a hand-made chain in 205 of 291 cases (70 %)
+the chains of the macro are the SAME as a hand-made chain in 132 of 291 cases
+stations the macro measures that the drawing does not: 163
+```
+
+The 163 stations are the panel details that live in the **per-panel**
+drawings, and the jamb centres of the ledge-wall family that the drawing
+leaves out.  `tests/test_upgrade.py` reports them one by one, and it
+**reads only** — it writes nothing into the model.
+
+### The old model did not change
+
+The new rule of R2.2 (a gap in the wall) has no counterpart in the old
+model, so the old model still gives **12 of 18** exact chains and the same
+six hand-made sets.  Nothing was traded away to gain the new model.
 
 ## Dimension style
 
@@ -328,6 +538,54 @@ it is a drafter's decision.
 the reference drawing. A drawing that is *not* open in the editor can still
 be read: `Drawing.GetSheet()` and `View.GetAllObjects()` work on any
 drawing of the model, so the reference does not have to be activated.
+
+### Where the section marks come from, in a model with many blocks
+
+The section lines belong to **one block**. Copying them from another
+block's drawing would put them in the wrong place, so the reference is
+chosen in this order:
+
+1. **the drawing that is being dimensioned keeps its own** — every
+   writable wall layout drawing of `MODEL-2` already carries its own
+   section lines (one or two), and all 19 of them keep them;
+2. **the hand-made drawing of the same block** — the block is named in the
+   first title of a drawing (`BP07M` for the wall layout drawing of that
+   block), and the hand-made drawing of a block is the `<BLOCK>-10001`
+   one, which carries the section lines of that block;
+3. the **preferred mark** (`[50]`), when the model has it *and* it really
+   carries section marks;
+4. **nothing** — and the macro says so and copies none.
+
+The section lines of the reference are also **checked against the layout
+of the drawing that is being dimensioned**: they are brought into the
+coordinate system of its plan view, and a line that does not touch the
+layout is left out. The blocks of a model are metres apart, so a line of
+another block cannot pass that test.
+
+That test is a **rule** and not a line of code in the module: it is
+`WfRulesPro.SectionLinesInLayout` in the Pro rules
+(`WF_Rules_Pro.dll`, no Tekla reference), and it is tested without
+Tekla by `tests/test_section_lines.py`. The Pro module only reads the
+drawings and brings the points into the right system.
+
+A wall layout drawing that the macro would work on is **never** used as a
+reference: it belongs to another block.
+
+Three things had to be right for this to work, and all three were wrong
+at first:
+
+* the count of the section marks of a drawing has to walk **every** view
+  of it, not only the first one — see API trap 12;
+* in the new model `[50]` is a *different* drawing — another drawing of
+  the **BP1 M/U** block — that carries **no** section marks at all;
+* the search then took the **first** hand-made drawing that carried
+  section marks, and in a model of many blocks that is `[72]`, the
+  drawing of the **BP1 M/U**
+  block. Its five section lines are hand placed at X −468 … +3604, while
+  the walls of `BP07M` are at X 72012 … 74788: they landed about 68 m to
+  the left of the layout, on the side of the sheet. The rule asks now for
+  the drawing of the **same block** (`[87] BP07M-10001` for `BP07M`) and
+  checks its lines against the layout.
 
 ## Tekla 2025 API traps found while building this
 

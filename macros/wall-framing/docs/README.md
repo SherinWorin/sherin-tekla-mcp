@@ -5,12 +5,12 @@ LAYOUT** GA drawing on any other GA drawing of the same model.
 
 | | |
 |---|---|
-| model | `P142-COREL REEF_BP4_MOCKUP-R00` |
+| model | `P142-COREL REEF_BP4_MOCKUP-R00`, checked against `MODEL-2` |
 | reference drawing | **[50]** “WALL FRAMING LAYOUT” (GA) — read only, never written |
-| target drawing | **the wall layout drawing that is open** — found by its title, not by its mark |
+| target drawing | **the wall layout drawing that is open**, or — when it is not one — **every** wall layout drawing of the model. Found by its title, not by its mark |
 | Tekla version | **2025.0** (`Tekla.Structures.*` v2025.0.0.0, .NET Framework 4.x) |
 | language | C#, compiled with the Roslyn `csc.exe` of VS 2022 Community |
-| risk | **MEDIUM** — it creates drawing objects in the active drawing; it never touches the model |
+| risk | **MEDIUM** — it creates drawing objects in the wall layout drawings; it never touches the model |
 | deployment | **`package/WallFramingAutoDimension.zip`** — a thin loader, a few modules, one script, no DLL to register |
 | editions | **free** (the dimension chains) and **Pro** (everything) — [LICENSING.md](LICENSING.md) |
 
@@ -47,8 +47,9 @@ duplicating it.
 | wall-panel mark label offset | 9 of 11 |
 | last macro run | 37 objects created, **0 failed**, drawing saved |
 | [50] | **never written to** — the macro refuses an issued or frozen drawing |
-| target selection | the active drawing is used when it is a wall layout drawing, otherwise the wall layout drawing of the model is activated — **2 of 2 tests pass** |
+| target selection | the active drawing is used when it is a wall layout drawing, otherwise **every** wall layout drawing of the model is worked on — **2 of 2 tests pass** |
 | panel detection | the configured prefix `BP4-WP` finds 11 panels; the automatic detection finds the same 11 and leaves the ceiling panels alone |
+| the rules on a model with many drawings | `MODEL-2`: **205 of 291** chains are a subset of a hand-made chain, 0 failures — `tests/test_upgrade.py` |
 | licence engine | **42 of 42 checks pass** — the key, the three day trial, the machine binding, the clock-rollback rule |
 | the Pro path | **never run against a live Tekla** — the rules were moved without changing an answer, but the writing path of `WF_Pro.dll` is not proven |
 
@@ -60,11 +61,16 @@ be called there.
 
 1. The **active** drawing is used when its title holds a wall layout
    fragment (`WALL FRAMING`, `WALL LAYOUT`, `WALL FRAMING LAYOUT`).
-2. Otherwise the wall layout drawing of the model is looked up and
-   **activated**.
+2. Otherwise **every** wall layout drawing of the model that may be written
+   to is worked on, one after the other — a model has one wall layout
+   drawing per block.
 3. A drawing that is **issued or frozen is never written to** — the macro
-   stops and says so. This is what keeps it away from [50], the issued
+   skips it and says so. This is what keeps it away from [50], the issued
    reference drawing of this project.
+
+The **wall panels of a drawing are the assemblies the drawing shows**: a GA
+drawing shows the assemblies of its own block and of no other, so a block is
+never dimensioned on the drawing of another block.
 
 The panel drawings of the model are named `WALL_PANEL` and the other
 layout drawings are named `BASE FRAMING LAYOUT` and `CEILING FRAMING
@@ -102,6 +108,7 @@ macros/wall-framing/
     TODO.md                      what is left to do
     CHANGELOG.md                 the history
     WALL_FRAMING_RULES.md        the annotation rules, derived from [50]
+                                 and from MODEL-2
   tests/                         the test harnesses
     reference/                   the reference dumps - not in the repository
 ```
@@ -125,6 +132,7 @@ python run_macro.py "[57]"             :: run the macro into [57] and save
 python test_rules.py                   :: the rules against the reference (no Tekla needed)
 python test_license.py                 :: the licence engine (no Tekla needed)
 python test_target_selection.py        :: which drawing the macro works on
+python test_upgrade.py                 :: the rules on a model with many drawings
 python cmp_chains.py                   :: [50] vs [57]
 ```
 
@@ -163,7 +171,7 @@ them after that, the key goes into
 * [WALL_FRAMING_RULES.md](WALL_FRAMING_RULES.md) — every rule, with the
   evidence from [50] it was derived from, and the six places where [50]
   contradicts itself.
-* [API_NOTES.md](API_NOTES.md) — the eight Tekla 2025 API traps this
+* [API_NOTES.md](API_NOTES.md) — the ten Tekla 2025 API traps this
   project ran into, each with the code that works.
 * [LICENSING.md](LICENSING.md) — the two editions, the three day trial,
   the machine binding and the key workflow of the owner.

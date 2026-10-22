@@ -1,6 +1,6 @@
 # Testing
 
-Seven harnesses, on two levels: the **rules**, the **licence** and the
+Eight harnesses, on two levels: the **rules**, the **licence** and the
 **loader** are tested without a running Tekla, the **drawing** is tested
 against the reference drawing.
 
@@ -13,6 +13,7 @@ against the reference drawing.
 | `tests/cmp_chains.py` | yes | the drawing that was written contains the right chains |
 | `tests/test_target_selection.py` | yes | the macro works on the right drawing and refuses an issued one |
 | `tests/audit_50_57.py` | yes | both drawings are in a sane state, and [50] was not touched |
+| `tests/test_upgrade.py` | yes | the rules hold on a model with many wall layout drawings (MODEL-2) |
 
 ## Where the reference dumps are
 
@@ -32,6 +33,12 @@ set WF_REFERENCE=C:\path\to\reference-data
 
 Without them the harnesses stop with a clear message instead of failing
 with a file error.
+
+`tests/test_upgrade.py` needs **no** reference dump: it compares the
+rules with the drawings that are already in the model, so it runs on any
+Tekla with a wall layout drawing.  The dumps of the new model
+(`MODEL-2`) live in the `reference-data` folder of the development
+tree, next to the dumps of the old model.
 
 ## 1. `tests/test_rules.py` — the rules, without Tekla
 
@@ -235,6 +242,42 @@ The counts in brackets are (dimension sets, marks, section marks, texts).
 The 18 / 126 / 5 / 3 of [50] are the numbers of the issued drawing — they
 must never change.
 
+## 8. `tests/test_upgrade.py` — the rules on a model with many drawings
+
+This harness checks the rules against **MODEL-2**, the model that
+has 19 writable wall layout drawings instead of one.  It **reads only**:
+it never writes into the model and it never writes into a drawing.
+
+It checks three things for every wall layout drawing of the model:
+
+1. the macro picks the wall panels of **that drawing** — a model has one
+   wall layout drawing per block, and the blocks are far apart;
+2. the chains are on the right axis;
+3. the macro measures only stations that the hand-made drawing of that
+   block also measures.
+
+The hand-made drawings of the new model use **wall-line chains** (one
+chain spanning several panels) while the macro gives every panel its own
+chain, so the two can never be equal.  The test is therefore the weaker
+one: **is the chain of the macro contained in one chain of the drawing?**
+
+```
+BP01         BP01  panels=  3 chains=  5 hand-made sets=  4 exact=  3 subset=  3  blocks=['BP01']
+...
+the chains of the macro are a SUBSET of a hand-made chain in 205 of 291 cases (70 %)
+the chains of the macro are the SAME as a hand-made chain in 132 of 291 cases
+stations the macro measures that the drawing does not: 163
+NOTE: this test READS only - it wrote nothing into the model.
+FAILURES: 0
+```
+
+The harness also **fails** when a drawing holds more than one block — a
+drawing that shows two blocks at once means the panel selection is wrong.
+
+The stations that the macro measures and the drawing does not are listed
+one by one, because they are the places where a rule is still wrong.
+
+
 ## How to add a test for a new rule
 
 1. **Write the rule** in `source/WF_Rules.cs` (or in the private
@@ -267,6 +310,10 @@ A rule of the **licence** needs a test in `tests/test_license.py`.
   verified by running it and dumping the drawing, which is what
   `run_macro.py` + `dump_dims.py` do. A unit test of the writing path
   would need a Tekla instance and is listed in [TODO.md](TODO.md).
+* **The writing path has not been run on the new model.**  The rules are
+  checked against `MODEL-2` (`test_upgrade.py`), but that harness
+  only *reads*.  The first run of the macro against the new model — the
+  one that writes 19 drawings — is still to be done by a person.
 * **The Pro module has never been run against a live Tekla.**  The two
   harnesses prove that the *rules* were moved without changing an
   answer, but the writing path of `WF_Pro.dll` — that the Pro stages

@@ -75,7 +75,9 @@ server: it reproduces the annotations of a `WALL FRAMING LAYOUT` GA drawing
 wall-panel marks, section marks, notes).
 
 - It finds the drawing by its **title**, not by a fixed mark, so the same file
-  works on every computer of a project.
+  works on every computer of a project. When the model has one wall layout
+  drawing per block, it works on **all** of them, one after the other, and it
+  dimensions only the walls that the drawing actually shows.
 - It **never writes into an issued or frozen drawing** - the macro refuses it.
 - The rules and the licence engine live in their own assemblies with **no
   Tekla reference**; the macro catalog gets a **thin loader** that loads the

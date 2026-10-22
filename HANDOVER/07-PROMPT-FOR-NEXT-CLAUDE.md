@@ -19,7 +19,7 @@ Read the hand-over pack in HANDOVER/ before anything else, in this order:
   HANDOVER/00-START-HERE.md            what the project is, the three trees, the model
   HANDOVER/01-STATE-OF-PLAY.md         what is done, what is not, the open PR
   HANDOVER/02-ENVIRONMENT.md           what this computer needs, and four gotchas
-  HANDOVER/03-HARD-RULES.md            the eleven rules that are not negotiable
+  HANDOVER/03-HARD-RULES.md            the twelve rules that are not negotiable
   HANDOVER/04-TEKLA-2025-API-TRAPS.md  the Tekla behaviour that cost the most time to find
   HANDOVER/05-BUILD-AND-VERIFY.md      every command, labelled
   HANDOVER/06-OPEN-QUESTIONS.md        the open work, and who can settle it
@@ -42,10 +42,23 @@ The two hard rules that matter most:
      refuses any issued or frozen drawing; keep that refusal in place.
 
   2. The reference dumps of the client model (asm_parts.txt, full_50.txt,
-     full_57.txt, marks_50.json, dims_50.txt, dims_57.txt) are client
-     geometry and are NOT in the public repository.  Do not commit them.
-     They are regenerated on a machine that has the model - see
+     full_57.txt, marks_50.json, dims_50.txt, dims_57.txt, and the two
+     dumps of the second model, asm_parts_MODEL2.txt and dims_MODEL2.txt) are
+     client geometry and are NOT in the public repository.  Do not commit
+     them.  They are regenerated on a machine that has the model - see
      HANDOVER/REFERENCE-DATA.md.
+
+  3. The macro now also works on a SECOND model, MODEL-2, which has
+     19 wall layout drawings instead of one.  In that model [50] and [72]
+     are frozen, and so is every drawing named WALL_PANEL or
+     "BASE, CEILING, WALL" - never write to any of them.  The rules were
+     checked against it with tests/test_upgrade.py, which READS only:
+     205 of 291 chains are a subset of a hand-made chain, 0 failures.
+     The hand-made drawings of that model are NOT a rule set - they
+     contradict each other (the WP13 family measures the centres of the
+     jambs of an opening, the ledge-wall family measures no opening at
+     all).  Do not chase those contradictions; the macro reproduces the
+     rule, not the hand work.
 
 Then, before you change anything, run the checks in
 HANDOVER/05-BUILD-AND-VERIFY.md section F and report which of the sixteen
@@ -92,6 +105,7 @@ credential into a file.
 | "read `CLAUDE.md` and follow it" | the repository's own rules are the contract; they are not restated |
 | rule 1 (the frozen drawing) | it is the one irreversible mistake available |
 | rule 2 (the client data) | it would leak into a public repository and is easy to do by accident |
+| rule 3 (the second model) | a new instance would otherwise treat the hand-made drawings of that model as a specification, and "fix" the macro to match drawings that contradict each other |
 | "run the checks and report which of the sixteen pass" | it makes the new instance **report the state** before it **changes** the state, and it makes a broken handover visible instead of silently inherited |
 | "do not fix anything that fails without saying so first" | the same |
 | "the macro is complete and verified" | stops the new instance from rebuilding what works, and from "fixing" the six hand-edit chains that are correct as they are |

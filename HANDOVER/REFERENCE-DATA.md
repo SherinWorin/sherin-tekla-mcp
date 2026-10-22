@@ -16,7 +16,23 @@ drawing itself is the oracle.
 | `model_walls.txt` | a wider dump of the wall parts of the model | the probes in the dev tree |
 | `wall_panels.txt` | the list of the wall panels | the probes in the dev tree |
 
-All of them together are about **157 KB**.
+And the dumps of the **second model**, `MODEL-2` (a real project
+with 19 wall layout drawings):
+
+> **`MODEL-2` is a neutral name.**  The name of the client model is not
+> published in this repository; it is in the private tree.  The two dumps
+> below carry the neutral name in their file name as well.
+
+| file | what it holds | used by |
+|---|---|---|
+| `asm_parts_MODEL2.txt` | the 3875 wall parts of the model: name, id, plan extents, `ASSEMBLY_POS` (read from the **assembly**) | the probes in the dev tree |
+| `dims_MODEL2.txt` | the dimension sets of the 19 writable wall layout drawings | the probes in the dev tree |
+
+`test_upgrade.py` needs **none** of them: it compares the rules with the
+drawings that are already in the model.
+
+All of them together are about **1.5 MB** (the two dumps of the new model
+are the bulk of it).
 
 ## Where they are now
 

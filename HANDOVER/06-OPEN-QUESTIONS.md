@@ -87,6 +87,43 @@ so the two drawings do not look the same.
 it must not go in without the owner's agreement about how the two are
 meant to relate.
 
+### A8 — The rebuilt modules are not deployed
+
+`%LOCALAPPDATA%\P142\WallFraming\` still holds the build from **before**
+the new-model work, so the macro on this computer runs the old rules.  The
+deployment writes outside the repository, which is why an assistant does
+not do it on its own.
+
+*Where:* `macros/wall-framing/source/build.ps1 -Deploy`.
+*How to settle it:* build with `-Deploy` (or copy the three modules by
+hand), then run the macro and look at the log.
+
+### A9 — The writing path has never run on the new model
+
+The **rules** are checked against `MODEL-2`
+(`tests/test_upgrade.py`, which reads only).  What has **not** happened is
+a real run of the macro against that model — one run over the 19 wall
+layout drawings.
+
+*Where:* the second client model (`MODEL-2`), in the models folder of the
+owner.
+*How to settle it:* run the macro once, then dump two or three of the
+drawings (`tests/dump_dims.py "<mark>" <file>`) and look at them.  The
+**frozen** drawings of that model ([50], [72] and every `WALL_PANEL` and
+`BASE, CEILING, WALL` drawing) must not change.
+
+### A10 — The 163 stations the hand-made drawings of the new model do not measure
+
+`test_upgrade.py` lists them one by one.  Most of them belong to the
+**ledge-wall (LW)** family, whose drawings measure **no** opening at all,
+and the rest are the panel details that live in the **per-panel drawings**
+of the new model.
+
+*Each one is either a rule that is wrong or a drawing that is
+incomplete* — and the two cannot be told apart without a person who knows
+the project.  This is the reason the macro reproduces the **rule** and not
+the hand work.
+
 ---
 
 ## B. A programmer can settle these

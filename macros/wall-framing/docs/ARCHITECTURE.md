@@ -20,7 +20,7 @@
              |                                  |
         +--------------------------------------------------+
         |  WF_Core.cs   (the shared machinery)              |
-        |  - resolves the target drawing                     |
+        |  - resolves the target drawings                    |
         |  - finds the plan view                             |
         |  - reads the wall parts out of the model          |
         |  - asks the rules where every annotation goes      |
@@ -111,12 +111,17 @@ drawing by its **title**:
 | step | what the macro does |
 |---|---|
 | 1 | the **active** drawing is used when its title holds `WALL FRAMING`, `WALL LAYOUT` or `WALL FRAMING LAYOUT` |
-| 2 | otherwise the wall layout drawing of the model is looked up and **activated** |
-| 3 | a drawing that is **issued or frozen is never written to** — the macro stops with a message |
+| 2 | otherwise **every** wall layout drawing of the model that may be written to is worked on, one after the other |
+| 3 | a drawing that is **issued or frozen is never written to** — the macro skips it and says so |
 
 Step 3 is what protects the issued reference drawing of the project: it
 is frozen, so the macro refuses it even when it is the active drawing.
 `tests/test_target_selection.py` proves all three steps.
+
+Step 2 is what a model with many blocks needs: `MODEL-2` has 20
+wall layout drawings, one per block, and the blocks are far apart in the
+model.  Working on "the wall layout drawing of the model" is not a
+thing; the macro works on all of them.
 
 The panel drawings of the model are named `WALL_PANEL` and the other
 layout drawings are named `BASE FRAMING LAYOUT` and `CEILING FRAMING
@@ -127,12 +132,37 @@ The **reference** drawing — the one the section marks are copied from — is
 looked up by the preferred mark first (a constant), and by its title
 otherwise.  It is only ever read.
 
+## The panels of a drawing
+
+A GA drawing shows the assemblies of **its own block** and of no other.
+The macro therefore does not ask "which panels does the model have" but
+"which panels does **this drawing** show":
+
+```
+model  ->  Part.GetAssembly()  ->  the id of the assembly of every part
+drawing ->  the model objects it shows  ->  the id of their model parts
+                                       ->  the ids of their assemblies
+```
+
+The join is `WfCore.ShownAssemblies(view)`, and the result is the key set
+that `WfRules.BuildPanelsForAssemblies` keeps.
+
+The drawing API has **no** `AssemblyIdentifier` — the part → assembly map
+can only be built on the model side, and the drawing gives the id of the
+*part*.  That is why the model is read before the panels are chosen.
+
+When the drawing shows no wall assembly at all — an empty view, or a
+model whose assemblies are not shown in the drawing — the panels are found
+the old way, by the name of the assembly and then by their construction,
+and the log says that it fell back.
+
+
 ## The data flow of one run
 
 1. **Ask the licence.** `WfCore.LicenceEdition()` works out whether this
    computer may use the Pro edition, and records the run (the trial stamps).
-2. **Resolve the target.** The title rule above; a frozen or issued
-   drawing ends the run.
+2. **Resolve the targets.** The title rule above; a frozen or issued
+   drawing is skipped, and the run goes on with the next one.
 3. **Find the view.** The macro walks the views of the sheet and takes
    the first one whose display coordinate system looks straight down
    (`|AxisX.Z| < 1e-3` and `|AxisY.Z| < 1e-3`).
@@ -142,11 +172,17 @@ otherwise.  It is only ever read.
    `TOP_TRACK`, `MIDDLE_TRACK`, `GYPSUM_BOARD`, `JAMB`, `LINTEL`, `SILL`)
    are read from the model and converted to `WfPart` objects with their
    plan-view extents, in the **display coordinate system of the view**.
-6. **Group.** `WfRules.BuildPanels` groups the parts into wall panels by
-   the model report property `ASSEMBLY_POS` (prefix `BP4-WP`) and
-   computes the assembly extents of every panel.  When that prefix
-   matches nothing — another computer, another project — the panels are
-   found automatically by `WfRules.BuildPanelsAuto`, which recognises a
+   The `ASSEMBLY_POS` is read from the **assembly** the part belongs to
+   (`Part.GetAssembly()`), because a model may leave it off its parts.
+   The model is read **once** for a whole run: every drawing of a model
+   shares its plan coordinate system, and the read is skipped when the
+   coordinate system has not changed.
+6. **Choose the panels.** The assemblies the **drawing shows** are read
+   out of the view, joined with the part → assembly map of step 5, and
+   `WfRules.BuildPanelsForAssemblies` keeps only those assemblies.  When
+   the drawing shows no wall assembly, the panels are found by the name of
+   the assembly (`WfRules.BuildPanels`, prefix `BP4-WP`) and then by
+   their construction (`WfRules.BuildPanelsAuto`), which recognises a
    wall assembly by its parts (a bottom track, a top track, a stud and a
    gypsum board) and leaves the ceiling panels alone.
 7. **Ask.** For every annotation the macro calls a rules method and gets
@@ -160,6 +196,13 @@ otherwise.  It is only ever read.
 10. **Save.** `Drawing.CommitChanges()` after every step, and
     `DrawingHandler.SaveActiveDrawing()` at the end — without the latter
     the objects vanish when the drawing is re-read (see API_NOTES, trap 1).
+    Each drawing is saved as soon as it is finished, so that a failure
+    in the next drawing does not lose the work of the previous one.
+
+The **whole of steps 2 to 10 runs once per drawing**.  The macro switches
+the active drawing with `DrawingHandler.SetActiveDrawing`, because the
+drawing API only writes into the drawing that is open.
+
 
 ## Coordinate systems
 
@@ -178,11 +221,16 @@ wants model millimetres, so every distance is multiplied by
 ## Risk level
 
 **MEDIUM.** The macro only creates and deletes *drawing* objects, and
-only in the drawing it has resolved as the wall layout drawing. It never
+only in the wall layout drawings it has resolved. It never
 modifies the model, never modifies another drawing and never changes a
 view. The one destructive step is the clean-up, and it is limited to
 objects that carry the macro's own user property. An issued or frozen
-drawing ends the run before anything is written.
+drawing is skipped before anything is written to it.
+
+The macro can now write to **several** drawings in one run — one per
+block of the model.  The set is decided by the title rule, and every
+drawing in it is checked for the issued/frozen state before it is
+touched.
 
 The operation log is written to
 `<folder of the macro DLL>/wfdim_log_<mark>.txt` and is also returned in
