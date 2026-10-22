@@ -125,7 +125,7 @@ the Pro stages and must not be installed.
 
 ## D. Run the harnesses
 
-Six harnesses, on two levels.
+Seven harnesses, on two levels.
 
 | harness | needs Tekla | what it proves |
 |---|---|---|
@@ -279,3 +279,4 @@ should pass without a change.
 | 13 | the Pro sources are not committed | `git ls-files \| grep -E "WF_Pro\|WF_Rules_Pro"` | no output |
 | 14 | the PR is open | the PR page | PR #1, both CI jobs green |
 | 15 | [50] is untouched | `python tests\audit_50_57.py` | 18 dimsets / 126 marks / 5 sections / 3 texts |
+| 16 | the old merged source is not lying around | `dir source\bin\*merged*` | no output |

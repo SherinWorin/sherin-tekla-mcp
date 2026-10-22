@@ -1,8 +1,8 @@
 # Testing
 
-Six harnesses, on two levels: the **rules** and the **licence** are tested
-without a running Tekla, the **drawing** is tested against the reference
-drawing.
+Seven harnesses, on two levels: the **rules**, the **licence** and the
+**loader** are tested without a running Tekla, the **drawing** is tested
+against the reference drawing.
 
 | harness | needs Tekla | what it proves |
 |---|---|---|

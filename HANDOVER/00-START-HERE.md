@@ -31,8 +31,11 @@ top outline, the overall dimensions, the north run, the wall-panel marks, the
 section marks and the notes.
 
 It is **not** an MCP tool and does not depend on the server.  It was built
-as a macro because that is the least thing a Tekla user has to install: two
-files in the macro catalog, no DLL to register, no NuGet, no MSBuild.
+as a macro because that is the least thing a Tekla user has to install: one
+file in the macro catalog (plus its icon), no plugin to register, no NuGet,
+no MSBuild.  The file in the catalog is a thin **loader**; the modules it
+needs sit in `%LOCALAPPDATA%\P142\WallFraming` and are copied there by
+`install.ps1`.
 
 It is sold in two editions: a **free** one (the dimension chains) and a
 **Pro** one (everything), unlocked by a licence key.  Without a key the Pro
@@ -48,7 +51,7 @@ macros/wall-framing/source/WF_KeyGen.cs            the owner's key tool
 macros/wall-framing/source/P142_WF_AutoDimension.cs the LOADER (no rule in it)
 macros/wall-framing/source/build.ps1               compiles + packages
 macros/wall-framing/install.ps1                    installs into the Tekla catalog
-macros/wall-framing/tests/                         6 harnesses
+macros/wall-framing/tests/                         7 harnesses
 macros/wall-framing/docs/                          9 documents
 ```
 
@@ -57,7 +60,7 @@ macros/wall-framing/docs/                          9 documents
 | tree | path | what it is | git? |
 |---|---|---|---|
 | **published** | `C:\Users\sheri\projects\sherin-tekla-mcp` | the GitHub repository, branch `feature/wall-framing-dimensioner` | yes, remote = GitHub |
-| **dev** | `C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP` | the working copy; also holds the reference dumps and the Python MCP server | **no** |
+| **dev** | `C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP` | the private tree: the Pro sources, the reference dumps, the Python MCP server | **no** |
 | **upstream** | `D:\ONMIRUSH\Tekla Plugins` | the project the C# server was written in, under the old `TeklaAiAssistant.*` names | remote = the same GitHub repo, different branch |
 
 **Keep the published tree and the dev tree in step.**  The **published** tree
@@ -67,8 +70,33 @@ Pro rules) live in the **dev** tree, under
 takes them from there with `-ProPath`, and the dev tree is the only place
 where the Pro package is built.
 
-The two copies of the free sources are the same files; compare the
-**compiled** result when in doubt.
+> **The dev tree's `macros\` folder still holds the OLD, pre-tiering free
+> sources** (`P142_WF_AutoDimension.cs` of about 49000 bytes, `WF_Rules.cs`
+> of about 44000 bytes, and their own `build.ps1` and `install.ps1`).
+> They are **superseded** and are **not** the two editions' code.  The
+> tiered free sources — the loader, `WF_Core.cs`, `WF_License.cs`,
+> `WF_KeyGen.cs` — exist **only** in the published tree.  **Edit, build,
+> test and package in the published tree.**  Take *only* the `private\`
+> folder from the dev tree, through `-ProPath`.
+
+## Where the design lives
+
+The pack in this folder is the **map**: the state, the rules, the traps,
+the commands, the open questions.  The **substance** — the ideas
+themselves — is in the macro's own nine documents.  Read them from there,
+not from here:
+
+| document | what it holds |
+|---|---|
+| `macros/wall-framing/docs/ARCHITECTURE.md` | the four modules and how they depend on each other, the edition cut, the loader, the deployment, the honest caveat |
+| `macros/wall-framing/docs/LICENSING.md` | the two editions, the key format, the machine binding, the trial, the key tool, the customer workflow |
+| `macros/wall-framing/docs/WALL_FRAMING_RULES.md` | every rule of the drawing, with the reference set it was derived from, and the six hand edits that are deliberately not reproduced |
+| `macros/wall-framing/docs/API_NOTES.md` | the Tekla 2025 members actually used, and where the documentation and the behaviour disagree |
+| `macros/wall-framing/docs/SETUP.md` | how to install and how to check the install, step by step |
+| `macros/wall-framing/docs/TESTING.md` | the seven test sections, and what is **not** tested |
+| `macros/wall-framing/docs/TODO.md` | what is done and what is open |
+| `macros/wall-framing/docs/README.md` | the index of the macro's documentation |
+| `macros/wall-framing/docs/CHANGELOG.md` | the history of the macro |
 
 ## The model
 
@@ -99,5 +127,9 @@ must any new code.  See [03-HARD-RULES.md](03-HARD-RULES.md).
 3. Prove the state with the commands in [05-BUILD-AND-VERIFY.md](05-BUILD-AND-VERIFY.md).
 4. Read [04-TEKLA-2025-API-TRAPS.md](04-TEKLA-2025-API-TRAPS.md) before writing
    a single line of Tekla code.
-5. Read [06-OPEN-QUESTIONS.md](06-OPEN-QUESTIONS.md) and pick up one of the
+5. If you are working on the macro, read its own documents — start with
+   `macros/wall-framing/docs/ARCHITECTURE.md` and
+   `macros/wall-framing/docs/LICENSING.md`.  The table above says which
+   one answers which question.
+6. Read [06-OPEN-QUESTIONS.md](06-OPEN-QUESTIONS.md) and pick up one of the
    open items — or finish the one that is half-done.

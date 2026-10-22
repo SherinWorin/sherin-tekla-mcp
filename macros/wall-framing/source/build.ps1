@@ -207,6 +207,28 @@ function Invoke-Csc {
 }
 
 # ---------------------------------------------------------------------------
+# Remove the artefacts of the OLD layout.
+#
+# Before the two editions, the build also wrote a "merged" source - the
+# macro and the rules in one file, so that the Tekla macro catalog could
+# compile it without a second DLL.  That file carried the Pro stages in
+# plain text, so it must never be installed, and it must never be left
+# lying in the build output where somebody could pick it up.  The loader
+# replaced it; this removes the leftovers.
+# ---------------------------------------------------------------------------
+$stale = @(
+    (Join-Path $outDir 'P142_WF_AutoDimension_merged.cs'),
+    (Join-Path $outDir 'P142_WF_AutoDimension_merged.dll'),
+    (Join-Path $outDir 'P142_WF_AutoDimension_merged.bmp')
+)
+foreach ($f in $stale) {
+    if (Test-Path $f) {
+        Remove-Item $f -Force
+        Write-Output ("  removed the old artefact {0}" -f (Split-Path -Leaf $f))
+    }
+}
+
+# ---------------------------------------------------------------------------
 # The build.
 # ---------------------------------------------------------------------------
 Write-Output 'Building WF_Rules.dll ...'

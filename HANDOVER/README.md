@@ -21,6 +21,12 @@ It answers three questions, in this order:
 | [07-PROMPT-FOR-NEXT-CLAUDE.md](07-PROMPT-FOR-NEXT-CLAUDE.md) | the text to paste into the new Claude session to start it correctly. |
 | [REFERENCE-DATA.md](REFERENCE-DATA.md) | the reference dumps of the client model: why they are not in the repository and how to regenerate them. |
 
+**This pack is the map, not the substance.**  The *design* — the modules and
+how they depend on each other, the two editions and the licence, every rule
+of the drawing — lives in the macro's own nine documents under
+`macros/wall-framing/docs/`.  [00-START-HERE.md](00-START-HERE.md) has the
+table that says which document answers which question.
+
 **There is no token, password or key in this folder, and none may be added to
 it.**  The GitHub token is obtained at the moment it is needed, from the
 Windows credential manager — see [01-STATE-OF-PLAY.md](01-STATE-OF-PLAY.md).

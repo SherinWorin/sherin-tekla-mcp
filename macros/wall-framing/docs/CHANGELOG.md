@@ -155,6 +155,14 @@ the project uses [semantic versioning](https://semver.org/).
   names.
 * The macro no longer depends on the mark **[57]**: it works on whatever
   wall layout drawing is open, on any computer.
+* **The old merged source is removed from the build output.** Before the
+  two editions the build also wrote `P142_WF_AutoDimension_merged.cs` —
+  the macro and the rules in one file, so that the catalog could compile
+  it without a second DLL.  That file carried the Pro stages in plain
+  text.  The loader replaced it, but the leftover stayed in
+  `source\bin\` where somebody could have picked it up and installed it.
+  The build now deletes the three merged artefacts before it starts, and
+  says so.
 
 ## 2026-10-22
 

@@ -15,8 +15,14 @@
 - `HANDOVER/` - the **hand-over pack**: the state of the work, the hard rules, the Tekla 2025 traps, the environment and its gotchas, the build-and-verify commands, the open questions, and the prompt to paste into a fresh Claude session on another computer.
   - `HANDOVER/03-HARD-RULES.md` - the rules that are not negotiable: the issued reference drawing is never written to, the client data stays out of the public repository, the GPLv3 server stays out of the MIT repository, Tekla 2025 only, no project rules in the app layer.
   - `HANDOVER/04-TEKLA-2025-API-TRAPS.md` - the Tekla 2025 behaviour that cost the most time to find, so it does not have to be found again.
-  - `HANDOVER/05-BUILD-AND-VERIFY.md` - every command, labelled **Command Prompt (Windows)** or **Ubuntu (WSL)**, plus ten state checks.
+  - `HANDOVER/05-BUILD-AND-VERIFY.md` - every command, labelled **Command Prompt (Windows)** or **Ubuntu (WSL)**, plus fifteen state checks.
   - The reference dumps of the project model are **not** in this pack either - the pack points at where they are and how to regenerate them.
+
+### Fixed
+
+- The hand-over pack said that the two copies of the free sources were the same files.  They are not: the dev tree still holds the **old, pre-tiering** sources, and the tiered free sources exist only in the published tree.  `HANDOVER/00-START-HERE.md` now says so, in a block that is hard to miss.
+- The pack pointed at seven of the macro's nine documents but never at `ARCHITECTURE.md` or `SETUP.md` - the two that carry the design and the install steps.  `HANDOVER/00-START-HERE.md` now has a table of all nine, saying which question each one answers, and the pack's own `README.md` says plainly that the pack is the map and the design is in those documents.
+- The build left the **old merged source** in `source\bin\`.  That file carries the Pro stages in plain text and must never be installed.  The build now removes the three merged artefacts before it starts.
 
 ## 0.1.0 - 2026-10-15
 
