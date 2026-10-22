@@ -36,11 +36,19 @@ namespace scheme onto the other, not merging.
 <https://github.com/SherinWorin/sherin-tekla-mcp/pull/1>
 
 - `feature/wall-framing-dimensioner` → `main`
-- +6503 / −0 across 37 files (before this hand-over pack was added)
-- both CI jobs green on both commits:
+- 9 commits, 56 files, +12511 / −0 (as pushed on 2026-10-22, 23:05)
+- both CI jobs green on the head commit:
   - `test-and-smoke` — 48 unit tests + the MCP smoke test on the mock backend
   - `build-windows-tekla2025` — the net48 build for Tekla 2025 + the smoke test
 - **not merged** — that is the owner's call.
+
+The last three commits of the branch are the ones of 2026-10-22:
+
+| commit | what it holds |
+|---|---|
+| `d652e9a` | the rules on a model with many wall layout drawings |
+| `ca54c8a` | the three new harnesses (section lines, version handshake, the rules on a model with many blocks) |
+| `5d1ca66` | the handover pack, and the client model under the neutral name `MODEL-2` |
 
 ## The macro — what is done
 
