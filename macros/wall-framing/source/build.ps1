@@ -366,7 +366,9 @@ if ($Package) {
 
     if ($proBuilt) {
         Write-Output 'Assembling the Pro package ...'
-        New-Package -Name 'WallFramingAutoDimensionPro' -ExtraFiles @((Join-Path $outDir 'WF_Pro.dll'))
+        New-Package -Name 'WallFramingAutoDimensionPro' `
+                    -ExtraFiles @((Join-Path $outDir 'WF_Pro.dll'),
+                                  (Join-Path $outDir 'WF_Rules_Pro.dll'))
     }
 }
 
@@ -398,8 +400,10 @@ if ($Deploy) {
         Write-Output ("  OK  {0}" -f (Join-Path $appFolder $dll))
     }
     if ($proBuilt) {
-        Copy-Item (Join-Path $outDir 'WF_Pro.dll') $appFolder -Force
-        Write-Output ("  OK  {0}" -f (Join-Path $appFolder 'WF_Pro.dll'))
+        foreach ($dll in @('WF_Pro.dll', 'WF_Rules_Pro.dll')) {
+            Copy-Item (Join-Path $outDir $dll) $appFolder -Force
+            Write-Output ("  OK  {0}" -f (Join-Path $appFolder $dll))
+        }
     }
 }
 

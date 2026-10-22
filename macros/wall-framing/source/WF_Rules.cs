@@ -29,8 +29,22 @@ namespace P142.WallFraming
         public string Name;
         /// <summary>Model object identifier.</summary>
         public int Id;
-        /// <summary>The assembly position report property of the part.</summary>
+        /// <summary>
+        /// The assembly position of the part, e.g. BP4-WP3.
+        ///
+        /// The driver fills this in with the ASSEMBLY_POS of the ASSEMBLY the
+        /// part belongs to, because in a model where the position is written
+        /// on the assembly and not on its parts, the part carries nothing.
+        /// </summary>
         public string AssemblyPos;
+        /// <summary>
+        /// A key that is unique for the assembly the part belongs to.
+        ///
+        /// Two different assemblies can carry the same ASSEMBLY_POS, so the
+        /// position cannot be used to tell them apart.  The driver fills
+        /// this in; when it is empty the ASSEMBLY_POS is used instead.
+        /// </summary>
+        public string Key;
         /// <summary>Minimum X of the part's solid.</summary>
         public double X0;
         /// <summary>Minimum Y of the part's solid.</summary>
@@ -57,8 +71,18 @@ namespace P142.WallFraming
     {
         /// <summary>The assembly position of the panel, e.g. BP4-WP3.</summary>
         public string Name;
+        /// <summary>The unique key of the assembly of the panel.</summary>
+        public string Key;
         /// <summary>The BOTTOM_TRACK of the assembly; it defines the panel axis.</summary>
         public WfPart Bottom;
+        /// <summary>
+        /// Every BOTTOM_TRACK of the assembly.
+        ///
+        /// A ledge wall (a wall that steps out of the line of the wall behind
+        /// it) is built with more than one bottom track, and the panel then
+        /// runs from the start of the first track to the end of the last one.
+        /// </summary>
+        public List<WfPart> BottomTracks = new List<WfPart>();
         /// <summary>True when the panel runs along X.</summary>
         public bool Horiz;
         /// <summary>The studs of the panel.</summary>
@@ -73,9 +97,9 @@ namespace P142.WallFraming
         public List<WfPart> Lintels = new List<WfPart>();
 
         /// <summary>Start of the panel along its own axis.</summary>
-        public double A0 { get { return Horiz ? Bottom.X0 : Bottom.Y0; } }
+        public double A0;
         /// <summary>End of the panel along its own axis.</summary>
-        public double A1 { get { return Horiz ? Bottom.X1 : Bottom.Y1; } }
+        public double A1;
         /// <summary>Coordinate of the track on the inner side of the wall.</summary>
         public double Perp { get { return Horiz ? Bottom.Y0 : Bottom.X0; } }
         /// <summary>Coordinate of the track on the outer side of the wall.</summary>
@@ -108,6 +132,26 @@ namespace P142.WallFraming
     /// </summary>
     public static class WfRules
     {
+        /// <summary>
+        /// The version of the rules interface.
+        ///
+        /// The Pro module (WF_Pro.dll) is a SEPARATE assembly that is built
+        /// against this one, and it is loaded by reflection at run time.
+        /// When the two are of different versions the Pro module fails with
+        /// a bare "Method not found" - which says nothing about the cause.
+        ///
+        /// So every assembly that is built against the rules carries the
+        /// version it was built for, and the core compares the two before
+        /// it calls the Pro module.  A mismatch is then reported as
+        /// "the modules are of different versions - install them again".
+        ///
+        /// Bump this number whenever a member of this assembly changes
+        /// shape: a field that becomes a property, a member that is
+        /// renamed, a signature that changes.  The number of the rules
+        /// that the 2025 build of the Pro module expects is 2.
+        /// </summary>
+        public const int ApiVersion = 2;
+
         /// <summary>Part names of the light-gauge-steel wall construction.</summary>
         public static readonly string[] WallParts = {
             "STUD", "BOTTOM_TRACK", "TOP_TRACK", "MIDDLE_TRACK",
@@ -168,15 +212,71 @@ namespace P142.WallFraming
             {
                 if (p.AssemblyPos == null) continue;
                 if (!p.AssemblyPos.StartsWith(prefix)) continue;
-                List<WfPart> list;
-                if (!groups.TryGetValue(p.AssemblyPos, out list))
-                {
-                    list = new List<WfPart>();
-                    groups[p.AssemblyPos] = list;
-                }
-                list.Add(p);
+                AddToGroup(groups, p);
             }
             return BuildPanelsFromGroups(groups, parts);
+        }
+
+        /// <summary>
+        /// Groups the parts into wall panels, keeping ONLY the assemblies
+        /// whose key is in the given set.
+        ///
+        /// This is how the macro works on a model that has many wall
+        /// assemblies: the drawing says which of them it shows, and only
+        /// those are dimensioned.
+        /// </summary>
+        /// <param name="parts">All parts read from the model.</param>
+        /// <param name="keys">The keys of the assemblies to keep.</param>
+        /// <param name="tol">Geometric tolerance in millimetres.</param>
+        public static List<WfPanel> BuildPanelsForAssemblies(
+            List<WfPart> parts, ICollection<string> keys, double tol)
+        {
+            HashSet<string> keep =
+                new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, List<WfPart>> groups =
+                new Dictionary<string, List<WfPart>>();
+
+            foreach (WfPart p in parts)
+            {
+                if (!keep.Contains(GroupKey(p))) continue;
+                AddToGroup(groups, p);
+            }
+
+            // an assembly that is shown in the drawing is not always a wall:
+            // a ceiling panel is built like a wall, and a vanity post is not
+            // a wall at all
+            Dictionary<string, List<WfPart>> walls =
+                new Dictionary<string, List<WfPart>>();
+            foreach (KeyValuePair<string, List<WfPart>> kv in groups)
+            {
+                if (IsWallAssembly(kv.Value)) walls[kv.Key] = kv.Value;
+            }
+            return BuildPanelsFromGroups(walls, parts);
+        }
+
+        /// <summary>
+        /// The key of the assembly a part belongs to: the unique key when the
+        /// driver gave one, the assembly position otherwise.
+        /// </summary>
+        public static string GroupKey(WfPart p)
+        {
+            if (p == null) return null;
+            if (!string.IsNullOrEmpty(p.Key)) return p.Key;
+            return p.AssemblyPos;
+        }
+
+        /// <summary>Puts the part into the group of its assembly.</summary>
+        private static void AddToGroup(Dictionary<string, List<WfPart>> groups, WfPart p)
+        {
+            string key = GroupKey(p);
+            if (key == null) return;
+            List<WfPart> list;
+            if (!groups.TryGetValue(key, out list))
+            {
+                list = new List<WfPart>();
+                groups[key] = list;
+            }
+            list.Add(p);
         }
 
         /// <summary>
@@ -203,13 +303,7 @@ namespace P142.WallFraming
             foreach (WfPart p in parts)
             {
                 if (p.AssemblyPos == null) continue;
-                List<WfPart> list;
-                if (!all.TryGetValue(p.AssemblyPos, out list))
-                {
-                    list = new List<WfPart>();
-                    all[p.AssemblyPos] = list;
-                }
-                list.Add(p);
+                AddToGroup(all, p);
             }
 
             Dictionary<string, List<WfPart>> walls =
@@ -257,24 +351,46 @@ namespace P142.WallFraming
             foreach (KeyValuePair<string, List<WfPart>> kv in groups)
             {
                 List<WfPart> ps = kv.Value;
-                WfPart bottom = null;
-                foreach (WfPart p in ps)
-                {
-                    if (string.Equals(p.Name, "BOTTOM_TRACK", StringComparison.OrdinalIgnoreCase))
-                    {
-                        bottom = p;
-                        break;
-                    }
-                }
-                if (bottom == null) continue;
-
                 WfPanel pan = new WfPanel();
-                pan.Name = kv.Key;
-                pan.Bottom = bottom;
-                pan.Horiz = bottom.Horiz;
+                pan.Key = kv.Key;
+                // the panel is named after the assembly position, which is
+                // what a person reads on the drawing
+                string apos = null;
+                foreach (WfPart p in ps)
+                    if (!string.IsNullOrEmpty(p.AssemblyPos)) { apos = p.AssemblyPos; break; }
+                pan.Name = apos ?? kv.Key;
+
+                // every bottom track of the assembly
+                foreach (WfPart p in ps)
+                    if (string.Equals(p.Name, "BOTTOM_TRACK", StringComparison.OrdinalIgnoreCase))
+                        pan.BottomTracks.Add(p);
+                if (pan.BottomTracks.Count == 0) continue;
+
+                // the panel axis is the direction of the LONGEST bottom track
+                WfPart longest = pan.BottomTracks[0];
+                foreach (WfPart p in pan.BottomTracks)
+                    if (TrackLength(p) > TrackLength(longest)) longest = p;
+                pan.Bottom = longest;
+                pan.Horiz = longest.Horiz;
+
+                // the panel runs from the start of the first track that is
+                // parallel to the axis to the end of the last one
+                double a0 = 0, a1 = 0;
+                bool have = false;
+                foreach (WfPart p in pan.BottomTracks)
+                {
+                    if (p.Horiz != pan.Horiz) continue;      // not parallel
+                    double lo = pan.Horiz ? p.X0 : p.Y0;
+                    double hi = pan.Horiz ? p.X1 : p.Y1;
+                    if (!have) { a0 = lo; a1 = hi; have = true; continue; }
+                    a0 = Math.Min(a0, lo);
+                    a1 = Math.Max(a1, hi);
+                }
+                pan.A0 = a0;
+                pan.A1 = a1;
+
                 foreach (WfPart p in ps)
                 {
-                    if (ReferenceEquals(p, bottom)) continue;
                     if (string.Equals(p.Name, "STUD", StringComparison.OrdinalIgnoreCase))
                     {
                         // ignore the long ceiling members that are mis-named STUD
@@ -303,14 +419,40 @@ namespace P142.WallFraming
             return panels;
         }
 
+        /// <summary>The length of a track along its own long axis.</summary>
+        private static double TrackLength(WfPart p)
+        {
+            return p.Horiz ? (p.X1 - p.X0) : (p.Y1 - p.Y0);
+        }
+
         /// <summary>
         /// Computes the extent of every panel's whole assembly (track +
         /// plasterboard), both along the panel and across it.  The band chains
         /// are measured on these extents, so the plasterboard thickness shows
         /// up as a real gap between adjacent walls.
+        ///
+        /// The parts are indexed by their assembly position first, so that
+        /// the cost does not grow with the number of panels times the number
+        /// of parts: a model with a thousand wall assemblies would otherwise
+        /// take a million comparisons.
         /// </summary>
         private static void ComputeAssemblyExtents(List<WfPanel> panels, List<WfPart> parts)
         {
+            Dictionary<string, List<WfPart>> index =
+                new Dictionary<string, List<WfPart>>(StringComparer.Ordinal);
+            foreach (WfPart q in parts)
+            {
+                string key = GroupKey(q);
+                if (key == null) continue;
+                List<WfPart> list;
+                if (!index.TryGetValue(key, out list))
+                {
+                    list = new List<WfPart>();
+                    index[key] = list;
+                }
+                list.Add(q);
+            }
+
             foreach (WfPanel p in panels)
             {
                 p.Asm0 = p.A0;
@@ -321,9 +463,11 @@ namespace P142.WallFraming
                 p.XHi = p.Bottom.X1;
                 p.YLo = p.Bottom.Y0;
                 p.YHi = p.Bottom.Y1;
-                foreach (WfPart q in parts)
+
+                List<WfPart> own;
+                if (!index.TryGetValue(p.Key, out own)) continue;
+                foreach (WfPart q in own)
                 {
-                    if (!string.Equals(q.AssemblyPos, p.Name, StringComparison.Ordinal)) continue;
                     p.Asm0 = Math.Min(p.Asm0, p.Horiz ? q.X0 : q.Y0);
                     p.Asm1 = Math.Max(p.Asm1, p.Horiz ? q.X1 : q.Y1);
                     p.AsmPerp0 = Math.Min(p.AsmPerp0, p.Horiz ? q.Y0 : q.X0);
@@ -349,6 +493,10 @@ namespace P142.WallFraming
         ///     between the first and the second stud of the run, because the
         ///     two studs form one wider bay.
         ///
+        /// The one exception is a stud inside an opening that has NO door
+        /// frame (see <see cref="IsOpenGap"/>): there the stud is a mullion
+        /// of the wall and it is measured like any other member.
+        ///
         /// NOTE: a stud runs ACROSS the wall, so its extent along the panel
         /// axis is its SHORT axis - using the part's own long axis would give
         /// the wrong coordinate.
@@ -362,15 +510,8 @@ namespace P142.WallFraming
                 return a.PanelLo(h).CompareTo(b.PanelLo(h));
             });
 
-            // the lintel marks the opening: studs inside it are not measured
-            double lintLo = 0, lintHi = 0;
-            bool hasLintel = p.Lintels.Count > 0;
-            if (hasLintel)
-            {
-                lintLo = p.Lintels[0].PanelLo(h);
-                lintHi = p.Lintels[0].PanelHi(h);
-            }
-
+            // the lintels mark the openings: studs inside one of them are
+            // not measured
             List<double> vals = new List<double>();
             int i = 0;
             while (i < studs.Count)
@@ -381,8 +522,10 @@ namespace P142.WallFraming
                 // flush with the panel end?  the panel end already measures it
                 if (Near(lo, p.A0, tol) || Near(hi, p.A1, tol)) { i++; continue; }
 
-                // inside the lintel (an opening)?  not measured
-                if (hasLintel && lo >= lintLo - tol && hi <= lintHi + tol) { i++; continue; }
+                // inside a lintel (an opening)?  not measured - unless the
+                // opening has no door frame, then the stud is a mullion of
+                // the wall and it is measured like any other member
+                if (InsideOpening(p, lo, hi, tol)) { i++; continue; }
 
                 // collect the run of touching studs
                 int j = i + 1;
@@ -410,12 +553,103 @@ namespace P142.WallFraming
         }
 
         /// <summary>
+        /// True when the part lies inside one of the lintels of the panel,
+        /// that is, inside an opening.
+        ///
+        /// This is the plain geometric test.  The rules do NOT use it: a
+        /// stud inside an opening that has **no door frame** is a mullion
+        /// of the wall and IS measured.  Use
+        /// <see cref="InsideOpening"/>, which knows about the door frame.
+        /// </summary>
+        public static bool InsideLintel(WfPanel p, double lo, double hi, double tol)
+        {
+            bool h = p.Horiz;
+            foreach (WfPart lintel in p.Lintels)
+            {
+                if (lo >= lintel.PanelLo(h) - tol && hi <= lintel.PanelHi(h) + tol)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// True when the part lies inside an opening that has NO door frame.
+        ///
+        /// A door frame is a PAIR of jambs that touch: the lintel bears on
+        /// the inner one of the pair, and the opening is measured at the
+        /// clear edge (see <see cref="OpeningStations"/>).  When the jamb
+        /// that holds the lintel has NO touching partner, the opening is a
+        /// plain GAP in the wall, and the members that stand in it (the
+        /// jambs at their ends and the mullion between them) are ordinary
+        /// members of the wall: they are measured like studs, at their
+        /// centre.
+        ///
+        /// The old model has no opening of this kind, so this changes
+        /// nothing there.  It comes from the new model (MODEL-2), where
+        /// the wall framing layout drawing of the BP*-WP13 panels measures
+        /// the jamb centres and the mullion of such a gap.
+        /// </summary>
+        public static bool IsOpenGap(WfPanel p, WfPart lintel, double tol)
+        {
+            bool h = p.Horiz;
+            double ll = lintel.PanelLo(h), lh = lintel.PanelHi(h);
+
+            List<WfPart> jambs = new List<WfPart>(p.Openings);
+            foreach (WfPart j in jambs)
+            {
+                double a1 = j.PanelLo(h), a2 = j.PanelHi(h);
+                bool holds = (ll >= a1 - tol && ll <= a2 + tol) ||
+                             (lh >= a1 - tol && lh <= a2 + tol);
+                if (!holds) continue;
+
+                // a touching partner means a door frame
+                bool framed = false;
+                foreach (WfPart m in jambs)
+                {
+                    if (object.ReferenceEquals(m, j)) continue;
+                    if (Near(m.PanelLo(h), a2, tol) || Near(m.PanelHi(h), a1, tol))
+                    {
+                        framed = true;
+                        break;
+                    }
+                }
+                if (!framed) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// True when the part lies inside an opening that hides it: an
+        /// opening with a door frame.  A stud inside such an opening is the
+        /// frame of the opening and it is not measured.
+        /// </summary>
+        public static bool InsideOpening(WfPanel p, double lo, double hi, double tol)
+        {
+            bool h = p.Horiz;
+            foreach (WfPart lintel in p.Lintels)
+            {
+                if (!(lo >= lintel.PanelLo(h) - tol && hi <= lintel.PanelHi(h) + tol))
+                    continue;
+                if (IsOpenGap(p, lintel, tol)) return false;   // a gap: measured
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// The opening stations of a panel.
         ///
-        /// An opening is a pair of ADJACENT jambs.  The lintel bears on one
-        /// of them, and the opening is measured at the OUTER EDGE of that
-        /// jamb - the edge the lintel bears on.  The other jamb of the pair
-        /// is not measured.
+        /// An opening with a DOOR FRAME is a pair of ADJACENT jambs.  The
+        /// lintel bears on one of them, and the opening is measured at the
+        /// OUTER EDGE of that jamb - the edge the lintel bears on.  The
+        /// other jamb of the pair is not measured.
+        ///
+        /// An opening WITHOUT a door frame (see <see cref="IsOpenGap"/>) is
+        /// a gap in the wall: the jambs that hold the lintel are ordinary
+        /// members of the wall, and they are measured at their CENTRE.
+        ///
+        /// A panel can have more than one opening, so every lintel is looked
+        /// at.
         /// </summary>
         public static List<double> OpeningStations(WfPanel p, double tol)
         {
@@ -423,25 +657,39 @@ namespace P142.WallFraming
             List<double> vals = new List<double>();
             if (p.Lintels.Count == 0) return vals;
 
-            WfPart lintel = p.Lintels[0];
-            double ll = lintel.PanelLo(h), lh = lintel.PanelHi(h);
-
             List<WfPart> jambs = new List<WfPart>(p.Openings);
             jambs.Sort(delegate (WfPart a, WfPart b)
             {
                 return a.PanelLo(h).CompareTo(b.PanelLo(h));
             });
 
-            for (int i = 0; i < jambs.Count - 1; i++)
+            foreach (WfPart lintel in p.Lintels)
             {
-                WfPart j1 = jambs[i], j2 = jambs[i + 1];
-                double a1 = j1.PanelLo(h), a2 = j1.PanelHi(h);
-                double b1 = j2.PanelLo(h), b2 = j2.PanelHi(h);
-                if (!Near(a2, b1, tol)) continue;            // not an adjacent pair
+                double ll = lintel.PanelLo(h), lh = lintel.PanelHi(h);
 
-                // the lintel bears on the jamb that contains its start or end
-                if (ll > a1 - tol && ll <= b2 + tol) vals.Add(b2);   // lintel starts here
-                else if (lh < b2 + tol && lh >= a1 - tol) vals.Add(a1); // lintel ends here
+                // an opening with a door frame: the clear edge of the opening
+                for (int i = 0; i < jambs.Count - 1; i++)
+                {
+                    WfPart j1 = jambs[i], j2 = jambs[i + 1];
+                    double a1 = j1.PanelLo(h), a2 = j1.PanelHi(h);
+                    double b1 = j2.PanelLo(h), b2 = j2.PanelHi(h);
+                    if (!Near(a2, b1, tol)) continue;            // not an adjacent pair
+
+                    // the lintel bears on the jamb that contains its start or end
+                    if (ll > a1 - tol && ll <= b2 + tol) vals.Add(b2);   // lintel starts here
+                    else if (lh < b2 + tol && lh >= a1 - tol) vals.Add(a1); // lintel ends here
+                }
+
+                // an opening without a door frame: the jambs are ordinary
+                // members of the wall and they are measured at their centre
+                if (!IsOpenGap(p, lintel, tol)) continue;
+                foreach (WfPart j in jambs)
+                {
+                    double a1 = j.PanelLo(h), a2 = j.PanelHi(h);
+                    bool holds = (ll >= a1 - tol && ll <= a2 + tol) ||
+                                 (lh >= a1 - tol && lh <= a2 + tol);
+                    if (holds) vals.Add((a1 + a2) / 2.0);
+                }
             }
             vals.Sort();
             return vals;

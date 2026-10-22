@@ -120,6 +120,25 @@ namespace P142.WallFraming
         /// <summary>The bounding box of the wall layout: X0, Y0, X1, Y1.</summary>
         public static double Bx0, By0, Bx1, By1;
 
+        /// <summary>
+        /// The assembly of every part of the model, by the id of the part.
+        ///
+        /// A GA drawing shows only the assemblies of its own block, so the
+        /// drawing is what tells the macro which walls to dimension.  The
+        /// drawing gives the id of the MODEL part; this map turns it into the
+        /// id of the assembly.
+        /// </summary>
+        static readonly Dictionary<int, int> PartAssembly = new Dictionary<int, int>();
+
+        /// <summary>
+        /// The coordinate system the model was read in, or null when the model
+        /// has not been read yet.
+        ///
+        /// The drawings of a model share their plan view coordinate system
+        /// almost always, so the model is read ONCE for the whole run.
+        /// </summary>
+        static string ReadCoordinateSystem = null;
+
         // ------------------------------------------------------------- helpers
         /// <summary>Writes a line into the log of the run.</summary>
         public static void Say(string s)
@@ -129,18 +148,46 @@ namespace P142.WallFraming
 
         // ------------------------------------------------------------- model read
         /// <summary>
+        /// A text that tells two coordinate systems apart.
+        /// </summary>
+        static string CsSignature(CoordinateSystem cs)
+        {
+            if (cs == null) return "";
+            return string.Format(CultureInfo.InvariantCulture, "{0:F3}|{1:F3}|{2:F3}|{3:F3}|{4:F3}|{5:F3}|{6:F3}|{7:F3}|{8:F3}",
+                cs.Origin.X, cs.Origin.Y, cs.Origin.Z,
+                cs.AxisX.X, cs.AxisX.Y, cs.AxisX.Z,
+                cs.AxisY.X, cs.AxisY.Y, cs.AxisY.Z);
+        }
+
+        /// <summary>
         /// Reads the plan-view extents of every wall part of the model, in the
         /// coordinate system of the given view.
+        ///
+        /// The ASSEMBLY_POS is read from the ASSEMBLY and not from the part,
+        /// because a model can leave the position off its parts: the position
+        /// of the assembly is then the only place it is written down.  The
+        /// position of the part is used when the assembly has none, so the
+        /// models that write it on the parts keep working.
+        ///
+        /// The read is skipped when the model was already read in the same
+        /// coordinate system, which is the case for every drawing of a model.
         /// </summary>
         public static void ReadWallParts(View view, TSM.Model model)
         {
+            CoordinateSystem cs = view.DisplayCoordinateSystem;
+            string signature = CsSignature(cs);
+            if (ReadCoordinateSystem == signature) return;
+            ReadCoordinateSystem = signature;
+
             AllParts.Clear();
+            PartAssembly.Clear();
+
             TSM.WorkPlaneHandler wph = model.GetWorkPlaneHandler();
             TSM.TransformationPlane original = wph.GetCurrentTransformationPlane();
             try
             {
                 // the parts are read in the plan view's coordinate system
-                wph.SetCurrentTransformationPlane(new TSM.TransformationPlane(view.DisplayCoordinateSystem));
+                wph.SetCurrentTransformationPlane(new TSM.TransformationPlane(cs));
                 TSM.ModelObjectSelector sel = model.GetModelObjectSelector();
                 foreach (TSM.ModelObject.ModelObjectEnum kind in
                     new[] { TSM.ModelObject.ModelObjectEnum.BEAM, TSM.ModelObject.ModelObjectEnum.CONTOURPLATE })
@@ -150,16 +197,31 @@ namespace P142.WallFraming
                     {
                         TSM.Part p = en.Current as TSM.Part;
                         if (p == null) continue;
+
+                        TSM.Assembly asm = null;
+                        try { asm = p.GetAssembly(); } catch (Exception) { }
+                        if (asm == null) continue;
+                        int assemblyId = asm.Identifier.ID;
+                        PartAssembly[p.Identifier.ID] = assemblyId;
+
                         if (!WfRules.IsWallPart(p.Name)) continue;
                         TSM.Solid so = p.GetSolid();
                         if (so == null) continue;
+
+                        // the position of the assembly, or the one of the part
                         string apos = "";
-                        p.GetReportProperty("ASSEMBLY_POS", ref apos);
+                        asm.GetReportProperty("ASSEMBLY_POS", ref apos);
+                        if (string.IsNullOrEmpty(apos))
+                        {
+                            apos = "";
+                            p.GetReportProperty("ASSEMBLY_POS", ref apos);
+                        }
 
                         WfPart wp = new WfPart();
                         wp.Name = p.Name;
                         wp.Id = p.Identifier.ID;
                         wp.AssemblyPos = apos ?? "";
+                        wp.Key = assemblyId.ToString(CultureInfo.InvariantCulture);
                         wp.X0 = so.MinimumPoint.X;
                         wp.Y0 = so.MinimumPoint.Y;
                         wp.X1 = so.MaximumPoint.X;
@@ -171,6 +233,73 @@ namespace P142.WallFraming
             finally
             {
                 wph.SetCurrentTransformationPlane(original);
+            }
+        }
+
+        /// <summary>
+        /// The keys of the assemblies the given view shows.
+        ///
+        /// This is how the macro knows which walls belong to the drawing: a
+        /// GA drawing of one block of a model shows the assemblies of that
+        /// block and of no other.
+        /// </summary>
+        public static HashSet<string> ShownAssemblies(View view)
+        {
+            HashSet<string> keys = new HashSet<string>(StringComparer.Ordinal);
+            DrawingObjectEnumerator en = view.GetAllObjects();
+            while (en.MoveNext())
+            {
+                DrawingObject o = en.Current;
+                if (o == null) continue;
+                ModelObject mo = o as ModelObject;
+                if (mo == null) continue;
+                int id;
+                try { id = mo.ModelIdentifier.ID; } catch (Exception) { continue; }
+                if (id == 0) continue;
+                int assemblyId;
+                if (!PartAssembly.TryGetValue(id, out assemblyId)) continue;
+                keys.Add(assemblyId.ToString(CultureInfo.InvariantCulture));
+            }
+            return keys;
+        }
+
+        /// <summary>
+        /// The wall panels of the given view, in the given parts.
+        ///
+        /// The panels are the wall assemblies the view shows.  When the view
+        /// shows none - a drawing whose view is empty, or a model whose
+        /// assemblies are not shown in the drawing - the panels are found the
+        /// old way: by the name of the assembly, and then by their
+        /// construction.
+        /// </summary>
+        public static void SelectPanels(View view)
+        {
+            Panels.Clear();
+
+            HashSet<string> shown = ShownAssemblies(view);
+            if (shown.Count > 0)
+            {
+                List<WfPart> mine = new List<WfPart>();
+                foreach (WfPart p in AllParts)
+                    if (shown.Contains(p.Key)) mine.Add(p);
+                if (mine.Count > 0)
+                {
+                    Panels.AddRange(WfRules.BuildPanelsForAssemblies(mine, shown, TOL));
+                    Say("the view shows " + shown.Count + " assemblies, " +
+                        mine.Count + " wall parts, " + Panels.Count + " wall panels");
+                    return;
+                }
+            }
+
+            // no fallback: the view shows nothing that the macro can read
+            Say("the view shows no wall assembly - the wall panels were found " +
+                "by their name and by their construction instead");
+            Panels.AddRange(WfRules.BuildPanels(AllParts, PANEL_PREFIX, TOL));
+            if (Panels.Count == 0)
+            {
+                Panels.AddRange(WfRules.BuildPanelsAuto(AllParts));
+                Say("no part matched the prefix '" + PANEL_PREFIX +
+                    "' - the wall panels were found automatically");
             }
         }
 
@@ -436,19 +565,21 @@ namespace P142.WallFraming
 
 
         /// <summary>
-        /// Finds the wall layout drawing the macro works on.
+        /// Finds the wall layout drawings the macro works on.
         ///
         /// The ACTIVE drawing wins when it is a wall layout drawing - that is
-        /// what the user asked for.  Otherwise the wall layout drawing of
-        /// the model is looked up and activated.
+        /// what the user asked for, and only that drawing is worked on.
+        /// Otherwise EVERY wall layout drawing of the model that may be
+        /// written to is worked on, one after the other: a model has one
+        /// wall layout drawing per block, and the macro dimensions them all.
         ///
         /// A drawing that is frozen or issued is never chosen: the macro
         /// refuses to touch an issued drawing.
         /// </summary>
         /// <param name="active">The drawing that was active when the macro started.</param>
         /// <param name="note">Explains what was decided, for the log.</param>
-        /// <returns>The drawing to dimension, or null when there is none.</returns>
-        public static Drawing ResolveTargetDrawing(Drawing active, out string note)
+        /// <returns>The drawings to dimension; the list is empty when there is none.</returns>
+        public static List<Drawing> ResolveTargetDrawings(Drawing active, out string note)
         {
             note = "";
             List<Drawing> candidates = new List<Drawing>();
@@ -474,35 +605,31 @@ namespace P142.WallFraming
                 {
                     note = "the active drawing " + active.Mark +
                            " is issued or frozen - it is not written to";
-                    return null;
+                    return new List<Drawing>();
                 }
                 note = "the active drawing " + active.Mark + " is the wall layout drawing";
-                return active;
+                return new List<Drawing> { active };
             }
 
-            // 2. a wall layout drawing of the model that may be written to
+            // 2. every wall layout drawing of the model that may be written to
+            List<Drawing> targets = new List<Drawing>();
             foreach (Drawing d in candidates)
             {
                 if (IsProtected(d)) continue;
                 if (active != null && d.Mark == active.Mark) continue;
-                note = "the wall layout drawing " + d.Mark + " was activated";
-                try
-                {
-                    DrawingHandler dh = new DrawingHandler();
-                    if (!dh.SetActiveDrawing(d))
-                    {
-                        note = "the wall layout drawing " + d.Mark +
-                               " could not be activated";
-                        return null;
-                    }
-                }
-                catch (Exception e)
-                {
-                    note = "the wall layout drawing " + d.Mark +
-                           " could not be activated: " + e.Message;
-                    return null;
-                }
-                return d;
+                targets.Add(d);
+            }
+            targets.Sort(delegate (Drawing a, Drawing b)
+            {
+                int c = string.Compare(a.Name ?? "", b.Name ?? "", StringComparison.OrdinalIgnoreCase);
+                if (c != 0) return c;
+                return string.Compare(a.Mark ?? "", b.Mark ?? "", StringComparison.OrdinalIgnoreCase);
+            });
+            if (targets.Count > 0)
+            {
+                note = "the active drawing is not a wall layout drawing - " +
+                       targets.Count + " wall layout drawings of the model are worked on";
+                return targets;
             }
 
             // 3. nothing to work on
@@ -513,7 +640,7 @@ namespace P142.WallFraming
                        " is not a wall layout drawing, and the model has none";
             else
                 note = "no drawing is open";
-            return null;
+            return new List<Drawing>();
         }
 
 
@@ -603,15 +730,24 @@ namespace P142.WallFraming
         /// It is reached through reflection, so that this assembly does not
         /// depend on it: the free edition works without it, and a Pro licence
         /// without the module simply does not get the Pro annotations.
+        ///
+        /// The module is built against the rules assembly, and the two have
+        /// to be of the same version: the module calls the rules by their
+        /// exact names, and a rules assembly of a different version turns
+        /// every call into a bare "Method not found" - which says nothing
+        /// about the cause.  So the version the module was built for is
+        /// read first and compared with the version of the rules that are
+        /// installed.  A mismatch is reported as such, and the Pro stages
+        /// are left out rather than failing one by one.
         /// </summary>
         static void RunPro(WfResult result)
         {
             try
             {
-                string path = Path.Combine(AppFolder(), "WF_Pro.dll");
-                if (!File.Exists(path))
+                string path = ProModulePath();
+                if (path == null)
                 {
-                    result.Message += "  (the Pro module " + path + " is not installed)";
+                    result.Message += "  (the Pro module is not installed)";
                     return;
                 }
                 Assembly asm = Assembly.LoadFrom(path);
@@ -627,6 +763,32 @@ namespace P142.WallFraming
                     result.Message += "  (the Pro module has no entry point)";
                     return;
                 }
+
+                // ---- the version handshake
+                int wanted = ProApiVersion(t);
+                if (wanted < 0)
+                {
+                    result.Message += "  (the Pro module is older than the " +
+                        "rules - install the modules again, they are of " +
+                        "different versions)";
+                    return;
+                }
+                int installed = InstalledRulesApiVersion();
+                if (installed < 0)
+                {
+                    result.Message += "  (the installed rules assembly is " +
+                        "older than this macro - install the modules again)";
+                    return;
+                }
+                if (wanted != installed)
+                {
+                    result.Message += "  (the Pro module was built for version " +
+                        wanted + " of the rules, and the installed rules are " +
+                        "version " + installed + " - install the modules " +
+                        "again, they are of different versions)";
+                    return;
+                }
+
                 m.Invoke(null, new object[] { result });
             }
             catch (Exception e)
@@ -636,56 +798,233 @@ namespace P142.WallFraming
         }
 
         /// <summary>
-        /// The macro's core: reads the model, derives the annotation rules and
-        /// writes them into the given drawing.  It touches no user interface,
-        /// so it can be called from a test.
+        /// Where the Pro module is looked for.
+        ///
+        /// The module is looked for NEXT TO THIS ASSEMBLY first, and in the
+        /// app folder second.  The modules belong together: the Pro module
+        /// is built against the rules assembly, and a Pro module from
+        /// another build cannot work with the rules of this one.  Looking
+        /// beside this assembly keeps a folder self-consistent - a build
+        /// that is tested from its own folder cannot pick up the module of
+        /// an older installation by accident.
+        ///
+        /// Returns null when the module is nowhere to be found.
         /// </summary>
-        /// <param name="dr">The target drawing (must be the active drawing).</param>
+        static string ProModulePath()
+        {
+            List<string> folders = new List<string>();
+            try
+            {
+                string here = Path.GetDirectoryName(
+                    typeof(WfCore).Assembly.Location);
+                if (!string.IsNullOrEmpty(here)) folders.Add(here);
+            }
+            catch { }
+            string app = AppFolder();
+            if (!folders.Contains(app)) folders.Add(app);
+
+            foreach (string folder in folders)
+            {
+                string path = Path.Combine(folder, "WF_Pro.dll");
+                if (File.Exists(path)) return path;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The version of the rules assembly that is LOADED at run time.
+        ///
+        /// This is read through reflection, and not taken from the constant
+        /// of this file: a constant is fixed when this assembly is
+        /// compiled, so it would report the version the rules had when the
+        /// core was built, and not the version that is actually on the
+        /// disk.  The number that matters is the one of the rules assembly
+        /// that the Pro module will be called against.
+        ///
+        /// Returns -1 when the loaded rules assembly carries no version at
+        /// all: it is an old one.
+        /// </summary>
+        static int InstalledRulesApiVersion()
+        {
+            try
+            {
+                Assembly rules = typeof(WfPanel).Assembly;
+                Type t = rules.GetType("P142.WallFraming.WfRules");
+                if (t == null) return -1;
+                FieldInfo f = t.GetField("ApiVersion",
+                    BindingFlags.Public | BindingFlags.Static);
+                if (f == null) return -1;
+                object v = f.GetRawConstantValue();
+                if (v == null) return -1;
+                return Convert.ToInt32(v);
+            }
+            catch { return -1; }
+        }
+
+        /// <summary>
+        /// The version of the rules the Pro module was built against.
+        ///
+        /// The module carries it as a constant, so that a module of a
+        /// different version can be recognised before it is called.  A
+        /// module that does not carry the number at all is an old one, and
+        /// -1 is returned for it: it is not called, because it would fail
+        /// on every single object it touches.
+        /// </summary>
+        static int ProApiVersion(Type proType)
+        {
+            try
+            {
+                FieldInfo f = proType.GetField("RulesApiVersion",
+                    BindingFlags.Public | BindingFlags.Static);
+                if (f == null) return -1;
+                object v = f.GetRawConstantValue();
+                if (v == null) return -1;
+                return Convert.ToInt32(v);
+            }
+            catch { return -1; }
+        }
+
+        /// <summary>
+        /// The macro's core: reads the model, derives the annotation rules and
+        /// writes them into the drawings of the model that show a wall
+        /// layout.  It touches no user interface, so it can be called from a
+        /// test.
+        /// </summary>
+        /// <param name="dr">The drawing that was active when the macro started.</param>
         /// <param name="result">Receives the outcome of the run.</param>
         public static void Execute(Drawing dr, WfResult result, int edition)
         {
+            Execute(dr, result, edition, true);
+        }
+
+        /// <summary>
+        /// The macro's core, with a choice about saving.
+        ///
+        /// A test that runs the macro on a drawing of the model wants to see
+        /// what the macro draws WITHOUT keeping it: the hand-made drawings of
+        /// a project are the reference the macro is measured against, and they
+        /// must stay as they are.
+        /// </summary>
+        /// <param name="dr">The drawing that was active when the macro started.</param>
+        /// <param name="result">Receives the outcome of the run.</param>
+        /// <param name="edition">1 for Pro, 0 for the free edition.</param>
+        /// <param name="save">True to save the drawings that were written to.</param>
+        public static void Execute(Drawing dr, WfResult result, int edition, bool save)
+        {
             Log.Length = 0;
             Made = Failed = Skipped = 0;
+            ReadCoordinateSystem = null;      // a new run reads the model again
 
             if (dr == null)
             {
                 result.Ok = false;
                 result.Message = "No active drawing.";
+                result.Log = Log.ToString();
                 return;
             }
 
-            // ---- find the drawing the macro works on
+            // ---- find the drawings the macro works on
             //
             // The macro never writes into a drawing it was not asked for:
             // it works on the ACTIVE drawing when that is a wall layout
-            // drawing, and on the wall layout drawing of the model
+            // drawing, and on every wall layout drawing of the model
             // otherwise.  A drawing that is issued or frozen is refused.
             string note;
-            Drawing target = ResolveTargetDrawing(dr, out note);
+            List<Drawing> targets = ResolveTargetDrawings(dr, out note);
             Say(note);
-            if (target == null)
+            if (targets.Count == 0)
             {
                 result.Ok = false;
                 result.Message = "No wall layout drawing to work on: " + note;
                 result.Log = Log.ToString();
                 return;
             }
-            if (target.Mark != dr.Mark)
-            {
-                // ResolveTargetDrawing has already activated the drawing.
-                dr = target;
-            }
-            if (IsProtected(dr))
-            {
-                result.Ok = false;
-                result.Message = "The drawing " + dr.Mark +
-                                 " is issued or frozen - it is not written to.";
-                result.Log = Log.ToString();
-                return;
-            }
 
             TSM.Model model = new TSM.Model();
+            DrawingHandler dh = new DrawingHandler();
+            DimHandler = new StraightDimensionSetHandler();
 
+            int done = 0;
+            List<string> summary = new List<string>();
+
+            foreach (Drawing target in targets)
+            {
+                // the drawing has to be the active one: the drawing API only
+                // writes into the drawing that is open
+                if (target.Mark != dr.Mark)
+                {
+                    try
+                    {
+                        if (!dh.SetActiveDrawing(target))
+                        {
+                            Say("the drawing " + target.Mark +
+                                " could not be activated - it is left alone");
+                            continue;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Say("the drawing " + target.Mark +
+                            " could not be activated: " + e.Message);
+                        continue;
+                    }
+                }
+
+                Drawing working = dh.GetActiveDrawing();
+                if (working == null) working = target;
+                if (IsProtected(working))
+                {
+                    Say("the drawing " + working.Mark +
+                        " is issued or frozen - it is not written to");
+                    continue;
+                }
+
+                Say("");
+                Say("=== drawing " + working.Mark + "  (" + working.Name + ") ===");
+
+                int madeBefore = Made, failedBefore = Failed;
+                DimensionDrawing(working, model, result, edition);
+                summary.Add(working.Mark + ": " + (Made - madeBefore) + " created, " +
+                            (Failed - failedBefore) + " failed");
+                done++;
+
+                // CommitChanges() alone does not persist the objects (API
+                // trap 1): the drawing has to be saved.
+                if (save)
+                {
+                    try
+                    {
+                        dh.SaveActiveDrawing();
+                    }
+                    catch (Exception e)
+                    {
+                        Failed++;
+                        Say("the drawing " + working.Mark +
+                            " could not be saved: " + e.Message);
+                    }
+                }
+            }
+
+            string msg = "Wall framing annotations: " + Made + " created, " +
+                         Failed + " failed, " + Skipped + " skipped, in " +
+                         done + " drawing(s).";
+            Say("");
+            Say(msg);
+            result.Ok = (Failed == 0 && done > 0);
+            result.Made = Made;
+            result.Failed = Failed;
+            result.Message = msg;
+            if (summary.Count > 1) result.Message += "\n" + string.Join("\n", summary.ToArray());
+            result.Log = Log.ToString();
+        }
+
+        /// <summary>
+        /// Dimensions ONE drawing: reads the model, derives the annotation
+        /// rules and writes them into the drawing.
+        /// </summary>
+        /// <returns>True when the drawing was dimensioned.</returns>
+        static bool DimensionDrawing(Drawing dr, TSM.Model model, WfResult result, int edition)
+        {
             // ---- pick the plan view (looking straight down)
             View view = null;
             List<View> views = new List<View>();
@@ -703,15 +1042,13 @@ namespace P142.WallFraming
             }
             if (view == null)
             {
-                result.Ok = false;
-                result.Message = "No plan view was found in this drawing.";
-                result.Log = Log.ToString();
-                return;
+                Say("no plan view was found in this drawing - it is left alone");
+                return false;
             }
             ActiveView = view;
             ActiveDrawing = dr;
 
-            Say("Drawing " + dr.Mark + "  view '" + view.Name + "'  scale 1:" + view.Attributes.Scale);
+            Say("view '" + view.Name + "'  scale 1:" + view.Attributes.Scale);
 
             // ---- remove the output of a previous run of this macro
             CleanUp(view, dr);
@@ -720,39 +1057,26 @@ namespace P142.WallFraming
             ReadWallParts(view, model);
             Say("wall parts read: " + AllParts.Count);
 
-            // ---- group the parts into wall panels
-            //
-            // The panel prefix of this project is BP4-WP.  On another
-            // computer the model may use another prefix, so when the
-            // configured one matches nothing the panels are found
-            // automatically (a wall assembly is a group of parts with a
-            // bottom track, a top track, a stud and a gypsum board).
-            Panels.Clear();
-            Panels.AddRange(WfRules.BuildPanels(AllParts, PANEL_PREFIX, TOL));
-            if (Panels.Count == 0)
-            {
-                Panels.AddRange(WfRules.BuildPanelsAuto(AllParts));
-                Say("no part matched the prefix '" + PANEL_PREFIX +
-                    "' - the wall panels were found automatically");
-            }
+            // ---- the wall panels this drawing shows
+            SelectPanels(view);
             Say("wall panels: " + Panels.Count);
             if (Panels.Count == 0)
             {
-                result.Ok = false;
-                result.Message = "No wall panel was found in the model.";
-                result.Log = Log.ToString();
-                return;
+                Say("no wall panel was found for this drawing - it is left alone");
+                return false;
             }
 
-            DimHandler = new StraightDimensionSetHandler();
-
-            // the bounding box of the whole wall layout
+            // ---- the bounding box of THIS wall layout
+            //
+            // The box is the box of the panels of this drawing, not of the
+            // whole model: a model has one block per drawing, and the blocks
+            // are far apart.
             Bx0 = double.MaxValue; By0 = double.MaxValue;
             Bx1 = double.MinValue; By1 = double.MinValue;
-            foreach (WfPart p in AllParts)
+            foreach (WfPanel p in Panels)
             {
-                Bx0 = Math.Min(Bx0, p.X0); By0 = Math.Min(By0, p.Y0);
-                Bx1 = Math.Max(Bx1, p.X1); By1 = Math.Max(By1, p.Y1);
+                Bx0 = Math.Min(Bx0, p.XLo); By0 = Math.Min(By0, p.YLo);
+                Bx1 = Math.Max(Bx1, p.XHi); By1 = Math.Max(By1, p.YHi);
             }
             if (Bx1 < Bx0) { Bx0 = 0; By0 = 0; Bx1 = 1000; By1 = 1000; }
 
@@ -791,14 +1115,7 @@ namespace P142.WallFraming
             // which is loaded here only when the licence allows it.
             if (edition == 1) RunPro(result);
 
-            string msg = "Wall framing annotations: " + Made + " created, " +
-                         Failed + " failed, " + Skipped + " skipped.";
-            Say(msg);
-            result.Ok = (Failed == 0);
-            result.Made = Made;
-            result.Failed = Failed;
-            result.Message = msg;
-            result.Log = Log.ToString();
+            return true;
         }
 
     }

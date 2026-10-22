@@ -134,10 +134,16 @@ if ($text -notmatch 'MacroEntryPoint') {
 #
 # WF_Pro.dll is the Pro edition.  It is installed when it is found, so that a
 # licence that is upgraded to Pro starts working without a new installation.
+# WF_Rules_Pro.dll is the Pro rules; it goes with it.  The two belong to the
+# same build as the three free modules, so a set that is mixed is refused by
+# the version handshake of the macro.
 # ---------------------------------------------------------------------------
-$moduleFiles = @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll', 'WF_Pro.dll')
+$moduleFiles = @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll',
+                  'WF_Pro.dll', 'WF_Rules_Pro.dll')
+$proModules = @('WF_Pro.dll', 'WF_Rules_Pro.dll')
 
 $modules = @()
+$proFound = @()
 foreach ($name in $moduleFiles) {
     $from = $null
     foreach ($dir in @($src, (Join-Path $src 'bin'), (Join-Path $here 'bin'))) {
@@ -145,7 +151,7 @@ foreach ($name in $moduleFiles) {
         if (Test-Path $cand) { $from = $cand; break }
     }
     if (-not $from) {
-        if ($name -eq 'WF_Pro.dll') {
+        if ($proModules -contains $name) {
             Write-Output ("  --  {0} is not here: the free edition is installed." -f $name)
             continue
         }
@@ -153,7 +159,16 @@ foreach ($name in $moduleFiles) {
         Write-Output '       Build it:  cd source  &&  powershell -NoProfile -File build.ps1'
         exit 1
     }
+    if ($proModules -contains $name) { $proFound += $name }
     $modules += @{ Name = $name; From = $from; To = (Join-Path $appFolder $name) }
+}
+
+# A half-Pro installation is a mixed set: the macro then says that the
+# modules are of different versions.
+if ($proFound.Count -ne 0 -and $proFound.Count -ne $proModules.Count) {
+    Write-Output ("WARNING: only {0} of the Pro modules is in the package ({1})." -f
+        $proFound.Count, ($proFound -join ', '))
+    Write-Output '         Copy the package again, complete, so that the five modules are of one build.'
 }
 
 if ($WhatIfOnly) {
