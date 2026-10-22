@@ -65,6 +65,15 @@ STEP 1 - Get the two files
            -> source\P142_WF_AutoDimension_merged.cs
            -> source\P142_WF_AutoDimension.bmp
 
+  >> THE FILE TO INSTALL IS "P142_WF_AutoDimension_merged.cs"  (~94000 bytes).
+     It holds the macro AND the rules in one file.
+     Do NOT install "P142_WF_AutoDimension.cs" from the source\ folder: that
+     one is the macro only, and Tekla cannot compile it without the rules
+     next to it.  The file you install must be about 94000 bytes; the
+     macro-only file is about 49000 bytes.
+     The installer (method B) checks this for you and refuses a file that
+     is not the merged one.
+
 STEP 2 - Find the macro catalog folder
 ---------------------------------------
   It is
@@ -96,6 +105,9 @@ STEP 3 - Copy the two files in
   The rename matters: the name of the .cs file IS the name of the macro on
   the ribbon.  Leave it as "_merged" and the ribbon will show
   "P142_WF_AutoDimension_merged".
+
+  Check the size after the copy:  dir P142_WF_AutoDimension.cs
+  It must be about 94000 bytes.
 
   If a file called P142_WF_AutoDimension.cs is already in the folder, it is
   an older version - overwrite it.

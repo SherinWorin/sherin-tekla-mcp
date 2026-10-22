@@ -97,6 +97,21 @@ foreach ($f in $files) {
     }
 }
 
+# The file that goes into the catalog must be the MERGED one: the macro and
+# the rules in one file.  The macro alone calls WF.WfRules..., and without
+# the rules next to it Tekla cannot compile it - the error is a missing
+# namespace, and it is not easy to see where it came from.
+$merged = $files[0].From
+$text = Get-Content $merged -Raw
+if ($text -notmatch 'namespace\s+P142\.WallFraming') {
+    Write-Output ("ERROR: {0} is not the merged source." -f $merged)
+    Write-Output '       The file that goes into the catalog must contain BOTH the'
+    Write-Output '       macro and the rules (namespace P142.WallFraming).'
+    Write-Output '       Build it:  cd source  &&  powershell -NoProfile -File build.ps1'
+    Write-Output '       and install  source\bin\P142_WF_AutoDimension_merged.cs'
+    exit 1
+}
+
 if ($WhatIfOnly) {
     foreach ($f in $files) { Write-Output ("would copy {0} -> {1}" -f $f.From, $f.To) }
     exit 0
