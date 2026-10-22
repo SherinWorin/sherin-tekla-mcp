@@ -53,6 +53,11 @@ macros/wall-framing/
     reference/             the reference dumps - see reference/README.md
 ```
 
+The **hand-over pack** of the whole project is in
+[HANDOVER/](../../HANDOVER/README.md) at the root of the repository: the
+state of the work, the hard rules, the Tekla 2025 traps and the commands to
+continue on another computer.
+
 ## Which drawing does it work on?
 
 The **mark is never used** to recognise a drawing:

@@ -62,6 +62,9 @@ config/                     settings.json and rules/*.json
 scripts/smoke_test.py       Talks to the server like an MCP client (used by CI)
 docs/                       SETUP, ARCHITECTURE, TOOLS, API_NOTES, TESTING
 macros/wall-framing/        A standalone Tekla 2025 drawing macro (see below)
+HANDOVER/                   Hand-over pack: the state of the work, the hard
+                            rules, the Tekla 2025 traps, and how to continue
+                            this project on another computer
 ```
 
 ## Also in this repository: the wall-framing auto-dimensioner
@@ -81,6 +84,16 @@ wall-panel marks, section marks, notes).
 
 See [macros/wall-framing/README.md](macros/wall-framing/README.md) and
 [macros/wall-framing/INSTALL_NOTES.txt](macros/wall-framing/INSTALL_NOTES.txt).
+
+## Handing the project over to another computer
+
+[HANDOVER/](HANDOVER/README.md) is the hand-over pack. It is written for a
+fresh Claude instance on another PC: what the project is, what state it is
+in, the rules that must not be broken, the Tekla 2025 behaviour that cost
+the most time to find, every command to rebuild and re-verify, and the
+prompt to paste into the new session.
+
+Start at [HANDOVER/00-START-HERE.md](HANDOVER/00-START-HERE.md).
 
 ## Status
 

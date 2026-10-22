@@ -11,6 +11,11 @@
   - The rules live in their own assembly (`WF_Rules.cs`) with **no Tekla reference**; the macro and the rules are merged into one `.cs` file for the Tekla macro catalog.
   - A deployment package (`package/WallFramingAutoDimension.zip`) for installing on another computer, with `INSTALL_NOTES.txt` and an optional installer script.
   - Test harnesses in `macros/wall-framing/tests/`; the reference dumps of the project model are **not** committed (client data) - see `macros/wall-framing/tests/reference/README.md`.
+- `HANDOVER/` - the **hand-over pack**: the state of the work, the hard rules, the Tekla 2025 traps, the environment and its gotchas, the build-and-verify commands, the open questions, and the prompt to paste into a fresh Claude session on another computer.
+  - `HANDOVER/03-HARD-RULES.md` - the rules that are not negotiable: the issued reference drawing is never written to, the client data stays out of the public repository, the GPLv3 server stays out of the MIT repository, Tekla 2025 only, no project rules in the app layer.
+  - `HANDOVER/04-TEKLA-2025-API-TRAPS.md` - the Tekla 2025 behaviour that cost the most time to find, so it does not have to be found again.
+  - `HANDOVER/05-BUILD-AND-VERIFY.md` - every command, labelled **Command Prompt (Windows)** or **Ubuntu (WSL)**, plus ten state checks.
+  - The reference dumps of the project model are **not** in this pack either - the pack points at where they are and how to regenerate them.
 
 ## 0.1.0 - 2026-10-15
 
