@@ -34,13 +34,22 @@ It is **not** an MCP tool and does not depend on the server.  It was built
 as a macro because that is the least thing a Tekla user has to install: two
 files in the macro catalog, no DLL to register, no NuGet, no MSBuild.
 
+It is sold in two editions: a **free** one (the dimension chains) and a
+**Pro** one (everything), unlocked by a licence key.  Without a key the Pro
+features are free for three days.  The Pro stages are **not** in the public
+repository — they are a separate module, loaded only when the licence
+allows it.  See `macros/wall-framing/docs/LICENSING.md`.
+
 ```
-macros/wall-framing/source/WF_Rules.cs             the rules, no Tekla reference
-macros/wall-framing/source/P142_WF_AutoDimension.cs the macro
-macros/wall-framing/source/build.ps1               merges + compiles + packages
+macros/wall-framing/source/WF_Rules.cs             the free rules, no Tekla reference
+macros/wall-framing/source/WF_License.cs           the licence engine, no Tekla reference
+macros/wall-framing/source/WF_Core.cs              the shared drawing machinery
+macros/wall-framing/source/WF_KeyGen.cs            the owner's key tool
+macros/wall-framing/source/P142_WF_AutoDimension.cs the LOADER (no rule in it)
+macros/wall-framing/source/build.ps1               compiles + packages
 macros/wall-framing/install.ps1                    installs into the Tekla catalog
-macros/wall-framing/tests/                         5 harnesses
-macros/wall-framing/docs/                          8 documents
+macros/wall-framing/tests/                         6 harnesses
+macros/wall-framing/docs/                          9 documents
 ```
 
 ## The three code trees
@@ -51,10 +60,15 @@ macros/wall-framing/docs/                          8 documents
 | **dev** | `C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP` | the working copy; also holds the reference dumps and the Python MCP server | **no** |
 | **upstream** | `D:\ONMIRUSH\Tekla Plugins` | the project the C# server was written in, under the old `TeklaAiAssistant.*` names | remote = the same GitHub repo, different branch |
 
-**Keep the published tree and the dev tree in step.**  The two copies of the
-macro differ in **one line** — the banner comment names the build script —
-so their `md5` is not comparable.  Compare the **file size** instead, or
-compare the compiled result.
+**Keep the published tree and the dev tree in step.**  The **published** tree
+holds the free edition only.  The **Pro** sources (the Pro stages and the
+Pro rules) live in the **dev** tree, under
+`macros\wall-framing\private\`, and are **never** committed.  The build
+takes them from there with `-ProPath`, and the dev tree is the only place
+where the Pro package is built.
+
+The two copies of the free sources are the same files; compare the
+**compiled** result when in doubt.
 
 ## The model
 

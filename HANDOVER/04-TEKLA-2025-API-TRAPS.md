@@ -206,7 +206,7 @@ The `Value` setter is internal — **do not assign it**.
 
 ---
 
-## 14. The merged file must have **no byte-order mark**
+## 14. The file in the catalog must have **no byte-order mark**
 
 Windows PowerShell's `Set-Content -Encoding UTF8` writes a BOM, and
 Tekla's own macro compiler is stricter than Roslyn about a BOM at the
@@ -214,3 +214,7 @@ start of a file.  `source/build.ps1` uses
 `File.WriteAllText` with `UTF8Encoding($false)` instead.
 
 If the macro will not compile and the error is at line 1, this is why.
+
+> The file that goes into the catalog is now the **loader**
+> (`P142_WF_AutoDimension.cs`, about 8000 bytes), not the old merged
+> source.  The rule is the same for any `.cs` file that Tekla compiles.

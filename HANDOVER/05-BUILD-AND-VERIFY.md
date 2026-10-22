@@ -49,29 +49,33 @@ touched**:
 
 | file | what it is |
 |---|---|
-| `WF_Rules.dll` | the rules. No Tekla reference. |
-| `P142_WF_AutoDimension.dll` | the macro |
-| `P142_WF_AutoDimension_merged.cs` | **the file to install** — rules + macro in one |
-| `P142_WF_AutoDimension_merged.dll` | proof that the merged file compiles |
+| `WF_Rules.dll` | the free rules. No Tekla reference. |
+| `WF_License.dll` | the licence engine. No Tekla reference. |
+| `WF_Core.dll` | the shared drawing machinery |
+| `WF_KeyGen.exe` | the owner's licence key tool |
+| `P142_WF_AutoDimension.dll` | **the loader** — the file to install |
 | `P142_WF_AutoDimension.bmp` | the ribbon icon |
 
-The script **compiles the merged file a second time**, so a broken merge
-can never reach the catalog.  The build prints `BUILD OK` at the end.
+The loader holds **no rule and no drawing logic**: it loads `WF_Core.dll`
+out of `%LOCALAPPDATA%\P142\WallFraming` at run time.  That is what keeps
+the Pro stages out of the public repository.
 
-### The build is reproducible
+The build prints `BUILD OK` at the end.
 
-A fresh clone of the pushed branch produces the merged file **byte for
-byte identical** to the one in the repository:
+### The Pro edition
+
+The Pro stages are **not in this repository** — they live in the owner's
+private tree.  The build finds them when `-ProPath` points at it:
+
+**Command Prompt (Windows)**
 
 ```
-md5sum source/bin/P142_WF_AutoDimension_merged.cs
-d3b296fdffd9a50e1fec9ba9804ca9c9
+cd macros\wall-framing\source
+powershell -NoProfile -File build.ps1 -ProPath "<the private sources>"
 ```
 
-**The dev tree's copy has a different md5** (`f0c86011…`) because its
-banner comment names a different build script.  That is the **only**
-difference between the two trees — compare the **size** (94073 bytes) when
-comparing across trees, not the hash.
+It then also writes `WF_Rules_Pro.dll` (the Pro rules, no Tekla
+reference — so they stay testable) and `WF_Pro.dll` (the Pro stages).
 
 ### The deployment package
 
@@ -83,7 +87,8 @@ powershell -NoProfile -File build.ps1 -Package
 ```
 
 writes `macros\wall-framing\package\WallFramingAutoDimension.zip` and the
-unzipped `package\WallFramingAutoDimension\`.
+unzipped `package\WallFramingAutoDimension\`.  With `-ProPath` it writes
+the Pro package beside it, `package\WallFramingAutoDimensionPro.zip`.
 
 **The zip is written by hand** with `System.IO.Compression.ZipArchive`, so
 the entries use `/` as the separator.  `Compress-Archive` writes `\`, and
@@ -100,12 +105,19 @@ See [02-ENVIRONMENT.md](02-ENVIRONMENT.md) for the full instructions.
 
 ```
 set TEKLA=C:\TeklaStructures\2025.0
-copy "macros\wall-framing\source\bin\P142_WF_AutoDimension_merged.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
-copy "macros\wall-framing\source\bin\P142_WF_AutoDimension.bmp"        "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+copy "macros\wall-framing\source\bin\P142_WF_AutoDimension.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
+copy "macros\wall-framing\source\bin\P142_WF_AutoDimension.bmp" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+
+set APP=%LOCALAPPDATA%\P142\WallFraming
+if not exist "%APP%" mkdir "%APP%"
+copy "macros\wall-framing\source\bin\WF_Core.dll"    "%APP%\"
+copy "macros\wall-framing\source\bin\WF_Rules.dll"   "%APP%\"
+copy "macros\wall-framing\source\bin\WF_License.dll" "%APP%\"
 ```
 
-**Check the size afterwards — it must be about 94000 bytes.**  A file of
-about 49000 bytes is the macro *without* the rules and will not compile.
+**The loader is about 8000 bytes** — it is a thin file, not the whole
+macro.  A file of about 94000 bytes is the **old** merged source; it holds
+the Pro stages and must not be installed.
 
 **Restart Tekla afterwards** if it was already open.
 
@@ -113,38 +125,55 @@ about 49000 bytes is the macro *without* the rules and will not compile.
 
 ## D. Run the harnesses
 
-Five harnesses, on two levels.
+Six harnesses, on two levels.
 
 | harness | needs Tekla | what it proves |
 |---|---|---|
 | `tests/test_rules.py` | **no** | the rules produce the right numbers, and the panels are found automatically |
+| `tests/test_license.py` | **no** | the key verifies, the trial is three days, the machine is bound |
+| `tests/test_marks.py` | **no** | the marks are placed like the ones of the reference (a Pro rule) |
+| `tests/test_loader.py` | **no** (the assemblies are loaded) | the deployment is complete: the core and the Pro module load, and the licence answers |
 | `tests/cmp_chains.py` | yes | the drawing that was written contains the right chains |
-| `tests/test_marks.py` | yes | the marks are placed like the ones of the reference |
 | `tests/test_target_selection.py` | yes | the macro works on the right drawing and refuses an issued one |
 | `tests/audit_50_57.py` | yes | both drawings are in a sane state, and [50] was not touched |
 
-### The rules — no Tekla needed
+### The rules, the licence and the loader — no Tekla needed
 
 **Command Prompt (Windows)**
 
 ```
 cd macros\wall-framing
 python tests\test_rules.py
+python tests\test_license.py
+python tests\test_loader.py
+python tests\test_marks.py
 ```
 
 Expected:
 
 ```
 exact chain matches: 12 / 18
+42 passed, 0 failed
+the loader chain is OK
+exact mark placements: 7 / 11
+  text angle  (rule-derived):  11 / 11
+  leader line (rule-derived):   9 / 11
+  label offset(rule-derived):   9 / 11
 ```
 
-The six that do not match are the **hand edits of the issued drawing** —
-documented in `docs/WALL_FRAMING_RULES.md`, and deliberately not
-reproduced.
+`test_marks.py` needs the **Pro rules** (`WF_Rules_Pro.dll`), so it needs
+a build with `-ProPath`.  Without them it says so and stops without a
+failure.
 
-> This harness needs the reference dumps.  Without them it stops with a
-> clear message pointing at `tests/reference/README.md` — that is the
-> intended behaviour, not a failure.  See [REFERENCE-DATA.md](REFERENCE-DATA.md).
+The six chains that do not match are the **hand edits of the issued
+drawing** — documented in `docs/WALL_FRAMING_RULES.md`, and deliberately
+not reproduced.
+
+> The rules, the marks and the licence harnesses need the reference dumps.
+> Without them they stop with a clear message pointing at
+> `tests/reference/README.md` — that is the intended behaviour, not a
+> failure.  See [REFERENCE-DATA.md](REFERENCE-DATA.md).  The dumps can also
+> be found through the `WF_REFERENCE` environment variable.
 
 ### The drawings — Tekla must be running
 
@@ -156,7 +185,6 @@ Tekla open, the model open, **the title without `(Loading)`**.
 cd macros\wall-framing
 python tests\test_target_selection.py
 python tests\cmp_chains.py
-python tests\test_marks.py
 python tests\audit_50_57.py
 ```
 
@@ -166,7 +194,6 @@ Expected:
 |---|---|
 | `test_target_selection.py` | 2 of 2 tests pass |
 | `cmp_chains.py` | 12 of 18 chains exact |
-| `test_marks.py` | angle 11/11, leader 9/11, offset 9/11 |
 | `audit_50_57.py` | [50] = 18 dimsets / 126 marks / 5 section marks / 3 texts — **unchanged** |
 
 **`audit_50_57.py` is the safety check.**  If [50] changed, something wrote
@@ -240,10 +267,15 @@ should pass without a change.
 | 1 | the branch | `git branch --show-current` | `feature/wall-framing-dimensioner` |
 | 2 | the tree is clean | `git status --short` | no output |
 | 3 | the macro builds | `build.ps1` | `BUILD OK` |
-| 4 | the merged file is right | `dir source\bin\P142_WF_AutoDimension_merged.cs` | 94073 bytes, md5 `d3b296fd…` |
-| 5 | the installed file is right | `dir "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"` | ~94000 bytes, md5 `d3b296fd…` |
-| 6 | the rules have no Tekla reference | `grep -c "^using Tekla" source/WF_Rules.cs` | 0 |
-| 7 | the C# tests pass | `dotnet test tests/SherinTeklaMcp.Core.Tests` | 48 passed |
-| 8 | the client data is not committed | `git ls-files \| grep -E "asm_parts\|full_50\|marks_50\|dims_50"` | no output |
-| 9 | the PR is open | the PR page | PR #1, both CI jobs green |
-| 10 | [50] is untouched | `python tests\audit_50_57.py` | 18 dimsets / 126 marks / 5 sections / 3 texts |
+| 4 | the loader is thin | `dir source\bin\P142_WF_AutoDimension.cs` | about 8000 bytes |
+| 5 | the loader holds no rule | `grep -c "namespace P142.WallFraming" source/P142_WF_AutoDimension.cs` | 0 |
+| 6 | the installed file is the loader | `dir "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"` | about 8000 bytes |
+| 7 | the modules are installed | `dir "%LOCALAPPDATA%\P142\WallFraming\*.dll"` | WF_Core, WF_Rules, WF_License |
+| 8 | the rules have no Tekla reference | `grep -c "^using Tekla" source/WF_Rules.cs` | 0 |
+| 9 | the licence engine has no Tekla reference | `grep -c "^using Tekla" source/WF_License.cs` | 0 |
+| 10 | the licence passes | `python tests\test_license.py` | 42 passed, 0 failed |
+| 11 | the C# tests pass | `dotnet test tests/SherinTeklaMcp.Core.Tests` | 48 passed |
+| 12 | the client data is not committed | `git ls-files \| grep -E "asm_parts\|full_50\|marks_50\|dims_50"` | no output |
+| 13 | the Pro sources are not committed | `git ls-files \| grep -E "WF_Pro\|WF_Rules_Pro"` | no output |
+| 14 | the PR is open | the PR page | PR #1, both CI jobs green |
+| 15 | [50] is untouched | `python tests\audit_50_57.py` | 18 dimsets / 126 marks / 5 sections / 3 texts |

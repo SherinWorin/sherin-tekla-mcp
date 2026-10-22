@@ -9,6 +9,59 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **The two editions.** The macro is sold as a **free** edition and a
+  **Pro** edition:
+  * the **free** edition draws the dimension chains — the stud chain of
+    every wall panel and the band chains of the layout (14 dimension sets);
+  * the **Pro** edition draws everything — the chains, the top outline,
+    the overall dimensions, the north run, the 11 wall-panel marks, the
+    5 section marks and the 3 notes (37 objects).
+
+  The cut is at the **assembly boundary**, not with an `if` in one file:
+  the Pro stages live in `WF_Pro.dll` and the Pro rules in
+  `WF_Rules_Pro.dll`, and `WfCore.Execute` ends with
+  `if (edition == 1) RunPro(result);`.  The Pro module is loaded by
+  reflection, so the free edition works without it, and a Pro licence on
+  a computer that has no `WF_Pro.dll` still runs — it just does not get
+  the Pro annotations.
+* **The licence engine** (`source/WF_License.cs`, no Tekla reference):
+  * a licence key is one line, `WF1.<payload>.<signature>`, signed with
+    the owner's **RSA-2048** private key over **SHA-256** of the
+    payload.  The private key is not in the repository and never will
+    be;
+  * a key can be tied to one computer: three hashes (the machine GUID,
+    the volume serial, the processor id) are taken, and the key is
+    accepted when **at least two of the three** match, so that a
+    replaced disk or a new processor does not break the licence;
+  * without a key there is a **three day trial**, counted in UTC, that
+    starts at the **first run** of the macro on that computer;
+  * a clock that is moved back by more than an hour **ends** the trial;
+    an hour of difference is tolerated;
+  * the state is kept in `%LOCALAPPDATA%\P142\WallFraming\state.txt`
+    **and** in `HKCU\Software\P142\WallFraming`, so deleting the file
+    alone does not give a new trial.
+* **The owner's key tool** `WF_KeyGen.exe`: `newkey`, `issue`, `sign`,
+  `machine`, and — new — `install` (put a key into this computer and take
+  it into use), `status` (the edition, the customer, the expiry and the
+  trial of this computer) and `remove`.
+* **A thin loader.** The file the Tekla macro catalog compiles
+  (`P142_WF_AutoDimension.cs`) holds **no rule and no drawing logic** any
+  more: it shows the message box, loads `WF_Core.dll` and hands the work
+  over.  That is what keeps the Pro stages out of the published
+  repository.
+* **`source/WF_Core.cs`** — the shared drawing machinery: the target
+  selection, the plan view, the reading of the model, the writers and the
+  licence check.
+* **`tests/test_license.py`** — 42 checks of the licence engine, with no
+  Tekla running.  The tests make a throwaway key pair **in memory** and
+  never write a private key to the disk.
+* **`tests/test_loader.py`** — checks that the **deployment** is complete:
+  the core and the Pro module load out of `%LOCALAPPDATA%`, the types
+  resolve, the licence answers and the Pro module has its entry point.
+  The Tekla assemblies are loaded, but no Tekla has to be running.
+* **`docs/LICENSING.md`** — the two editions, the trial, the key
+  workflow, the machine binding and the activation step the owner has to
+  do once.
 * **The macro works on any wall layout drawing, not on a fixed mark.**
   A drawing is recognised by its **title** (`WALL FRAMING`, `WALL LAYOUT`
   or `WALL FRAMING LAYOUT` in `Title1`/`Title2`/`Title3`/`Name`), so the
@@ -25,21 +78,25 @@ the project uses [semantic versioning](https://semver.org/).
   and a gypsum board, and no ceiling part. The macro falls back to it
   when the configured prefix (`BP4-WP`) matches nothing, and the log
   says so. Both ways find the same 11 panels in this model.
-* **The deployment package** `package/WallFramingAutoDimension.zip`:
-  the merged single-file source, the icon, both sources, the build
-  script, an installer and the documentation. `install.ps1` finds
-  the Tekla installation of the target computer by itself and copies the
-  macro into the macro catalog.
+* **The deployment packages** `package/WallFramingAutoDimension.zip`
+  (the free edition) and `package/WallFramingAutoDimensionPro.zip`:
+  the loader, the icon, the modules, the sources, the build script, an
+  installer and the documentation. `install.ps1` finds the Tekla
+  installation of the target computer by itself, copies the loader and
+  the icon into the macro catalog and the modules into
+  `%LOCALAPPDATA%\P142\WallFraming\`.
 * `source/build.ps1` grew a `-Package` switch that writes the package,
   and it now **finds the Tekla installation and the Visual Studio
   compiler by itself** (`-TeklaPath` and `-CscPath` override the search).
   The path is no longer hard coded, so the same command works on every
-  computer.
+  computer.  A `-ProPath` switch points the build at the **private** Pro
+  sources, which are not in this repository.
 * `tests/test_target_selection.py` — proves that the macro works on the
   wall layout drawing that is open, that it activates it when another
   drawing is open, and that it refuses an issued drawing and leaves it
   unchanged.
-* `tests/test_rules.py` also checks the automatic panel detection.
+* `tests/test_rules.py` also checks the automatic panel detection, and
+  the Pro chains when the Pro rules have been built.
 * **R6 — the north run.** `WfRules.NorthRun` returns the run of the
   northern wall measured to the end of the layout
   (1799.32 – 3110.82 – 3187.32), with the end of the wall as the middle
@@ -57,18 +114,19 @@ the project uses [semantic versioning](https://semver.org/).
 * `tests/asm_versions.py` — prints the version of every Tekla assembly
   the macro binds to.
 * The documentation set: `README.md`, `ARCHITECTURE.md`, `API_NOTES.md`,
-  `SETUP.md`, `TESTING.md`, `TODO.md`, `CHANGELOG.md` and the rewritten
-  `WALL_FRAMING_RULES.md`.
+  `LICENSING.md`, `SETUP.md`, `TESTING.md`, `TODO.md`, `CHANGELOG.md` and
+  the rewritten `WALL_FRAMING_RULES.md`.
 
 ### Changed
 
-* `source/build.ps1` generates `source/bin/P142_WF_AutoDimension_merged.cs`
-  — the rules and the macro in one file, so that the Tekla macro catalog
-  can compile the macro without a second DLL — and compiles that merged
-  file as well, so a broken merge can never reach the catalog.
+* **The macro is no longer one merged `.cs` file.** The rules, the
+  licence engine and the drawing machinery are separate assemblies, and
+  the macro catalog gets a thin loader.  The installation is two files in
+  the macro catalog and a few modules in `%LOCALAPPDATA%`; there is
+  nothing to register.
 * `source/build.ps1` grew a `-Deploy` switch that installs the macro
-  (source and icon) into the macro catalog of the Tekla installation it
-  found.
+  (loader and icon) into the macro catalog of the Tekla installation it
+  found, and the modules into the app folder.
 * The log file of the macro is written next to the macro DLL (or in the
   temporary folder) instead of into a hard-coded path, and its path is
   shown in the message box.
@@ -78,9 +136,23 @@ the project uses [semantic versioning](https://semver.org/).
 * The section marks are copied from the **reference drawing object** now,
   not from a mark string: the reference is looked up by the preferred
   mark first and by its title otherwise, and it is never written to.
+* The harnesses find the reference dumps through the **`WF_REFERENCE`**
+  environment variable when they are not in `tests/reference/`, and say
+  clearly when they are missing.
 
 ### Fixed
 
+* **The trial could never start.** On the very first run the state holds
+  the "first" stamp but not yet the "last" one, and the clock-rollback
+  check then subtracted an hour from `DateTime.MinValue`, which throws.
+  The macro fell back to the free edition on every run, so the three day
+  trial never worked.  The check now compares against the first stamp
+  when there is no last one.  Two checks were added to the harness.
+* **The two packages were written over each other.** A loop variable in
+  `build.ps1` shadowed the `$Name` parameter of the packaging function,
+  so both zips were called `INSTALL_NOTES.txt.zip` and the Pro one
+  replaced the free one.  Both packages are written now, with the right
+  names.
 * The macro no longer depends on the mark **[57]**: it works on whatever
   wall layout drawing is open, on any computer.
 

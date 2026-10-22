@@ -11,11 +11,13 @@ LAYOUT** GA drawing on any other GA drawing of the same model.
 | Tekla version | **2025.0** (`Tekla.Structures.*` v2025.0.0.0, .NET Framework 4.x) |
 | language | C#, compiled with the Roslyn `csc.exe` of VS 2022 Community |
 | risk | **MEDIUM** — it creates drawing objects in the active drawing; it never touches the model |
-| deployment | **`package/WallFramingAutoDimension.zip`** — one `.cs` file, one script, no DLL to register |
+| deployment | **`package/WallFramingAutoDimension.zip`** — a thin loader, a few modules, one script, no DLL to register |
+| editions | **free** (the dimension chains) and **Pro** (everything) — [LICENSING.md](LICENSING.md) |
 
 ## What it produces
 
-In one run, on the plan view of the target drawing:
+In one run, on the plan view of the target drawing, the **Pro** edition
+writes:
 
 * **18 dimension sets** — the stud chain of every wall panel (11), the
   band chains of the bottom / left / right edges of the layout (3), the
@@ -27,6 +29,9 @@ In one run, on the plan view of the target drawing:
   (they are hand placed and cannot be derived, see
   [WALL_FRAMING_RULES.md](WALL_FRAMING_RULES.md));
 * **3 text notes** — the LGS / plasterboard typical notes.
+
+The **free** edition writes the first two groups only — the 11 panel
+chains and the 3 band chains, 14 dimension sets.
 
 Every object it creates is tagged with the user property
 `P142_WF_AUTODIM = 1`, so a re-run **replaces** its own output instead of
@@ -44,6 +49,8 @@ duplicating it.
 | [50] | **never written to** — the macro refuses an issued or frozen drawing |
 | target selection | the active drawing is used when it is a wall layout drawing, otherwise the wall layout drawing of the model is activated — **2 of 2 tests pass** |
 | panel detection | the configured prefix `BP4-WP` finds 11 panels; the automatic detection finds the same 11 and leaves the ceiling panels alone |
+| licence engine | **42 of 42 checks pass** — the key, the three day trial, the machine binding, the clock-rollback rule |
+| the Pro path | **never run against a live Tekla** — the rules were moved without changing an answer, but the writing path of `WF_Pro.dll` is not proven |
 
 ## Which drawing does it work on?
 
@@ -73,20 +80,23 @@ macros/wall-framing/
   install.ps1                    installs the macro into the macro catalog
                                  of THIS computer (used by the package)
   source/
-    WF_Rules.cs                  the annotation rules - NO Tekla reference,
+    WF_Rules.cs                  the free annotation rules - NO Tekla reference,
                                  unit-testable without a running Tekla
-    P142_WF_AutoDimension.cs     the macro: reads the model, calls the rules,
-                                 writes the drawing objects
-    build.ps1                    builds both assemblies and the merged
-                                 single-file source for the macro catalog;
+    WF_License.cs                the licence engine - NO Tekla reference
+    WF_Core.cs                   the shared drawing machinery
+    WF_KeyGen.cs                 the owner's licence key tool
+    P142_WF_AutoDimension.cs     the LOADER: it holds no rule and no logic
+    build.ps1                    builds the modules, the tool and the package;
                                  finds Tekla and the C# compiler by itself
     bin/                         the build output
   package/
-    WallFramingAutoDimension.zip  the deployment package
+    WallFramingAutoDimension.zip    the free deployment package
+    WallFramingAutoDimensionPro.zip the Pro deployment package
   docs/
     README.md                    this file
     ARCHITECTURE.md              the layers, the data flow, the MVP plan
     API_NOTES.md                 the Tekla 2025 API facts this project relies on
+    LICENSING.md                 the two editions, the trial, the key workflow
     SETUP.md                     how to build, deploy and run it
     TESTING.md                   the test harnesses
     TODO.md                      what is left to do
@@ -113,6 +123,7 @@ powershell -NoProfile -File build.ps1 -Deploy    :: build + install in the macro
 cd macros\wall-framing\tests
 python run_macro.py "[57]"             :: run the macro into [57] and save
 python test_rules.py                   :: the rules against the reference (no Tekla needed)
+python test_license.py                 :: the licence engine (no Tekla needed)
 python test_target_selection.py        :: which drawing the macro works on
 python cmp_chains.py                   :: [50] vs [57]
 ```
@@ -129,9 +140,15 @@ for what each harness checks.
 powershell -NoProfile -File .\install.ps1
 ```
 
-The script finds the Tekla Structures installation by itself and copies the
-macro into `…\Environments\common\macros\drawings`.  The macro is then on
+The script finds the Tekla Structures installation by itself, copies the
+loader and the icon into `…\Environments\common\macros\drawings`, and the
+modules into `%LOCALAPPDATA%\P142\WallFraming\`.  The macro is then on
 the ribbon under *Applications ▸ Macros ▸ P142_WF_AutoDimension*.
+
+Without a licence the Pro features are free for **three days**.  To use
+them after that, the key goes into
+`%LOCALAPPDATA%\P142\WallFraming\license.txt` — see
+[LICENSING.md](LICENSING.md).
 
 ## The one hard rule
 
@@ -148,3 +165,5 @@ the ribbon under *Applications ▸ Macros ▸ P142_WF_AutoDimension*.
   contradicts itself.
 * [API_NOTES.md](API_NOTES.md) — the eight Tekla 2025 API traps this
   project ran into, each with the code that works.
+* [LICENSING.md](LICENSING.md) — the two editions, the three day trial,
+  the machine binding and the key workflow of the owner.

@@ -161,7 +161,28 @@ printf 'protocol=https\nhost=github.com\n\n' | git credential fill
 
 ---
 
-## R10 — The rules of the drawing are the rules of *this* drawing.
+## R10 — The Pro sources and the private key stay out of the public repository.
+
+The macro is sold in two editions.  The **Pro** stages (`WF_Pro.cs`) and
+the **Pro** rules (`WF_Rules_Pro.cs`) live in the **dev tree**, under
+`macros\wall-framing\private\`, and are **never committed**.  The published
+repository holds the free edition only.
+
+* The build takes the Pro sources from the dev tree with
+  `build.ps1 -ProPath`; the public tree builds the free edition and says
+  so.
+* The file in the Tekla macro catalog is the **loader** — about 8000
+  bytes, with no rule in it.  A file of about 94000 bytes is the **old**
+  merged source; it carries the Pro stages and must not be installed, and
+  it must not be committed.
+* The owner's **private** key is the owner's alone.  It is never written
+  by an assistant, never committed, never sent anywhere.  The public key
+  goes into `source/WF_License.cs` — that one is public and belongs in
+  the repository.
+
+---
+
+## R11 — The rules of the drawing are the rules of *this* drawing.
 
 The macro's rules were derived from the issued drawing [50] of this one
 project.  They are **general** rules of wall-framing layout drawing — bay
@@ -172,7 +193,7 @@ project with other numbers.
 **What is project-specific is a constant, and a constant is a value that
 belongs in a settings file.**  The paper distances, the notch width, the
 panel prefix and the list of wall-layout title fragments are still constants
-in the macro.  Moving them into a settings file is open item #2 in
+in the macro.  Moving them into a settings file is open item #4 in
 [06-OPEN-QUESTIONS.md](06-OPEN-QUESTIONS.md).
 
 **Never hard-code a number that came from a hand edit of the issued

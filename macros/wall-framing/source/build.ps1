@@ -1,22 +1,31 @@
 # Builds the wall-framing macro for Tekla Structures 2025.
 #
-#   source/bin/WF_Rules.dll             - the annotation rules, no Tekla dependency
-#   source/bin/P142_WF_AutoDimension.dll - the macro, needs both Tekla and the rules
-#   source/bin/P142_WF_AutoDimension_merged.cs
-#                                         - the rules and the macro in ONE file,
-#                                           so that Tekla's macro catalog can
-#                                           compile it without a second DLL
-#   source/bin/P142_WF_AutoDimension_merged.dll
-#                                         - proof that the merged file compiles
+#   source/bin/WF_Rules.dll              - the FREE annotation rules, no Tekla dependency
+#   source/bin/WF_License.dll            - the licence engine, no Tekla dependency
+#   source/bin/WF_Core.dll               - the shared drawing machinery (needs Tekla)
+#   source/bin/WF_Pro.dll                - the PRO stages (NOT in the public repository;
+#                                          built only when the private sources are found)
+#   source/bin/WF_KeyGen.exe             - the owner's licence key tool
+#   source/bin/P142_WF_AutoDimension.dll - the LOADER, the file the Tekla macro
+#                                          catalog compiles
+#
+# The loader is thin: it holds no rule and no drawing logic.  Everything is
+# in the assemblies above, which are installed in
+#   %LOCALAPPDATA%\P142\WallFraming
+# and are loaded at run time.  The Pro stages are in a separate assembly, so
+# that the published repository does not hold them.
 #
 # Usage (Command Prompt (Windows)):
 #   powershell -NoProfile -File source/build.ps1
+#   powershell -NoProfile -File source/build.ps1 -Package
 #   powershell -NoProfile -File source/build.ps1 -Deploy    (also copies to the macro catalog)
+#   powershell -NoProfile -File source/build.ps1 -ProPath "C:\path\to\private"
 param(
     [switch]$Deploy,
     [switch]$Package,
     [string]$TeklaPath = '',
-    [string]$CscPath = ''
+    [string]$CscPath = '',
+    [string]$ProPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -98,6 +107,29 @@ function Find-CscPath {
     return ($found | Sort-Object -Descending | Select-Object -First 1)
 }
 
+# ---------------------------------------------------------------------------
+# Find the PRIVATE Pro sources.
+#
+# The Pro stages are not in the published repository.  They are looked for
+# in a few places, so that the owner can build the Pro edition from the
+# dev tree, and so that a customer can still build the FREE edition.
+# ---------------------------------------------------------------------------
+function Find-ProPath {
+    param([string]$Given)
+
+    if ($Given) { if (Test-Path $Given) { return $Given } return $null }
+    $candidates = @(
+        (Join-Path (Split-Path -Parent $here) 'private'),
+        (Join-Path $here 'private'),
+        (Join-Path $env:LOCALAPPDATA 'P142\WallFraming\pro-src')
+    )
+    foreach ($c in $candidates) {
+        if (-not $c) { continue }
+        if (Test-Path (Join-Path $c 'WF_Pro.cs')) { return $c }
+    }
+    return $null
+}
+
 $tekla = Find-TeklaPath -Given $TeklaPath
 if (-not $tekla) {
     throw 'No Tekla Structures installation was found. ' +
@@ -113,11 +145,14 @@ if (-not $csc) {
           'Install the Visual Studio Build Tools, or give the path with -CscPath.'
 }
 
+$proPath = Find-ProPath -Given $ProPath
+
 Write-Output ("Tekla  : {0}" -f $tekla)
 Write-Output ("csc    : {0}" -f $csc)
 if ((Split-Path -Leaf $tekla) -notlike '2025*') {
     Write-Warning ("This macro is written for Tekla Structures 2025, but {0} was found." -f $tekla)
 }
+Write-Output ("Pro    : {0}" -f $(if ($proPath) { $proPath } else { '(not found - the free edition only)' }))
 
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
 
@@ -146,7 +181,8 @@ $framework = @(
     (Join-Path $fw 'System.dll'),
     (Join-Path $fw 'System.Core.dll'),
     (Join-Path $fw 'System.Drawing.dll'),
-    (Join-Path $fw 'System.Windows.Forms.dll')
+    (Join-Path $fw 'System.Windows.Forms.dll'),
+    (Join-Path $fw 'System.Management.dll')
 )
 $teklaDlls = @(
     (Join-Path $dllDir 'Tekla.Structures.dll'),
@@ -161,91 +197,125 @@ foreach ($f in $framework + $teklaDlls) {
 if (-not (Test-Path $csc)) { throw "csc.exe not found at $csc" }
 
 function Invoke-Csc {
-    param([string[]]$Refs, [string]$Source, [string]$Out)
-    $args = @('-nologo', '-target:library', "-out:$Out", '-nostdlib+', '-define:TRACE')
+    param([string[]]$Refs, [string[]]$Source, [string]$Out, [string]$Target = 'library')
+    $args = @('-nologo', "-target:$Target", "-out:$Out", '-nostdlib+', '-define:TRACE')
     foreach ($r in $Refs) { $args += "-r:`"$r`"" }
-    $args += $Source
+    foreach ($s in $Source) { $args += "`"$s`"" }
     & $csc @args
     if ($LASTEXITCODE -ne 0) { throw "compile failed: $Source (exit $LASTEXITCODE)" }
     Write-Output ("  OK  {0}  ({1} bytes)" -f (Split-Path -Leaf $Out), (Get-Item $Out).Length)
 }
 
+# ---------------------------------------------------------------------------
+# The build.
+# ---------------------------------------------------------------------------
 Write-Output 'Building WF_Rules.dll ...'
 Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_Rules.cs') -Out (Join-Path $outDir 'WF_Rules.dll')
 
-Write-Output 'Building P142_WF_AutoDimension.dll ...'
-Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'))) `
+Write-Output 'Building WF_License.dll ...'
+Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_License.cs') -Out (Join-Path $outDir 'WF_License.dll')
+
+Write-Output 'Building WF_Core.dll ...'
+Invoke-Csc -Refs ($framework + $teklaDlls +
+            @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'))) `
+            -Source (Join-Path $here 'WF_Core.cs') `
+            -Out (Join-Path $outDir 'WF_Core.dll')
+
+Write-Output 'Building WF_KeyGen.exe ...'
+Invoke-Csc -Refs $framework -Target 'exe' `
+            -Source @((Join-Path $here 'WF_License.cs'), (Join-Path $here 'WF_KeyGen.cs')) `
+            -Out (Join-Path $outDir 'WF_KeyGen.exe')
+
+Write-Output 'Building P142_WF_AutoDimension.dll (the loader) ...'
+Invoke-Csc -Refs ($framework + $teklaDlls) `
             -Source (Join-Path $here 'P142_WF_AutoDimension.cs') `
             -Out (Join-Path $outDir 'P142_WF_AutoDimension.dll')
 
-# ---------------------------------------------------------------------------
-# The merged single-file source, for the Tekla macro catalog.
-#
-# The catalog compiles ONE .cs file, so the rules namespace has to live in the
-# same file as the macro.  The rules file keeps its own "using" block; those
-# directives must be stripped, because a compilation unit may only declare
-# "using" before its first namespace or type.
-# ---------------------------------------------------------------------------
-Write-Output 'Generating P142_WF_AutoDimension_merged.cs ...'
-$macroSrc = Get-Content (Join-Path $here 'P142_WF_AutoDimension.cs') -Raw
-$rulesSrc = Get-Content (Join-Path $here 'WF_Rules.cs') -Raw
-$rulesBody = ($rulesSrc -split "`r?`n" |
-              Where-Object { $_ -notmatch '^\s*using\s' }) -join "`r`n"
+$proBuilt = $false
+if ($proPath) {
+    Write-Output 'Building WF_Rules_Pro.dll (the Pro rules, no Tekla dependency) ...'
+    Invoke-Csc -Refs ($framework + @((Join-Path $outDir 'WF_Rules.dll'))) `
+                -Source (Join-Path $proPath 'WF_Rules_Pro.cs') `
+                -Out (Join-Path $outDir 'WF_Rules_Pro.dll')
 
-$banner = @(
-    '// AUTO-GENERATED by source/build.ps1 - do not edit by hand.',
-    '//',
-    '// Merged source of WF_Rules.cs (annotation rules, namespace P142.WallFraming)',
-    '// and P142_WF_AutoDimension.cs (the macro, namespace UserMacros), so that the',
-    '// Tekla macro catalog can compile the whole macro from a single .cs file',
-    '// without a second DLL.',
-    ''
-) -join "`r`n"
+    Write-Output 'Building WF_Pro.dll (the Pro stages) ...'
+    Invoke-Csc -Refs ($framework + $teklaDlls +
+                @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_Core.dll'))) `
+                -Source @((Join-Path $proPath 'WF_Pro.cs'), (Join-Path $proPath 'WF_Rules_Pro.cs')) `
+                -Out (Join-Path $outDir 'WF_Pro.dll')
+    $proBuilt = $true
+}
+else {
+    Write-Output 'WF_Pro.dll    : skipped (the private Pro sources were not found)'
+}
 
-$merged = $banner + $macroSrc + "`r`n`r`n// ===== WF_Rules.cs (rules, no Tekla dependency) =====`r`n`r`n" + $rulesBody
-$mergedPath = Join-Path $outDir 'P142_WF_AutoDimension_merged.cs'
-# UTF-8 WITHOUT a byte-order mark: Tekla's own macro compiler is stricter
-# than Roslyn about a BOM at the start of the file.
-[System.IO.File]::WriteAllText($mergedPath, $merged,
-    (New-Object System.Text.UTF8Encoding($false)))
-Write-Output ("  OK  {0}  ({1} bytes)" -f (Split-Path -Leaf $mergedPath), (Get-Item $mergedPath).Length)
-
-Write-Output 'Verifying the merged source compiles ...'
-Invoke-Csc -Refs ($framework + $teklaDlls) `
-            -Source $mergedPath `
-            -Out (Join-Path $outDir 'P142_WF_AutoDimension_merged.dll')
-
-# The icon of the macro, next to the merged source, so that install.ps1 can
-# find the two files it needs in the build output as well.
+# The icon of the macro, next to the loader, so that install.ps1 can find it
+# in the build output as well.
 New-IconFile -Path (Join-Path $outDir 'P142_WF_AutoDimension.bmp') -Force
 
-if ($Package) {
-    Write-Output 'Assembling the deployment package ...'
+# ---------------------------------------------------------------------------
+# The packages.
+# ---------------------------------------------------------------------------
+function New-Zip {
+    param([string]$Root, [string]$Zip)
+    if (Test-Path $Zip) { Remove-Item $Zip -Force }
+    # The zip is written by hand, so that the entries use "/" and not "\".
+    # Windows Explorer accepts both, but a zip with backslashes is refused
+    # by some other tools - and the package has to open everywhere.
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $stream = [System.IO.File]::Open($Zip, [System.IO.FileMode]::Create)
+    try {
+        $archive = New-Object System.IO.Compression.ZipArchive($stream, [System.IO.Compression.ZipArchiveMode]::Create)
+        try {
+            $root = (Resolve-Path $Root).Path.TrimEnd('\') + '\'
+            foreach ($f in Get-ChildItem -Path $Root -Recurse -File) {
+                $name = $f.FullName.Substring($root.Length).Replace('\', '/')
+                $entry = $archive.CreateEntry($name, [System.IO.Compression.CompressionLevel]::Optimal)
+                $es = $entry.Open()
+                try {
+                    $bytes = [System.IO.File]::ReadAllBytes($f.FullName)
+                    $es.Write($bytes, 0, $bytes.Length)
+                } finally { $es.Dispose() }
+            }
+        } finally { $archive.Dispose() }
+    } finally { $stream.Dispose() }
+    Write-Output ("  OK  {0}  ({1} bytes)" -f $Zip, (Get-Item $Zip).Length)
+}
+
+function New-Package {
+    param([string]$Name, [string[]]$ExtraFiles)
+
     $pkgParent = Split-Path -Parent $here
-    $pkgRoot = Join-Path $pkgParent 'package\WallFramingAutoDimension'
+    $pkgRoot = Join-Path $pkgParent ("package\" + $Name)
     $pkgSrc  = Join-Path $pkgRoot 'source'
     if (Test-Path $pkgRoot) { Remove-Item -Path $pkgRoot -Recurse -Force }
     New-Item -ItemType Directory -Path $pkgSrc | Out-Null
 
-    # the single file the Tekla macro catalog needs.  It keeps the name
-    # _merged here, because the folder also holds the two sources it was
-    # made of: the installer gives it the name of the macro in the catalog.
-    Copy-Item (Join-Path $outDir 'P142_WF_AutoDimension_merged.cs') `
-              (Join-Path $pkgSrc 'P142_WF_AutoDimension_merged.cs') -Force
+    # the loader, which the Tekla macro catalog compiles
+    Copy-Item (Join-Path $here 'P142_WF_AutoDimension.cs') $pkgSrc -Force
     # the icon of the macro
     $bmpOut = Join-Path $pkgSrc 'P142_WF_AutoDimension.bmp'
     New-IconFile -Path $bmpOut -Force
+    # the assemblies, which are installed next to the licence
+    foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll')) {
+        Copy-Item (Join-Path $outDir $dll) $pkgSrc -Force
+    }
+    foreach ($f in $ExtraFiles) {
+        if (Test-Path $f) { Copy-Item $f $pkgSrc -Force }
+    }
     # the sources and the build script, for a re-build on the other computer
-    Copy-Item (Join-Path $here 'WF_Rules.cs') (Join-Path $pkgSrc 'WF_Rules.cs') -Force
-    Copy-Item (Join-Path $here 'P142_WF_AutoDimension.cs') (Join-Path $pkgSrc 'P142_WF_AutoDimension.cs') -Force
-    Copy-Item (Join-Path $here 'build.ps1') (Join-Path $pkgSrc 'build.ps1') -Force
+    foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs',
+                     'P142_WF_AutoDimension.cs', 'WF_KeyGen.cs', 'build.ps1')) {
+        Copy-Item (Join-Path $here $s) $pkgSrc -Force
+    }
 
     # the files of the package root: they sit next to the sources in the
     # development tree, and one level above them in the published tree
-    foreach ($name in @('install.ps1', 'INSTALL_NOTES.txt')) {
-        $f = Join-Path $here $name
-        if (-not (Test-Path $f)) { $f = Join-Path $pkgParent $name }
-        if (Test-Path $f) { Copy-Item $f (Join-Path $pkgRoot $name) -Force }
+    foreach ($doc in @('install.ps1', 'INSTALL_NOTES.txt')) {
+        $f = Join-Path $here $doc
+        if (-not (Test-Path $f)) { $f = Join-Path $pkgParent $doc }
+        if (Test-Path $f) { Copy-Item $f (Join-Path $pkgRoot $doc) -Force }
     }
     # PACKAGE_README.txt (or README.txt) becomes the README.txt of the package
     $readme = $null
@@ -265,36 +335,32 @@ if ($Package) {
         Copy-Item (Join-Path $docs '*') $pkgDocs -Recurse -Force
     }
 
-    $zip = Join-Path $pkgParent 'package\WallFramingAutoDimension.zip'
-    if (Test-Path $zip) { Remove-Item $zip -Force }
-    # The zip is written by hand, so that the entries use "/" and not "\".
-    # Windows Explorer accepts both, but a zip with backslashes is refused
-    # by some other tools - and the package has to open everywhere.
-    Add-Type -AssemblyName System.IO.Compression
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $stream = [System.IO.File]::Open($zip, [System.IO.FileMode]::Create)
-    try {
-        $archive = New-Object System.IO.Compression.ZipArchive($stream, [System.IO.Compression.ZipArchiveMode]::Create)
-        try {
-            $root = (Resolve-Path $pkgRoot).Path.TrimEnd('\') + '\'
-            foreach ($f in Get-ChildItem -Path $pkgRoot -Recurse -File) {
-                $name = $f.FullName.Substring($root.Length).Replace('\', '/')
-                $entry = $archive.CreateEntry($name, [System.IO.Compression.CompressionLevel]::Optimal)
-                $es = $entry.Open()
-                try {
-                    $bytes = [System.IO.File]::ReadAllBytes($f.FullName)
-                    $es.Write($bytes, 0, $bytes.Length)
-                } finally { $es.Dispose() }
-            }
-        } finally { $archive.Dispose() }
-    } finally { $stream.Dispose() }
-    Write-Output ("  OK  {0}  ({1} bytes)" -f $zip, (Get-Item $zip).Length)
+    New-Zip -Root $pkgRoot -Zip (Join-Path $pkgParent ("package\" + $Name + ".zip"))
 }
+
+if ($Package) {
+    Write-Output 'Assembling the free package ...'
+    New-Package -Name 'WallFramingAutoDimension' -ExtraFiles @()
+
+    if ($proBuilt) {
+        Write-Output 'Assembling the Pro package ...'
+        New-Package -Name 'WallFramingAutoDimensionPro' -ExtraFiles @((Join-Path $outDir 'WF_Pro.dll'))
+    }
+}
+
+# ---------------------------------------------------------------------------
+# The deployment.
+#
+# The loader goes into the macro catalog of Tekla; the assemblies go into
+# the app folder, next to the licence.
+# ---------------------------------------------------------------------------
+$appFolder = Join-Path $env:LOCALAPPDATA 'P142\WallFraming'
 
 if ($Deploy) {
     Write-Output 'Deploying to the Tekla macro catalog ...'
     if (-not (Test-Path $catalog)) { throw "macro catalog not found: $catalog" }
-    Copy-Item -Path $mergedPath -Destination (Join-Path $catalog 'P142_WF_AutoDimension.cs') -Force
+    Copy-Item -Path (Join-Path $here 'P142_WF_AutoDimension.cs') `
+              -Destination (Join-Path $catalog 'P142_WF_AutoDimension.cs') -Force
 
     # The catalog shows an icon next to the macro; draw a small one if there
     # is none yet.
@@ -302,6 +368,17 @@ if ($Deploy) {
     New-IconFile -Path $bmp
     Write-Output ("  OK  {0}" -f (Join-Path $catalog 'P142_WF_AutoDimension.cs'))
     Write-Output ("  OK  {0}" -f $bmp)
+
+    Write-Output 'Deploying the modules ...'
+    if (-not (Test-Path $appFolder)) { New-Item -ItemType Directory -Path $appFolder -Force | Out-Null }
+    foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll')) {
+        Copy-Item (Join-Path $outDir $dll) $appFolder -Force
+        Write-Output ("  OK  {0}" -f (Join-Path $appFolder $dll))
+    }
+    if ($proBuilt) {
+        Copy-Item (Join-Path $outDir 'WF_Pro.dll') $appFolder -Force
+        Write-Output ("  OK  {0}" -f (Join-Path $appFolder 'WF_Pro.dll'))
+    }
 }
 
 Write-Output 'BUILD OK'

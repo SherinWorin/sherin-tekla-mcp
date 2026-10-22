@@ -9,34 +9,48 @@
 | .NET Framework | 4.x on the machine (ships with Windows) |
 | Python | 3.12 with `pythonnet` — for the test harnesses only, the macro itself needs no Python |
 
-The macro itself is **one `.cs` file**. It does not need Python, a NuGet
-package, a DLL to register or an MSBuild project.
+The macro itself is a **thin `.cs` file** and a few modules. It does not
+need Python, a NuGet package, a DLL to register or an MSBuild project.
 
 ## Install on another computer (the package)
 
-The package is `package/WallFramingAutoDimension.zip`.
+The package is `package/WallFramingAutoDimension.zip` (the free edition)
+or `package/WallFramingAutoDimensionPro.zip` (the Pro edition).
 
 **`INSTALL_NOTES.txt` in the package is the step-by-step guide** — the
 manual method, the optional script, the first-run checklist and the
 troubleshooting. It is plain text and can be opened in Notepad.
 
 1. Unzip it into any folder, e.g. `C:\Temp\WallFramingAutoDimension`.
-2. Copy the two files into the macro catalog of Tekla:
+2. Copy the loader and the icon into the macro catalog of Tekla:
 
    **Command Prompt (Windows)**
 
    ```
    set TEKLA=C:\TeklaStructures\2025.0
-   copy source\P142_WF_AutoDimension_merged.cs "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
-   copy source\P142_WF_AutoDimension.bmp       "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+   copy source\P142_WF_AutoDimension.cs "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
+   copy source\P142_WF_AutoDimension.bmp "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
    ```
 
-   The merged file keeps the `_merged` name inside the package, because the
-   same folder also holds the two sources it was made of. **It has to be
-   renamed to `P142_WF_AutoDimension.cs` in the catalog** — the name of the
-   file is the name of the macro on the ribbon.
+   The loader is already called `P142_WF_AutoDimension.cs` — the name of
+   the file is the name of the macro on the ribbon.
 
-3. Or let the installer do it, where PowerShell is available:
+3. Copy the modules into the app folder:
+
+   **Command Prompt (Windows)**
+
+   ```
+   set APP=%LOCALAPPDATA%\P142\WallFraming
+   if not exist "%APP%" mkdir "%APP%"
+   copy source\WF_Core.dll    "%APP%\"
+   copy source\WF_Rules.dll   "%APP%\"
+   copy source\WF_License.dll "%APP%\"
+   copy source\WF_Pro.dll     "%APP%\"
+   ```
+
+   The last line is only in the Pro package.
+
+4. Or let the installer do steps 2 and 3, where PowerShell is available:
 
    **Command Prompt (Windows)**
 
@@ -56,11 +70,25 @@ troubleshooting. It is plain text and can be opened in Notepad.
    powershell -NoProfile -File .\install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
    ```
 
-4. Start Tekla. The macro is on the ribbon under
+5. Start Tekla. The macro is on the ribbon under
    **Applications ▸ Macros ▸ P142_WF_AutoDimension**.
 
-That is all: the rules and the macro are merged into the one `.cs` file, so
-there is no second DLL and nothing to register.
+There is no second DLL to register and nothing to install: the modules are
+plain assemblies that the loader picks up at run time.
+
+## The licence
+
+Without a licence the **Pro** features are free for **three days**, from
+the first run of the macro on that computer.  To use the Pro edition after
+that, the key goes into
+
+```
+%LOCALAPPDATA%\P142\WallFraming\license.txt
+```
+
+See [LICENSING.md](LICENSING.md) for the whole workflow, and for the
+activation step the owner has to do once (the public key in
+`source/WF_License.cs`).
 
 ## Build from the sources
 
@@ -75,33 +103,52 @@ The script
 
 1. finds the Tekla Structures installation and the C# compiler of Visual
    Studio by itself (`-TeklaPath` and `-CscPath` override the search);
-2. builds `source/bin/WF_Rules.dll` — the rules, no Tekla reference;
-3. builds `source/bin/P142_WF_AutoDimension.dll` — the macro, against the
-   rules and the Tekla assemblies;
-4. writes `source/bin/P142_WF_AutoDimension_merged.cs` — the rules and
-   the macro in **one file**, for the Tekla macro catalog;
-5. compiles that merged file as well, so a broken merge cannot reach the
-   catalog.
+2. builds `source/bin/WF_Rules.dll` — the free rules, no Tekla reference;
+3. builds `source/bin/WF_License.dll` — the licence engine, no Tekla
+   reference;
+4. builds `source/bin/WF_Core.dll` — the shared drawing machinery;
+5. builds `source/bin/WF_KeyGen.exe` — the owner's key tool;
+6. builds `source/bin/P142_WF_AutoDimension.dll` — the **loader**, the
+   file the Tekla macro catalog compiles.
 
 Expected output:
 
 ```
 Tekla  : C:\TeklaStructures\2025.0
 csc    : C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\Roslyn\csc.exe
+Pro    : (not found - the free edition only)
 Building WF_Rules.dll ...
-  OK  WF_Rules.dll  (16384 bytes)
-Building P142_WF_AutoDimension.dll ...
-  OK  P142_WF_AutoDimension.dll  (27136 bytes)
-Generating P142_WF_AutoDimension_merged.cs ...
-  OK  P142_WF_AutoDimension_merged.cs  (94073 bytes)
-Verifying the merged source compiles ...
-  OK  P142_WF_AutoDimension_merged.dll  (38400 bytes)
+  OK  WF_Rules.dll  (12288 bytes)
+Building WF_License.dll ...
+  OK  WF_License.dll  (15360 bytes)
+Building WF_Core.dll ...
+  OK  WF_Core.dll  (20992 bytes)
+Building WF_KeyGen.exe ...
+  OK  WF_KeyGen.exe  (23552 bytes)
+Building P142_WF_AutoDimension.dll (the loader) ...
+  OK  P142_WF_AutoDimension.dll  (7168 bytes)
 BUILD OK
 ```
 
 > Use `powershell -NoProfile -File ...`. The `-ExecutionPolicy Bypass`
 > form is not needed for a script that is run, not imported, and some
 > security policies block the flag itself.
+
+### The Pro edition
+
+The Pro stages are **not in this repository**.  They live in the owner's
+private tree, and the build finds them when `-ProPath` points at it:
+
+**Command Prompt (Windows)**
+
+```
+cd macros\wall-framing\source
+powershell -NoProfile -File build.ps1 -ProPath "C:\path\to\private\wall-framing\private"
+```
+
+The build then also writes `WF_Rules_Pro.dll` (the Pro rules, no Tekla
+reference — so they stay testable) and `WF_Pro.dll` (the Pro stages), and
+the Pro package is written with `-Package`.
 
 ## Build the package
 
@@ -113,13 +160,12 @@ powershell -NoProfile -File build.ps1 -Package
 ```
 
 This writes `package/WallFramingAutoDimension/` and zips it into
-`package/WallFramingAutoDimension.zip`.  The package holds the merged
-source, the icon, both sources, the build script, the installer and the
+`package/WallFramingAutoDimension.zip`.  The package holds the loader, the
+icon, the modules, the sources, the build script, the installer and the
 documentation.
 
-The package is self-contained: `source\build.ps1` rebuilds the macro from
-the two sources in the package, and the result is byte-identical to the
-merged file that was shipped.
+The package is self-contained: `source\build.ps1` rebuilds the modules
+from the sources in the package.
 
 ## Deploy to the macro catalog (optional)
 
@@ -132,8 +178,9 @@ powershell -NoProfile -File build.ps1 -Deploy
 
 This copies
 
-* `P142_WF_AutoDimension_merged.cs` → `<Tekla>\Environments\common\macros\drawings\P142_WF_AutoDimension.cs`
+* `P142_WF_AutoDimension.cs` → `<Tekla>\Environments\common\macros\drawings\P142_WF_AutoDimension.cs`
 * an icon → `…\P142_WF_AutoDimension.bmp`
+* the modules → `%LOCALAPPDATA%\P142\WallFraming\`
 
 > The deployment writes into the Tekla installation. It is deliberately a
 > separate switch, so that a plain build never touches anything outside
@@ -185,9 +232,10 @@ message box. The log lists every object it created and every failure.
 ```
 cd macros\wall-framing\tests
 <venv>\Scripts\python.exe test_rules.py            :: the rules alone, no Tekla needed
+<venv>\Scripts\python.exe test_license.py          :: the licence engine, no Tekla needed
 <venv>\Scripts\python.exe test_target_selection.py :: which drawing the macro works on
 <venv>\Scripts\python.exe cmp_chains.py            :: [50] vs [57], needs Tekla
-<venv>\Scripts\python.exe test_marks.py            :: the mark placement, needs Tekla
+<venv>\Scripts\python.exe test_marks.py            :: the mark placement
 <venv>\Scripts\python.exe audit_50_57.py           :: the state of both drawings
 ```
 
@@ -206,4 +254,6 @@ See [TESTING.md](TESTING.md).
 | `No wall layout drawing to work on` | the active drawing is issued/frozen, or the model has no wall layout drawing | open the wall layout drawing; the message says which case it is |
 | the objects disappear after the run | the drawing was not saved | the macro saves the drawing itself; the script saves it as well |
 | `CS0234: The type or namespace name 'Drawing' does not exist` | the Tekla assemblies were not found | check that `<Tekla>\bin` holds the 2025 assemblies |
-| a compile error in the merged file | the rules and the macro drifted apart | the build compiles the merged file — fix the source, never the merged file (it is generated) |
+| `the module WF_Core.dll was not found` | the modules are not in `%LOCALAPPDATA%\P142\WallFraming\` | run `install.ps1` again, or copy the modules by hand |
+| the free edition is in use although there is a licence | the key does not verify, or it was issued for another computer | read the message in the log; the key is in `%LOCALAPPDATA%\P142\WallFraming\license.txt` |
+| the Pro annotations do not appear | `WF_Pro.dll` is not in the app folder | install the Pro package |

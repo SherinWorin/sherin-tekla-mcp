@@ -30,11 +30,35 @@ They are in the **dev tree**:
 C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP\debug\
 ```
 
+and also in the hand-over pack of the dev tree:
+
+```
+C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP\HANDOVER\reference-data\
+```
+
 The dev tree is **not** a git repository, so nothing in it is published by
 accident.
 
 In the published tree, `macros/wall-framing/tests/reference/` holds only
 the `.gitignore` and a `README.md` that explains this.
+
+## Where the harnesses look for them
+
+The harnesses do **not** insist on `tests/reference/`.  They look in this
+order:
+
+1. the **`WF_REFERENCE`** environment variable, if it is set;
+2. `macros/wall-framing/tests/reference/`;
+3. the `reference-data` folder of a development tree.
+
+So the dumps do not have to be copied at all — one environment variable is
+enough.
+
+**Command Prompt (Windows)**
+
+```
+set WF_REFERENCE=C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP\HANDOVER\reference-data
+```
 
 ## Copying them to a new computer
 
@@ -95,8 +119,9 @@ pip install pythonnet
 ```
 asm_parts.txt is missing: ...
 See reference\README.md - the reference dumps are not in the public
-repository, because they hold the geometry of a client project.
-Regenerate them on a machine that has the model.
+repository, because they hold the geometry of a client project.  Point the
+WF_REFERENCE environment variable at the folder that holds them, or
+regenerate them on a machine that has the model.
 ```
 
 **That is the intended behaviour, not a failure.**  The harness is honest
@@ -104,6 +129,8 @@ about not having an oracle instead of quietly passing.
 
 The **rules** can still be checked without any data: build `WF_Rules.dll`
 and call it directly — it has no Tekla reference and no file dependencies.
+The same is true of the **licence engine**: `tests/test_license.py` needs
+no reference data at all.
 
 And the **drawings themselves** are the real oracle: run the macro and read
 the result with `audit_50_57.py` and `cmp_chains.py`.  Those work against

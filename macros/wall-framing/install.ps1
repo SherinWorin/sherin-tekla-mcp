@@ -3,16 +3,23 @@
 #
 #   powershell -NoProfile -File install.ps1
 #   powershell -NoProfile -File install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
+#   powershell -NoProfile -File install.ps1 -WhatIfOnly
 #
 # What it does:
 #   1. finds the Tekla Structures installation (no hard coded path)
 #   2. checks that it is a 2025 installation
-#   3. copies source\P142_WF_AutoDimension_merged.cs
-#         -> <Tekla>\Environments\common\macros\drawings\P142_WF_AutoDimension.cs
-#   4. copies source\P142_WF_AutoDimension.bmp ->  the same folder (the icon)
+#   3. copies the LOADER source\P142_WF_AutoDimension.cs and its icon
+#         -> <Tekla>\Environments\common\macros\drawings\
+#   4. copies the modules
+#         -> %LOCALAPPDATA%\P142\WallFraming\
 #
-# The macro itself needs no other file: the rules and the macro are merged
-# into the one .cs file.
+# The macro in the catalog is only a loader: it holds no rule and no drawing
+# logic.  The logic is in the modules, which are loaded at run time.  That is
+# what keeps the Pro stages out of the published repository.
+#
+# The Pro modules (WF_Pro.dll) are installed too, when they are found next to
+# the loader - so that a licence that is later upgraded to Pro starts working
+# without a new installation.
 param(
     [string]$TeklaPath = '',
     [switch]$WhatIfOnly
@@ -22,6 +29,7 @@ $ErrorActionPreference = 'Stop'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $src  = Join-Path $here 'source'
+$appFolder = Join-Path $env:LOCALAPPDATA 'P142\WallFraming'
 
 function Find-TeklaPath {
     param([string]$Given)
@@ -75,16 +83,20 @@ if (-not (Test-Path $catalog)) {
     exit 1
 }
 
-$files = @(
-    @{ Name = 'P142_WF_AutoDimension_merged.cs'; To = (Join-Path $catalog 'P142_WF_AutoDimension.cs') },
-    @{ Name = 'P142_WF_AutoDimension.bmp';       To = (Join-Path $catalog 'P142_WF_AutoDimension.bmp') }
-)
-
-# The merged source and the icon are looked for in a few places, so that the
-# same script works in the deployment package and in the source tree:
+# ---------------------------------------------------------------------------
+# The files that go into the macro catalog: the loader and its icon.
+#
+# They are looked for in a few places, so that the same script works in the
+# deployment package and in the source tree:
 #   source\            - the layout of the package
 #   source\bin\        - the layout of the source tree, after a build
-foreach ($f in $files) {
+# ---------------------------------------------------------------------------
+$catalogFiles = @(
+    @{ Name = 'P142_WF_AutoDimension.cs'; To = (Join-Path $catalog 'P142_WF_AutoDimension.cs') },
+    @{ Name = 'P142_WF_AutoDimension.bmp'; To = (Join-Path $catalog 'P142_WF_AutoDimension.bmp') }
+)
+
+foreach ($f in $catalogFiles) {
     $f.From = $null
     foreach ($dir in @($src, (Join-Path $src 'bin'), (Join-Path $here 'bin'))) {
         $cand = Join-Path $dir $f.Name
@@ -92,39 +104,83 @@ foreach ($f in $files) {
     }
     if (-not $f.From) {
         Write-Output ("ERROR: the package is incomplete, this file is missing: {0}" -f $f.Name)
-        Write-Output ("       looked in {0}, in {0}\bin and in {1}\bin" -f $src, $here)
+        Write-Output ("       looked in {0}, {0}\bin and {1}\bin" -f $src, $here)
+        Write-Output '       Build the package:  cd source  &&  powershell -NoProfile -File build.ps1 -Package'
         exit 1
     }
 }
 
-# The file that goes into the catalog must be the MERGED one: the macro and
-# the rules in one file.  The macro alone calls WF.WfRules..., and without
-# the rules next to it Tekla cannot compile it - the error is a missing
-# namespace, and it is not easy to see where it came from.
-$merged = $files[0].From
-$text = Get-Content $merged -Raw
-if ($text -notmatch 'namespace\s+P142\.WallFraming') {
-    Write-Output ("ERROR: {0} is not the merged source." -f $merged)
-    Write-Output '       The file that goes into the catalog must contain BOTH the'
-    Write-Output '       macro and the rules (namespace P142.WallFraming).'
-    Write-Output '       Build it:  cd source  &&  powershell -NoProfile -File build.ps1'
-    Write-Output '       and install  source\bin\P142_WF_AutoDimension_merged.cs'
+# The file that goes into the catalog must be the LOADER.  The loader has no
+# rule in it, and it loads the modules at run time.  A file that holds the
+# whole logic (namespace P142.WallFraming) is the old merged source, and it
+# would put the Pro stages into the public repository.
+$loader = $catalogFiles[0].From
+$text = Get-Content $loader -Raw
+if ($text -match 'namespace\s+P142\.WallFraming') {
+    Write-Output ("ERROR: {0} is the merged source, not the loader." -f $loader)
+    Write-Output '       Only the loader goes into the macro catalog.  The logic'
+    Write-Output '       is in the modules, which are installed next to it in'
+    Write-Output ("       {0}" -f $appFolder)
+    Write-Output '       Build the package:  cd source  &&  powershell -NoProfile -File build.ps1 -Package'
+    exit 1
+}
+if ($text -notmatch 'MacroEntryPoint') {
+    Write-Output ("ERROR: {0} has no macro entry point - it is not a macro." -f $loader)
     exit 1
 }
 
+# ---------------------------------------------------------------------------
+# The modules, which are installed in the app folder next to the licence.
+#
+# WF_Pro.dll is the Pro edition.  It is installed when it is found, so that a
+# licence that is upgraded to Pro starts working without a new installation.
+# ---------------------------------------------------------------------------
+$moduleFiles = @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll', 'WF_Pro.dll')
+
+$modules = @()
+foreach ($name in $moduleFiles) {
+    $from = $null
+    foreach ($dir in @($src, (Join-Path $src 'bin'), (Join-Path $here 'bin'))) {
+        $cand = Join-Path $dir $name
+        if (Test-Path $cand) { $from = $cand; break }
+    }
+    if (-not $from) {
+        if ($name -eq 'WF_Pro.dll') {
+            Write-Output ("  --  {0} is not here: the free edition is installed." -f $name)
+            continue
+        }
+        Write-Output ("ERROR: the package is incomplete, this module is missing: {0}" -f $name)
+        Write-Output '       Build it:  cd source  &&  powershell -NoProfile -File build.ps1'
+        exit 1
+    }
+    $modules += @{ Name = $name; From = $from; To = (Join-Path $appFolder $name) }
+}
+
 if ($WhatIfOnly) {
-    foreach ($f in $files) { Write-Output ("would copy {0} -> {1}" -f $f.From, $f.To) }
+    foreach ($f in $catalogFiles) { Write-Output ("would copy {0} -> {1}" -f $f.From, $f.To) }
+    foreach ($f in $modules)   { Write-Output ("would copy {0} -> {1}" -f $f.From, $f.To) }
     exit 0
 }
 
-foreach ($f in $files) {
+foreach ($f in $catalogFiles) {
+    Copy-Item -Path $f.From -Destination $f.To -Force
+    Write-Output ("  OK  {0}" -f $f.To)
+}
+
+if (-not (Test-Path $appFolder)) {
+    New-Item -ItemType Directory -Path $appFolder -Force | Out-Null
+}
+foreach ($f in $modules) {
     Copy-Item -Path $f.From -Destination $f.To -Force
     Write-Output ("  OK  {0}" -f $f.To)
 }
 
 Write-Output ''
 Write-Output 'The macro is installed.  It is on the ribbon:'
-Write-Output '  Applications &gt; Macros &gt; P142_WF_AutoDimension'
+Write-Output '  Applications > Macros > P142_WF_AutoDimension'
 Write-Output ''
 Write-Output 'Open the GA drawing whose title holds "WALL FRAMING LAYOUT" and run it.'
 Write-Output 'The macro refuses to write into a drawing that is issued or frozen.'
+Write-Output ''
+Write-Output ("The licence is read from: {0}" -f (Join-Path $appFolder 'license.txt'))
+Write-Output 'Without a licence the free edition runs, with a three day trial.'

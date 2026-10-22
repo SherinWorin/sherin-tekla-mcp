@@ -8,8 +8,9 @@
   - The drawing is found by its **title**, not by a fixed mark, so the same file works on every computer of a project.
   - An **issued or frozen drawing is never written to** - the macro refuses it and says so.
   - The wall panels are found by their prefix, or **automatically** when the prefix matches nothing.
-  - The rules live in their own assembly (`WF_Rules.cs`) with **no Tekla reference**; the macro and the rules are merged into one `.cs` file for the Tekla macro catalog.
-  - A deployment package (`package/WallFramingAutoDimension.zip`) for installing on another computer, with `INSTALL_NOTES.txt` and an optional installer script.
+  - The rules and the licence engine live in their own assemblies with **no Tekla reference**; the Tekla macro catalog gets a **thin loader** that loads the modules at run time.
+  - **Two editions**: a free one (the dimension chains) and a Pro one (everything), unlocked by a signed licence key that can be tied to the computer. Without a key the Pro features are free for three days. The Pro stages are **not** in this repository - they are a separate module, loaded only when the licence allows it.
+  - Deployment packages (`package/WallFramingAutoDimension.zip` and `package/WallFramingAutoDimensionPro.zip`) for installing on another computer, with `INSTALL_NOTES.txt` and an optional installer script.
   - Test harnesses in `macros/wall-framing/tests/`; the reference dumps of the project model are **not** committed (client data) - see `macros/wall-framing/tests/reference/README.md`.
 - `HANDOVER/` - the **hand-over pack**: the state of the work, the hard rules, the Tekla 2025 traps, the environment and its gotchas, the build-and-verify commands, the open questions, and the prompt to paste into a fresh Claude session on another computer.
   - `HANDOVER/03-HARD-RULES.md` - the rules that are not negotiable: the issued reference drawing is never written to, the client data stays out of the public repository, the GPLv3 server stays out of the MIT repository, Tekla 2025 only, no project rules in the app layer.

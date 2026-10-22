@@ -28,9 +28,30 @@
 * [x] **The deployment package** for the other computers:
       `package/WallFramingAutoDimension.zip`, with an installer that
       finds the Tekla installation by itself.
+* [x] **The two editions.** The free edition (the dimension chains) and
+      the Pro edition (everything), cut at the assembly boundary: a thin
+      loader in the macro catalog, `WF_Core.dll`, `WF_Rules.dll`,
+      `WF_License.dll` and — in the Pro package — `WF_Pro.dll`.
+* [x] **The licence engine.** A signed key (RSA-2048 over SHA-256), a
+      three day trial, a machine binding on three hashes, a clock-rollback
+      rule, and the owner's key tool `WF_KeyGen.exe`. 42 checks, no Tekla
+      needed.
 
 ## Next
 
+* [ ] **Run the Pro path against a live Tekla.** The Pro stages were
+      moved out of the macro into `WF_Pro.dll` and the Pro rules into
+      `WF_Rules_Pro.dll` after the drawing was finished.  The harnesses
+      prove that the *rules* were moved without changing an answer (12 of
+      18 chains, angle 11/11, leader 9/11, offset 9/11), but that the
+      Pro module **writes** the same objects in the same places is not
+      proven.  One run of the macro with a Pro licence, followed by
+      `cmp_chains.py` and `audit_50_57.py`, settles it.
+* [ ] **The owner pastes the public key** into `PublicKeyXml` in
+      `source/WF_License.cs` (it is still the placeholder
+      `REPLACE_WITH_THE_PUBLIC_KEY`) and rebuilds.  Until that is done,
+      **no key verifies** — the engine and the tools are ready, but the
+      licence cannot be issued end to end.
 * [ ] **Deploy the macro to the catalog.** `powershell -NoProfile -File
       source/build.ps1 -Deploy` writes into the Tekla installation; that
       step needs a human to run it. On another computer the package's
@@ -70,6 +91,12 @@
       yet. The first run there should be a dry run
       (`install.ps1 -WhatIfOnly`) and then a check of the log of the
       macro.
+* [ ] **A licence key that is actually issued end to end** — the
+      `newkey` → `issue` → `install` → `status` round trip has not been
+      walked through with a real key, because the public key is still the
+      placeholder.  The first time it is done, the whole chain should be
+      checked on a **second** computer, so that the machine binding is
+      proved to refuse a key on the wrong machine.
 * [ ] **The assembly drawings** `[BP4-WP1]` … `[BP4-WP11]` are not
       touched at all.
 * [ ] **A second rule set** (e.g. the pod base frame) is already

@@ -63,7 +63,14 @@ It draws the annotations of a `WALL FRAMING LAYOUT` GA drawing. The drawing is
 found by its **title**, never by a fixed mark, and a drawing that is **issued or
 frozen is never written to**.
 
-See [macros/wall-framing/README.md](../macros/wall-framing/README.md).
+It is sold in two editions: a **free** one that draws the dimension chains, and
+a **Pro** one that draws everything. A licence key unlocks the Pro edition;
+without a key the Pro features are free for three days. The Pro stages are not
+in the public repository - they are a separate module, loaded only when the
+licence allows it.
+
+See [macros/wall-framing/README.md](../macros/wall-framing/README.md) and
+[macros/wall-framing/docs/LICENSING.md](../macros/wall-framing/docs/LICENSING.md).
 
 ---
 

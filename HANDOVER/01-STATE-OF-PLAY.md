@@ -62,12 +62,20 @@ Everything in `macros/wall-framing/docs/TODO.md` under **Done** is done:
 - **idempotency** — the output is tagged with a user property and replaced on
   a re-run, never duplicated;
 - the **operation log**;
-- the build script, the merged single-file source, the deployment package;
+- the build script, the thin loader, the deployment packages;
 - the **target drawing is found by its title, not by its mark** (R8) — so the
   same file works on another computer where the mark is different;
 - an **issued or frozen drawing is refused**;
 - the **wall panels are found automatically** when the configured prefix
-  matches nothing (R9).
+  matches nothing (R9);
+- the **two editions** — the free one (the dimension chains) and the Pro one
+  (everything), cut at the assembly boundary: the Pro stages are in
+  `WF_Pro.dll`, the Pro rules in `WF_Rules_Pro.dll`, and the Pro sources
+  are **not** in the public repository;
+- the **licence engine** — a signed key (RSA-2048 over SHA-256), a three
+  day trial from the first run, a machine binding on three hashes, a
+  clock-rollback rule, and the owner's key tool `WF_KeyGen.exe`.  42
+  checks, no Tekla needed.
 
 ### What it reproduces, measured
 
@@ -96,12 +104,14 @@ owners.  The short version:
 
 | # | open item | where it lives |
 |---|---|---|
-| 1 | **the north run placement on the sheet** — it sits 30 mm north of the wall it measures; nobody has looked at it and confirmed it reads well | `PAPER_NORTH` in the macro |
-| 2 | **the settings file** — the paper distances, the notch width, the panel prefix, the reference drawing and the list of wall-layout title fragments are still constants in the code | the macro's `const` block |
-| 3 | **a unit test of the writing path** — it needs a live Tekla; today the writing path is verified by running the macro and dumping the result | `docs/TESTING.md` |
-| 4 | **the package has never been run on a second computer** — the installer is dry-run here only | `package/` |
-| 5 | **the two macros have no shared style** — the base-framing macro `P142_BF_AutoDimension.cs` and the wall-framing macro do not share a style definition, so the two drawings do not look the same | the dev tree |
-| 6 | **a plugin instead of a macro** — the rules assembly is already separate, so it can be lifted into a plugin unchanged | later |
+| 1 | **the Pro path has never been run against a live Tekla** — the Pro stages were moved into `WF_Pro.dll` after the drawing was finished.  The harnesses prove the *rules* were moved without changing an answer, but that the Pro module *writes* the same objects in the same places is not proven | `docs/TODO.md` |
+| 2 | **the owner has not pasted the public key** into `PublicKeyXml` in `source/WF_License.cs` — it is still the placeholder, so **no key verifies** and the licence cannot be issued end to end yet | `source/WF_License.cs` |
+| 3 | **the north run placement on the sheet** — it sits 30 mm north of the wall it measures; nobody has looked at it and confirmed it reads well | `PAPER_NORTH` in the Pro module |
+| 4 | **the settings file** — the paper distances, the notch width, the panel prefix, the reference drawing and the list of wall-layout title fragments are still constants in the code | the core's `const` block |
+| 5 | **a unit test of the writing path** — it needs a live Tekla; today the writing path is verified by running the macro and dumping the result | `docs/TESTING.md` |
+| 6 | **the package has never been run on a second computer** — the installer is dry-run here only | `package/` |
+| 7 | **the two macros have no shared style** — the base-framing macro `P142_BF_AutoDimension.cs` and the wall-framing macro do not share a style definition, so the two drawings do not look the same | the dev tree |
+| 8 | **a plugin instead of a macro** — the rules assembly is already separate, so it can be lifted into a plugin unchanged | later |
 
 ## The MCP server — what is done
 

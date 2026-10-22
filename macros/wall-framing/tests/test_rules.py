@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from paths import BIN, REFERENCE, require  # noqa: E402
+from paths import BIN, REFERENCE, PRO_RULES_DLL, require  # noqa: E402
 from expected import expected_sets  # noqa: E402
 
 import clr  # noqa: E402
@@ -117,38 +117,51 @@ def main():
         print(f"  band {nm:6} axis={axis} n={len(vals):2} {vals}")
 
     # the top outline of the layout (a staircase of the upper boundary)
-    top = [round(float(v), 2)
-           for v in static_call(rules, "TopOutlineStations", [panels, 2.0, TOL])]
-    bands.append({"axis": "X", "values": top, "name": "top outline"})
-    print(f"  top outline axis=X n={len(top):2} {top}")
+    #
+    # The Pro rules are not in the public repository.  When the private
+    # sources have been built, WF_Rules_Pro.dll holds them and the Pro
+    # chains are checked here as well.
+    pro = None
+    if PRO_RULES_DLL.exists():
+        pro_asm = Assembly.LoadFrom(str(PRO_RULES_DLL))
+        pro = pro_asm.GetType("P142.WallFraming.WfRulesPro")
+    if pro is None:
+        print("\n  (the Pro rules are not built here - only the free chains "
+              "are checked)")
 
-    poly_sys = static_call(rules, "TopOutlinePolyline", [panels, 2.0, TOL])
-    poly = [round(float(v), 2) for v in poly_sys]
-    print(f"  top outline polyline: {list(zip(poly[0::2], poly[1::2]))}")
+    if pro is not None:
+        top = [round(float(v), 2)
+               for v in static_call(pro, "TopOutlineStations", [panels, 2.0, TOL])]
+        bands.append({"axis": "X", "values": top, "name": "top outline"})
+        print(f"  top outline axis=X n={len(top):2} {top}")
 
-    # the north run: the run of the northern wall, measured on its own level
-    run = static_call(rules, "NorthRun", [panels, 2.0, TOL])
-    if run is None:
-        print("  north run: none")
-    else:
-        vals = [round(float(v), 2) for v in run.Stations]
-        print(f"  north run axis=X level={run.Level:.2f} n={len(vals)} {vals}")
-        bands.append({"axis": "X", "values": vals, "name": "north run"})
+        poly_sys = static_call(pro, "TopOutlinePolyline", [panels, 2.0, TOL])
+        poly = [round(float(v), 2) for v in poly_sys]
+        print(f"  top outline polyline: {list(zip(poly[0::2], poly[1::2]))}")
 
-    # the two overall dimensions of the layout
-    ov = static_call(rules, "Overall", [bx0, by0, bx1, by1, poly_sys])
-    hvals = [round(float(ov.Hx0), 2), round(float(ov.Hy0), 2),
-             round(float(ov.Hx1), 2), round(float(ov.Hy1), 2)]
-    bands.append({"axis": "Y",
-                  "values": sorted([hvals[1], hvals[3]]),
-                  "name": "overall height"})
-    print(f"  overall height axis=Y {sorted([hvals[1], hvals[3]])}")
-    wvals = [round(float(ov.Wx0), 2), round(float(ov.Wy0), 2),
-             round(float(ov.Wx1), 2), round(float(ov.Wy1), 2)]
-    bands.append({"axis": "X",
-                  "values": sorted([wvals[0], wvals[2]]),
-                  "name": "overall width"})
-    print(f"  overall width  axis=X {sorted([wvals[0], wvals[2]])}")
+        # the north run: the run of the northern wall, on its own level
+        run = static_call(pro, "NorthRun", [panels, 2.0, TOL])
+        if run is None:
+            print("  north run: none")
+        else:
+            vals = [round(float(v), 2) for v in run.Stations]
+            print(f"  north run axis=X level={run.Level:.2f} n={len(vals)} {vals}")
+            bands.append({"axis": "X", "values": vals, "name": "north run"})
+
+        # the two overall dimensions of the layout
+        ov = static_call(pro, "Overall", [bx0, by0, bx1, by1, poly_sys])
+        hvals = [round(float(ov.Hx0), 2), round(float(ov.Hy0), 2),
+                 round(float(ov.Hx1), 2), round(float(ov.Hy1), 2)]
+        bands.append({"axis": "Y",
+                      "values": sorted([hvals[1], hvals[3]]),
+                      "name": "overall height"})
+        print(f"  overall height axis=Y {sorted([hvals[1], hvals[3]])}")
+        wvals = [round(float(ov.Wx0), 2), round(float(ov.Wy0), 2),
+                 round(float(ov.Wx1), 2), round(float(ov.Wy1), 2)]
+        bands.append({"axis": "X",
+                      "values": sorted([wvals[0], wvals[2]]),
+                      "name": "overall width"})
+        print(f"  overall width  axis=X {sorted([wvals[0], wvals[2]])}")
 
     # --- compare against the measured sets -----------------------------------
     print("\n=== matching generated chains against the measured sets of [50] ===")

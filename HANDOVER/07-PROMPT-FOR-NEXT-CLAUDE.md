@@ -19,7 +19,7 @@ Read the hand-over pack in HANDOVER/ before anything else, in this order:
   HANDOVER/00-START-HERE.md            what the project is, the three trees, the model
   HANDOVER/01-STATE-OF-PLAY.md         what is done, what is not, the open PR
   HANDOVER/02-ENVIRONMENT.md           what this computer needs, and four gotchas
-  HANDOVER/03-HARD-RULES.md            the ten rules that are not negotiable
+  HANDOVER/03-HARD-RULES.md            the eleven rules that are not negotiable
   HANDOVER/04-TEKLA-2025-API-TRAPS.md  the Tekla behaviour that cost the most time to find
   HANDOVER/05-BUILD-AND-VERIFY.md      every command, labelled
   HANDOVER/06-OPEN-QUESTIONS.md        the open work, and who can settle it
@@ -48,7 +48,7 @@ The two hard rules that matter most:
      HANDOVER/REFERENCE-DATA.md.
 
 Then, before you change anything, run the checks in
-HANDOVER/05-BUILD-AND-VERIFY.md section F and report which of the ten
+HANDOVER/05-BUILD-AND-VERIFY.md section F and report which of the fifteen
 pass.  Do not fix anything that fails without saying so first.
 
 The macro (macros/wall-framing/) is complete and verified: 12 of the 18
@@ -56,6 +56,15 @@ dimension chains of the reference are reproduced exactly, the marks match
 11/11 on the angle, and the issued drawing is provably untouched.  The six
 chains that do not match are hand edits of the issued drawing and are
 deliberately not reproduced.
+
+The macro is sold in two editions.  The free edition draws the dimension
+chains; the Pro edition draws everything and is unlocked by a licence key
+(RSA-2048, tied to the computer, with a three day trial).  The Pro stages
+are NOT in this repository - they live in the dev tree under
+macros\wall-framing\private\ and are built with build.ps1 -ProPath.  Two
+things about the licence: the public key in source/WF_License.cs is still
+the placeholder, so no key verifies yet, and the owner keeps the private
+key - never write one, never commit one.
 
 The biggest open gap is that the C# MCP server's live Tekla path has never
 been run against a real model - it has only been tested against the mock
@@ -75,7 +84,7 @@ credential into a file.
 | "read `CLAUDE.md` and follow it" | the repository's own rules are the contract; they are not restated |
 | rule 1 (the frozen drawing) | it is the one irreversible mistake available |
 | rule 2 (the client data) | it would leak into a public repository and is easy to do by accident |
-| "run the checks and report which of the ten pass" | it makes the new instance **report the state** before it **changes** the state, and it makes a broken handover visible instead of silently inherited |
+| "run the checks and report which of the fifteen pass" | it makes the new instance **report the state** before it **changes** the state, and it makes a broken handover visible instead of silently inherited |
 | "do not fix anything that fails without saying so first" | the same |
 | "the macro is complete and verified" | stops the new instance from rebuilding what works, and from "fixing" the six hand-edit chains that are correct as they are |
 | "the biggest open gap is the live Tekla path" | points at the most valuable next task without ordering it |
@@ -106,9 +115,9 @@ API members.  Label terminal instructions "Command Prompt (Windows)" or
 
 1. **Read** the pack.  Do not skip `04-TEKLA-2025-API-TRAPS.md` — it is
    the file that saves the most time.
-2. **Run** the ten checks of `05-BUILD-AND-VERIFY.md` section F and report
-   the result.  This is the most valuable thing the new instance can do,
-   because it tells the owner whether the handover worked.
+2. **Run** the fifteen checks of `05-BUILD-AND-VERIFY.md` section F and
+   report the result.  This is the most valuable thing the new instance
+   can do, because it tells the owner whether the handover worked.
 3. **Ask** which of the open items in `06-OPEN-QUESTIONS.md` to pick up.
    Do not choose a big one on your own.
 4. **Do** the small, safe, obviously-wanted one: the settings file (B1) is

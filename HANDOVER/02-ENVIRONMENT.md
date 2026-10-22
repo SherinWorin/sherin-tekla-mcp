@@ -84,33 +84,47 @@ The full guide, in plain text, is
 [`macros/wall-framing/INSTALL_NOTES.txt`](../macros/wall-framing/INSTALL_NOTES.txt).
 It is also inside the deployment package.
 
-### The file to install
+### The files to install
 
 ```
-P142_WF_AutoDimension_merged.cs   (~94000 bytes)   <- this one
-P142_WF_AutoDimension.bmp         (the ribbon icon)
+P142_WF_AutoDimension.cs   (~8000 bytes)   <- the LOADER, this one
+P142_WF_AutoDimension.bmp  (the ribbon icon)
 ```
 
-**The merged file holds the macro AND the rules in one file.**  The
-`source/P142_WF_AutoDimension.cs` in the repository is the macro **only**
-(~49000 bytes) and Tekla cannot compile it alone — the error is a missing
-namespace and it does not point at the cause.
+**The loader holds no rule and no drawing logic.**  It loads the modules
+at run time, and that is what keeps the Pro stages out of the published
+repository.  The modules go beside it:
 
-The installer checks this and refuses a file that is not the merged one.
+```
+%LOCALAPPDATA%\P142\WallFraming\WF_Core.dll
+%LOCALAPPDATA%\P142\WallFraming\WF_Rules.dll
+%LOCALAPPDATA%\P142\WallFraming\WF_License.dll
+```
+
+The installer checks the loader and refuses a file that holds the whole
+logic (`namespace P142.WallFraming`) — that would be the old merged source,
+and it would carry the Pro stages with it.
 
 ### Method A — manual (Command Prompt (Windows) or Explorer)
 
 ```
 set TEKLA=C:\TeklaStructures\2025.0
-copy "<folder>\P142_WF_AutoDimension_merged.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
-copy "<folder>\P142_WF_AutoDimension.bmp"       "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+copy "<folder>\P142_WF_AutoDimension.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
+copy "<folder>\P142_WF_AutoDimension.bmp" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+
+set APP=%LOCALAPPDATA%\P142\WallFraming
+if not exist "%APP%" mkdir "%APP%"
+copy "<folder>\WF_Core.dll"    "%APP%\"
+copy "<folder>\WF_Rules.dll"   "%APP%\"
+copy "<folder>\WF_License.dll" "%APP%\"
 ```
 
-**The rename matters:** the name of the `.cs` file **is** the name of the
-macro on the ribbon.  Leave it as `_merged` and the ribbon shows
-`P142_WF_AutoDimension_merged`.
+**The name matters:** the name of the `.cs` file **is** the name of the
+macro on the ribbon.
 
-Check afterwards: the file must be about **94000 bytes**.
+Check afterwards: the loader must be about **8000 bytes**.  A file of
+about 94000 bytes is the **old** merged source — it holds the Pro stages
+and must not be installed.
 
 ### Method B — the installer script (where PowerShell is available)
 
@@ -122,6 +136,8 @@ powershell -NoProfile -File install.ps1                 :: then install
 The script finds the Tekla installation by itself (`TEKLA_HOME`,
 `C:\TeklaStructures\*`, `C:\Program Files\Tekla Structures\*`, the other
 drives; a 2025 installation wins).  `-TeklaPath` overrides the search.
+It copies the loader and the icon into the macro catalog, and the modules
+into `%LOCALAPPDATA%\P142\WallFraming\`.
 
 > **Note on the terminal.**  Every command in this pack is labelled
 > **Command Prompt (Windows)** or **Ubuntu (WSL)**.  PowerShell is blocked

@@ -26,6 +26,24 @@ wall layout drawing happens to have there.
     (the issued reference drawing of the project is frozen, so it is safe)
 
 
+TWO EDITIONS
+------------
+  FREE  the dimension chains: the stud chain of every wall panel and the
+        band chains of the layout.
+
+  PRO   everything: the chains, the top outline, the overall dimensions,
+        the north run, the wall panel marks, the section marks and the
+        notes.  A licence key unlocks it.
+
+Without a key the Pro features are free for THREE DAYS, from the first run
+of the macro on that computer.  To use the Pro edition after that, the key
+goes into this file:
+
+    %LOCALAPPDATA%\P142\WallFraming\license.txt
+
+The whole licence workflow is in docs\LICENSING.md.
+
+
 INSTALLING (2 minutes, on the other computer)
 ---------------------------------------------
 1. Unzip the package into any folder, e.g.  C:\Temp\WallFramingAutoDimension
@@ -39,17 +57,19 @@ INSTALLING (2 minutes, on the other computer)
 
        powershell -NoProfile -File .\install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
 
+   The script copies two things:
+     - the loader and the icon into the macro catalog of Tekla
+     - the modules into  %LOCALAPPDATA%\P142\WallFraming\
+
 3. Start Tekla Structures 2025 and open a drawing whose title holds
    "WALL FRAMING LAYOUT" (Applications &gt; Macros &gt; P142_WF_AutoDimension).
 
-Nothing else is needed: the rules and the macro are merged into ONE .cs file,
-so there is no second DLL to install and no DLL to register.
+There is no DLL to register and no installer to run.  The loader in the
+macro catalog is a thin file: it holds no rule and no drawing logic, it
+loads the modules next to it at run time.
 
-The installer puts the file into the catalog under the name
+The installer puts the loader into the catalog under the name
 P142_WF_AutoDimension.cs, so that is the name of the macro on the ribbon.
-(The merged file itself is called P142_WF_AutoDimension_merged.cs inside
-the package, because the same folder also holds the two sources it was
-made of.)
 
 
 IF THE MACRO CATALOG DOES NOT SHOW THE MACRO
@@ -59,10 +79,13 @@ close Tekla, start it again, and look under
   Applications &gt; Macros &gt; the group of the drawings macro
 The name of the macro is the name of the .cs file: P142_WF_AutoDimension
 
+If the macro appears but says that a module is missing, the modules were
+not copied into  %LOCALAPPDATA%\P142\WallFraming\  - run install.ps1 again.
+
 
 REBUILDING THE MACRO FROM THE SOURCES (optional)
 -------------------------------------------------
-The source folder holds both sources and the build script.  To build it
+The source folder holds the sources and the build script.  To build it
 again (for example after a change):
 
        powershell -NoProfile -File .\source\build.ps1
@@ -82,6 +105,8 @@ WHAT THE MACRO WRITES
   * the wall panel marks (WP1, WP2, ...)
   * the section marks S1..S5, copied from the reference drawing
   * the three notes
+
+The first two are the free edition; the rest is the Pro edition.
 
 A re-run replaces the output of the previous run: every object carries the
 user property P142_WF_AUTODIM = 1, and only objects with that property are

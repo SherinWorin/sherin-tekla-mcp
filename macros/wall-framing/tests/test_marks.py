@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from paths import BIN, REFERENCE, require  # noqa: E402
+from paths import BIN, REFERENCE, PRO_RULES_DLL, require  # noqa: E402
 
 import clr  # noqa: E402
 import System  # noqa: E402
@@ -62,6 +62,16 @@ def main():
     rules = asm.GetType("P142.WallFraming.WfRules")
     part_t = asm.GetType("P142.WallFraming.WfPart")
 
+    # The mark placement is a PRO rule: it is not in the public repository.
+    # It is checked here when the private sources have been built.
+    if not PRO_RULES_DLL.exists():
+        print("The mark placement is a Pro rule, and the Pro rules are not in")
+        print(f"the public repository.  Build them first:  {PRO_RULES_DLL}")
+        print("  (build.ps1 -ProPath \"<the private sources>\")")
+        return 0
+    pro_asm = Assembly.LoadFrom(str(PRO_RULES_DLL))
+    pro = pro_asm.GetType("P142.WallFraming.WfRulesPro")
+
     parts = System.Collections.Generic.List[part_t]()
     for p in load_parts():
         o = System.Activator.CreateInstance(part_t)
@@ -88,7 +98,7 @@ def main():
         if pan is None:
             print(f"  {m['apos']:10} NO PANEL")
             continue
-        mp = static_call(rules, "MarkPlacement", [pan, OFFSET])
+        mp = static_call(pro, "MarkPlacement", [pan, OFFSET])
 
         d_ang = abs(mp.Angle - m["angle"])
         st = m["start"] or [0, 0]

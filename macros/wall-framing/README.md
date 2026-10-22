@@ -14,7 +14,8 @@ drawing by its **title**, so the same file works on every computer of a project.
 |---|---|
 | Tekla version | **2025.0** (`Tekla.Structures.*` v2025.0.0.0, .NET Framework 4.x) |
 | language | C#, compiled with the Roslyn `csc.exe` of Visual Studio 2022 |
-| install | two files in the Tekla macro catalog — no DLL to register |
+| install | a thin loader in the Tekla macro catalog + a few modules in `%LOCALAPPDATA%` — nothing to register |
+| editions | **free** (the dimension chains) and **Pro** (everything) — see [docs/LICENSING.md](docs/LICENSING.md) |
 | risk | **MEDIUM** — it creates drawing objects; it never touches the model, and it refuses an issued or frozen drawing |
 
 ## The layout
@@ -26,24 +27,31 @@ macros/wall-framing/
   README.txt               the same notes in brief, for the package
   install.ps1              the installer (optional - the manual method needs no script)
   source/
-    WF_Rules.cs            the annotation rules - NO Tekla reference
-    P142_WF_AutoDimension.cs  the macro: reads the model, calls the rules, writes the drawing
-    build.ps1              builds both, and the merged single-file source
+    WF_Rules.cs            the FREE annotation rules - NO Tekla reference
+    WF_License.cs          the licence engine - NO Tekla reference
+    WF_Core.cs             the shared drawing machinery
+    WF_KeyGen.cs           the owner's licence key tool
+    P142_WF_AutoDimension.cs  the LOADER: it holds no rule and no logic
+    build.ps1              builds the modules, the tool and the package
     bin/                   the build output (not in the repository)
   docs/
     README.md              the full description of the macro
     ARCHITECTURE.md        the layers, the data flow, the target selection
     API_NOTES.md           the Tekla 2025 API facts and the eight traps found
+    LICENSING.md           the two editions, the trial and the key workflow
     SETUP.md               how to build, install and run it
     TESTING.md             the test harnesses
     TODO.md                what is left to do
     CHANGELOG.md           the history
     WALL_FRAMING_RULES.md  every rule, with the reference set it was derived from
   package/
-    WallFramingAutoDimension.zip   the deployment package - one file for the other PC
+    WallFramingAutoDimension.zip     the free package - one file for the other PC
+    WallFramingAutoDimensionPro.zip  the Pro package
   tests/
     tekla_bootstrap.py     loads the Tekla assemblies for pythonnet
     test_rules.py          the rules against the reference  (no Tekla needed)
+    test_license.py        the licence engine  (no Tekla needed)
+    test_loader.py         the deployment: the modules load and the licence answers
     test_target_selection.py  which drawing the macro works on
     cmp_chains.py          the generated drawing against the reference
     test_marks.py          the mark placement
@@ -92,15 +100,18 @@ run on Windows; run it from the Command Prompt of the Windows side.
 
 The build produces
 
-* `source\bin\WF_Rules.dll` — the rules, no Tekla reference;
-* `source\bin\P142_WF_AutoDimension.dll` — the macro;
-* `source\bin\P142_WF_AutoDimension_merged.cs` — **the rules and the macro in
-  one file**, which is what the Tekla macro catalog compiles. The build
-  compiles that merged file as well, so a broken merge can never reach the
-  catalog.
+* `source\bin\WF_Rules.dll` — the free rules, no Tekla reference;
+* `source\bin\WF_License.dll` — the licence engine, no Tekla reference;
+* `source\bin\WF_Core.dll` — the shared drawing machinery;
+* `source\bin\WF_KeyGen.exe` — the owner's licence key tool;
+* `source\bin\P142_WF_AutoDimension.dll` — the **loader**, the file the
+  Tekla macro catalog compiles.  It holds no rule and no drawing logic: it
+  loads `WF_Core.dll` and hands the work over.
 
 The build script finds the Tekla installation and the C# compiler by itself;
-`-TeklaPath` and `-CscPath` override the search.
+`-TeklaPath` and `-CscPath` override the search.  The **Pro** stages are
+not in this repository; `-ProPath` points the build at the private sources
+and the Pro package is written as well.
 
 ## Install
 
@@ -110,13 +121,21 @@ manual method (two files copied) and the optional script.
 **Command Prompt (Windows)**
 
 ```
-copy macros\wall-framing\source\bin\P142_WF_AutoDimension_merged.cs "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
-copy macros\wall-framing\source\bin\P142_WF_AutoDimension.bmp       "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+copy macros\wall-framing\source\bin\P142_WF_AutoDimension.cs "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
+copy macros\wall-framing\source\bin\P142_WF_AutoDimension.bmp "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
 ```
 
 where `%TEKLA%` is the Tekla installation, e.g. `C:\TeklaStructures\2025.0`.
 The `.cs` file **must** be named `P142_WF_AutoDimension.cs` in the catalog:
 the name of the file is the name of the macro on the ribbon.
+
+The **modules** go into `%LOCALAPPDATA%\P142\WallFraming\`:
+
+```
+copy macros\wall-framing\source\bin\WF_Core.dll   "%LOCALAPPDATA%\P142\WallFraming\"
+copy macros\wall-framing\source\bin\WF_Rules.dll  "%LOCALAPPDATA%\P142\WallFraming\"
+copy macros\wall-framing\source\bin\WF_License.dll "%LOCALAPPDATA%\P142\WallFraming\"
+```
 
 The **package** `package/WallFramingAutoDimension.zip` holds the same files
 plus the sources, the documentation and the installer — one file to copy to
@@ -131,11 +150,13 @@ cd macros\wall-framing\source
 powershell -NoProfile -File build.ps1
 cd ..\tests
 python test_rules.py
+python test_license.py
 ```
 
-`test_rules.py` needs **no Tekla** — the rules assembly has no Tekla
-reference. The other harnesses need a running Tekla Structures and
-`pythonnet`; see [docs/TESTING.md](docs/TESTING.md).
+`test_rules.py` and `test_license.py` need **no Tekla** — neither the rules
+assembly nor the licence engine has a Tekla reference. The other harnesses
+need a running Tekla Structures and `pythonnet`; see
+[docs/TESTING.md](docs/TESTING.md).
 
 The **reference dumps** the harnesses compare against (the model parts and
 the measured dimension sets of the issued drawing) are **not** in this
@@ -144,16 +165,39 @@ repository: they hold the geometry of a client project. See
 
 ## What the macro writes
 
-37 objects in one run: 18 dimension sets, 11 wall-panel marks, 5 section
-marks and 3 notes. Every object carries the user property
-`P142_WF_AUTODIM = 1`, so a re-run replaces the previous output instead of
-duplicating it, and hand-made annotations are never touched.
+**Pro edition:** 37 objects in one run — 18 dimension sets, 11 wall-panel
+marks, 5 section marks and 3 notes.
+
+**Free edition:** 14 dimension sets — the stud chain of every wall panel and
+the band chains of the layout.
+
+Every object carries the user property `P142_WF_AUTODIM = 1`, so a re-run
+replaces the previous output instead of duplicating it, and hand-made
+annotations are never touched.
 
 **12 of the 18 dimension chains** of the reference drawing are reproduced
 exactly; the other six are hand edits in the reference (see the rules
 document).
 
-## Licence
+## The two editions
+
+The macro is sold in two editions:
+
+* the **free** edition draws the dimension chains — the stud chain of every
+  wall panel and the band chains of the layout;
+* the **Pro** edition draws everything, and a **licence key** unlocks it.
+
+Without a key the Pro features are free for **three days**, from the first
+run of the macro on that computer.  A key is tied to the computer it was
+issued for, and the whole workflow — the owner's key tool, the activation
+step, the trial and the clock-rollback rule — is in
+**[docs/LICENSING.md](docs/LICENSING.md)**.
+
+The Pro stages are **not in this repository**: they are a separate module
+that is loaded only when the licence allows it, which is what the thin
+loader in the macro catalog is for.
+
+## Licence of the source
 
 MIT, like the rest of this repository. The macro is independent of the MCP
 server: the rules assembly references no Tekla type, and the test harnesses

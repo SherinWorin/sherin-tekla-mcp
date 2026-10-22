@@ -77,10 +77,15 @@ wall-panel marks, section marks, notes).
 - It finds the drawing by its **title**, not by a fixed mark, so the same file
   works on every computer of a project.
 - It **never writes into an issued or frozen drawing** - the macro refuses it.
-- The rules live in their own assembly with **no Tekla reference**; the macro
-  and the rules are merged into one `.cs` file for the Tekla macro catalog.
-- A deployment package (`macros/wall-framing/package/WallFramingAutoDimension.zip`)
-  installs it on another computer in two file copies.
+- The rules and the licence engine live in their own assemblies with **no
+  Tekla reference**; the macro catalog gets a **thin loader** that loads the
+  modules at run time.
+- Two editions: a **free** one (the dimension chains) and a **Pro** one
+  (everything), unlocked by a licence key. Without a key the Pro features are
+  free for three days. See
+  [macros/wall-framing/docs/LICENSING.md](macros/wall-framing/docs/LICENSING.md).
+- A deployment package (`macros/wall-framing/package/WallFramingAutoDimension.zip`,
+  and the Pro one beside it) installs it on another computer.
 
 See [macros/wall-framing/README.md](macros/wall-framing/README.md) and
 [macros/wall-framing/INSTALL_NOTES.txt](macros/wall-framing/INSTALL_NOTES.txt).

@@ -23,7 +23,8 @@ The north run is placed **30 mm north** of the wall it measures, because
 the reference drawing puts it on top of the top outline.  Nobody has looked
 at the generated drawing and confirmed that the placement reads well.
 
-*Where:* `PAPER_NORTH` in `source/P142_WF_AutoDimension.cs`.
+*Where:* `PAPER_NORTH` in the Pro module (`macros/wall-framing/private/WF_Pro.cs`
+in the dev tree).
 *How to settle it:* run the macro on [57], look at the sheet, change the
 constant, run again.
 
@@ -34,7 +35,7 @@ points are **hand points** (296.07 and 1705.85).  They cannot be derived
 from the model.
 
 *If the user wants them*, they have to be hard-coded per project — which
-the rules deliberately do not do (R10 in [03-HARD-RULES.md](03-HARD-RULES.md)).
+the rules deliberately do not do (R11 in [03-HARD-RULES.md](03-HARD-RULES.md)).
 **Ask before doing this.**  It is a decision about the product, not a bug.
 
 ### A4 — The package has never been run on a second computer
@@ -46,7 +47,36 @@ other machine yet.
 `install.ps1 -WhatIfOnly` first, then the install, then the macro, then
 check the log.
 
-### A5 — The base-framing macro has no shared style
+### A5 — The Pro path has never been run against a live Tekla
+
+The Pro stages were moved out of the macro into `WF_Pro.dll`, and the Pro
+rules into `WF_Rules_Pro.dll`, after the drawing was finished.  The two
+harnesses prove that the *rules* were moved without changing an answer
+(12 of 18 chains, angle 11/11, leader 9/11, offset 9/11), and
+`tests/test_loader.py` proves that the module loads and has its entry
+point.  What is **not** proven is that the Pro module *writes* the same
+objects in the same places once it is called by the core.
+
+*Where:* `macros/wall-framing/source/WF_Core.cs`, the `RunPro` method.
+*How to settle it:* on the dev machine, build with `-ProPath`, install the
+modules, run the macro on [57] with a Pro licence, then run
+`tests/cmp_chains.py` and `tests/audit_50_57.py`.  The chains must still
+be 12 of 18, and [50] must be untouched.
+
+### A6 — The owner has not pasted the public key
+
+`PublicKeyXml` in `source/WF_License.cs` is still the placeholder
+`REPLACE_WITH_THE_PUBLIC_KEY`, so **no licence key verifies** and the
+licence cannot be issued end to end yet.  The engine, the key tool and
+the 42 checks are ready; only this one constant is missing.
+
+*Where:* `source/WF_License.cs`.
+*How to settle it:* `WF_KeyGen.exe newkey owner-private.xml owner-public.xml`,
+put the public key into `PublicKeyXml`, rebuild, and walk through
+`issue` → `install` → `status`.  The **private** key is the owner's
+alone: it is never written by an assistant and never committed.
+
+### A7 — The base-framing macro has no shared style
 
 `P142_BF_AutoDimension.cs` (the base framing, in the dev tree and installed
 in the catalog) and the wall-framing macro do not share a style definition,
@@ -146,6 +176,6 @@ worked.  `docs/TESTING.md` and the issue template
 | copy the GPLv3 `tekla_mcp_server` into the MIT repository | a licence condition |
 | commit the reference dumps | client data in a public repository — R2 |
 | write to drawing [50] | it is the issued reference — R1 |
-| hard-code the six hand edits of [50] | they cannot be derived, and they would be wrong on every other project — R10 |
+| hard-code the six hand edits of [50] | they cannot be derived, and they would be wrong on every other project — R11 |
 | regenerate a replacement for the Python MCP server | it was complete before this work; extend it |
 | copy files into the Tekla installation | the human does that — R8 |
