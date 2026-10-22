@@ -64,3 +64,15 @@ found by its **title**, never by a fixed mark, and a drawing that is **issued or
 frozen is never written to**.
 
 See [macros/wall-framing/README.md](../macros/wall-framing/README.md).
+
+---
+
+## Not an MCP tool: the hand-over pack
+
+`HANDOVER/` documents the state of the work for anyone continuing it on
+another computer: what is done, what is open, the rules that must not be
+broken, the Tekla 2025 traps, the build-and-verify commands, and the prompt
+to paste into a fresh Claude session.
+
+It is documentation, not code. Start at
+[HANDOVER/00-START-HERE.md](../HANDOVER/00-START-HERE.md).
