@@ -93,7 +93,9 @@ if (-not (Test-Path $catalog)) {
 # ---------------------------------------------------------------------------
 $catalogFiles = @(
     @{ Name = 'P142_WF_AutoDimension.cs'; To = (Join-Path $catalog 'P142_WF_AutoDimension.cs') },
-    @{ Name = 'P142_WF_AutoDimension.bmp'; To = (Join-Path $catalog 'P142_WF_AutoDimension.bmp') }
+    @{ Name = 'P142_WF_AutoDimension.bmp'; To = (Join-Path $catalog 'P142_WF_AutoDimension.bmp') },
+    @{ Name = 'WallFramingAutoDimensionPro-AIO.cs'; To = (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.cs') },
+    @{ Name = 'WallFramingAutoDimensionPro-AIO.bmp'; To = (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.bmp') }
 )
 
 foreach ($f in $catalogFiles) {
@@ -114,19 +116,25 @@ foreach ($f in $catalogFiles) {
 # rule in it, and it loads the modules at run time.  A file that holds the
 # whole logic (namespace P142.WallFraming) is the old merged source, and it
 # would put the Pro stages into the public repository.
-$loader = $catalogFiles[0].From
-$text = Get-Content $loader -Raw
-if ($text -match 'namespace\s+P142\.WallFraming') {
-    Write-Output ("ERROR: {0} is the merged source, not the loader." -f $loader)
-    Write-Output '       Only the loader goes into the macro catalog.  The logic'
-    Write-Output '       is in the modules, which are installed next to it in'
-    Write-Output ("       {0}" -f $appFolder)
-    Write-Output '       Build the package:  cd source  &&  powershell -NoProfile -File build.ps1 -Package'
-    exit 1
-}
-if ($text -notmatch 'MacroEntryPoint') {
-    Write-Output ("ERROR: {0} has no macro entry point - it is not a macro." -f $loader)
-    exit 1
+#
+# Every .cs of the catalog is checked: there are two loaders, the one of the
+# licensed macro and the one of the free AIO macro.
+foreach ($f in $catalogFiles) {
+    if ($f.Name -notlike '*.cs') { continue }
+    $loader = $f.From
+    $text = Get-Content $loader -Raw
+    if ($text -match 'namespace\s+P142\.WallFraming') {
+        Write-Output ("ERROR: {0} is the merged source, not the loader." -f $loader)
+        Write-Output '       Only the loader goes into the macro catalog.  The logic'
+        Write-Output '       is in the modules, which are installed next to it in'
+        Write-Output ("       {0}" -f $appFolder)
+        Write-Output '       Build the package:  cd source  &&  powershell -NoProfile -File build.ps1 -Package'
+        exit 1
+    }
+    if ($text -notmatch 'MacroEntryPoint') {
+        Write-Output ("ERROR: {0} has no macro entry point - it is not a macro." -f $loader)
+        exit 1
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -193,6 +201,11 @@ foreach ($f in $modules) {
 Write-Output ''
 Write-Output 'The macro is installed.  It is on the ribbon:'
 Write-Output '  Applications > Macros > P142_WF_AutoDimension'
+Write-Output ''
+Write-Output 'There is a second macro on the ribbon, which asks for no licence:'
+Write-Output '  Applications > Macros > WallFramingAutoDimensionPro-AIO'
+Write-Output 'It dimensions EVERY wall framing layout of a GA sheet on its own, so'
+Write-Output 'that the chain of one block does not run into the next one.'
 Write-Output ''
 Write-Output 'Open the GA drawing whose title holds "WALL FRAMING LAYOUT" and run it.'
 Write-Output 'The macro refuses to write into a drawing that is issued or frozen.'

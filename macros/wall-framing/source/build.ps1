@@ -8,6 +8,12 @@
 #   source/bin/WF_KeyGen.exe             - the owner's licence key tool
 #   source/bin/P142_WF_AutoDimension.dll - the LOADER, the file the Tekla macro
 #                                          catalog compiles
+#   source/bin/WallFramingAutoDimensionPro-AIO.dll
+#                                        - the LOADER of the AIO macro: it
+#                                          dimensions EVERY wall framing
+#                                          layout of a GA sheet on its own,
+#                                          and it is free - it asks for no
+#                                          licence key
 #
 # The loader is thin: it holds no rule and no drawing logic.  Everything is
 # in the assemblies above, which are installed in
@@ -18,11 +24,15 @@
 # Usage (Command Prompt (Windows)):
 #   powershell -NoProfile -File source/build.ps1
 #   powershell -NoProfile -File source/build.ps1 -Package
+#   powershell -NoProfile -File source/build.ps1 -Package -AioPackage
+#                                       (also the package of the AIO macro)
 #   powershell -NoProfile -File source/build.ps1 -Deploy    (also copies to the macro catalog)
 #   powershell -NoProfile -File source/build.ps1 -ProPath "C:\path\to\private"
 param(
     [switch]$Deploy,
     [switch]$Package,
+    [switch]$AioFree,
+    [switch]$AioPackage,
     [string]$TeklaPath = '',
     [string]$CscPath = '',
     [string]$ProPath = ''
@@ -158,15 +168,16 @@ if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out
 
 # ---------------------------------------------------------------------------
 # The macro catalog shows an icon next to the macro.  One is drawn when there
-# is none yet: a blue square with a white dimension cross in it.
+# is none yet: a blue square with a white dimension cross in it.  The AIO
+# macro gets a green one, so that the two are told apart in the list.
 # ---------------------------------------------------------------------------
 function New-IconFile {
-    param([string]$Path, [switch]$Force)
+    param([string]$Path, [switch]$Force, [int]$Red = 0, [int]$Green = 90, [int]$Blue = 120)
     if ((Test-Path $Path) -and (-not $Force)) { return }
     Add-Type -AssemblyName System.Drawing
     $img = New-Object System.Drawing.Bitmap 32, 32
     $g = [System.Drawing.Graphics]::FromImage($img)
-    $g.Clear([System.Drawing.Color]::FromArgb(0, 90, 120))
+    $g.Clear([System.Drawing.Color]::FromArgb(0, $Red, $Green, $Blue))
     $pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::White), 2
     $g.DrawRectangle($pen, 5, 5, 21, 21)
     $g.DrawLine($pen, 5, 16, 26, 16)
@@ -253,6 +264,11 @@ Invoke-Csc -Refs ($framework + $teklaDlls) `
             -Source (Join-Path $here 'P142_WF_AutoDimension.cs') `
             -Out (Join-Path $outDir 'P142_WF_AutoDimension.dll')
 
+Write-Output 'Building WallFramingAutoDimensionPro-AIO.dll (the AIO loader) ...'
+Invoke-Csc -Refs ($framework + $teklaDlls) `
+            -Source (Join-Path $here 'WallFramingAutoDimensionPro-AIO.cs') `
+            -Out (Join-Path $outDir 'WallFramingAutoDimensionPro-AIO.dll')
+
 $proBuilt = $false
 if ($proPath) {
     Write-Output 'Building WF_Rules_Pro.dll (the Pro rules, no Tekla dependency) ...'
@@ -274,6 +290,7 @@ else {
 # The icon of the macro, next to the loader, so that install.ps1 can find it
 # in the build output as well.
 New-IconFile -Path (Join-Path $outDir 'P142_WF_AutoDimension.bmp') -Force
+New-IconFile -Path (Join-Path $outDir 'WallFramingAutoDimensionPro-AIO.bmp') -Force -Red 0 -Green 110 -Blue 60
 
 # ---------------------------------------------------------------------------
 # The packages.
@@ -314,11 +331,14 @@ function New-Package {
     if (Test-Path $pkgRoot) { Remove-Item -Path $pkgRoot -Recurse -Force }
     New-Item -ItemType Directory -Path $pkgSrc | Out-Null
 
-    # the loader, which the Tekla macro catalog compiles
+    # the loaders, which the Tekla macro catalog compiles
     Copy-Item (Join-Path $here 'P142_WF_AutoDimension.cs') $pkgSrc -Force
-    # the icon of the macro
+    Copy-Item (Join-Path $here 'WallFramingAutoDimensionPro-AIO.cs') $pkgSrc -Force
+    # the icons of the macros
     $bmpOut = Join-Path $pkgSrc 'P142_WF_AutoDimension.bmp'
     New-IconFile -Path $bmpOut -Force
+    $bmpAio = Join-Path $pkgSrc 'WallFramingAutoDimensionPro-AIO.bmp'
+    New-IconFile -Path $bmpAio -Force -Red 0 -Green 110 -Blue 60
     # the assemblies, which are installed next to the licence
     foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll')) {
         Copy-Item (Join-Path $outDir $dll) $pkgSrc -Force
@@ -328,7 +348,8 @@ function New-Package {
     }
     # the sources and the build script, for a re-build on the other computer
     foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs',
-                     'P142_WF_AutoDimension.cs', 'WF_KeyGen.cs', 'build.ps1')) {
+                     'P142_WF_AutoDimension.cs', 'WallFramingAutoDimensionPro-AIO.cs',
+                     'WF_KeyGen.cs', 'build.ps1')) {
         Copy-Item (Join-Path $here $s) $pkgSrc -Force
     }
 
@@ -362,11 +383,46 @@ function New-Package {
 
 if ($Package) {
     Write-Output 'Assembling the free package ...'
-    New-Package -Name 'WallFramingAutoDimension' -ExtraFiles @()
+    $freeExtra = @()
+    if ($AioFree) {
+        # The AIO macro asks for no licence key and draws the whole set of
+        # annotations.  For that it needs the Pro modules, which the free
+        # package does not carry by default (rule R10: the Pro stages are
+        # not published).  This switch is the owner's decision: with it, the
+        # free package carries the Pro modules as well, and the AIO macro
+        # of a free install is complete.
+        if ($proBuilt) {
+            $freeExtra = @((Join-Path $outDir 'WF_Pro.dll'),
+                           (Join-Path $outDir 'WF_Rules_Pro.dll'))
+            Write-Output '  the free package carries the Pro modules: the AIO macro draws everything'
+        } else {
+            Write-Warning 'The free package cannot carry the Pro modules: they were not built.'
+            Write-Warning 'Build with -ProPath <the private tree> and try again.'
+        }
+    }
+    New-Package -Name 'WallFramingAutoDimension' -ExtraFiles $freeExtra
 
     if ($proBuilt) {
         Write-Output 'Assembling the Pro package ...'
         New-Package -Name 'WallFramingAutoDimensionPro' `
+                    -ExtraFiles @((Join-Path $outDir 'WF_Pro.dll'),
+                                  (Join-Path $outDir 'WF_Rules_Pro.dll'))
+    }
+}
+
+if ($AioPackage) {
+    # The package of the AIO macro: it is free - it asks for no licence key -
+    # and it draws the whole set of annotations, so it needs the Pro modules.
+    # It is NOT published (rule R10: the Pro stages are not published); it is
+    # built in the dev tree and handed to a customer directly, like the Pro
+    # package.
+    if (-not $proBuilt) {
+        Write-Warning 'The AIO package cannot be built: the Pro modules were not built.'
+        Write-Warning 'Build with -ProPath <the private tree> and try again.'
+    } else {
+        Write-Output 'Assembling the AIO package ...'
+        Write-Output '  it carries the Pro modules: the AIO macro draws everything, and asks for no key'
+        New-Package -Name 'WallFramingAutoDimensionAIO' `
                     -ExtraFiles @((Join-Path $outDir 'WF_Pro.dll'),
                                   (Join-Path $outDir 'WF_Rules_Pro.dll'))
     }
@@ -385,6 +441,8 @@ if ($Deploy) {
     if (-not (Test-Path $catalog)) { throw "macro catalog not found: $catalog" }
     Copy-Item -Path (Join-Path $here 'P142_WF_AutoDimension.cs') `
               -Destination (Join-Path $catalog 'P142_WF_AutoDimension.cs') -Force
+    Copy-Item -Path (Join-Path $here 'WallFramingAutoDimensionPro-AIO.cs') `
+              -Destination (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.cs') -Force
 
     # The catalog shows an icon next to the macro; draw a small one if there
     # is none yet.
@@ -392,6 +450,11 @@ if ($Deploy) {
     New-IconFile -Path $bmp
     Write-Output ("  OK  {0}" -f (Join-Path $catalog 'P142_WF_AutoDimension.cs'))
     Write-Output ("  OK  {0}" -f $bmp)
+
+    $bmpAio = Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.bmp'
+    New-IconFile -Path $bmpAio -Red 0 -Green 110 -Blue 60
+    Write-Output ("  OK  {0}" -f (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.cs'))
+    Write-Output ("  OK  {0}" -f $bmpAio)
 
     Write-Output 'Deploying the modules ...'
     if (-not (Test-Path $appFolder)) { New-Item -ItemType Directory -Path $appFolder -Force | Out-Null }
