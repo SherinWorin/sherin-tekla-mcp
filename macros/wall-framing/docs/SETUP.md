@@ -17,6 +17,13 @@ need Python, a NuGet package, a DLL to register or an MSBuild project.
 The package is `package/WallFramingAutoDimension.zip` (the free edition)
 or `package/WallFramingAutoDimensionPro.zip` (the Pro edition).
 
+There is a third one: `package/WallFramingAutoDimensionAIO.zip` — the
+package of the **AIO macro**.  That macro asks for **no licence key** and
+draws the whole set of annotations, so it needs the Pro modules; it is
+built with `-AioPackage` and it is **not published** (rule R10), like the
+Pro package.  The **free** package carries the Pro modules only when it
+is built with `-AioFree` — the owner's commercial decision.
+
 **`INSTALL_NOTES.txt` in the package is the step-by-step guide** — the
 manual method, the optional script, the first-run checklist and the
 troubleshooting. It is plain text and can be opened in Notepad.
@@ -30,10 +37,14 @@ troubleshooting. It is plain text and can be opened in Notepad.
    set TEKLA=C:\TeklaStructures\2025.0
    copy source\P142_WF_AutoDimension.cs "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
    copy source\P142_WF_AutoDimension.bmp "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+   copy source\WallFramingAutoDimensionPro-AIO.cs "%TEKLA%\Environments\common\macros\drawings\WallFramingAutoDimensionPro-AIO.cs"
+   copy source\WallFramingAutoDimensionPro-AIO.bmp "%TEKLA%\Environments\common\macros\drawings\WallFramingAutoDimensionPro-AIO.bmp"
    ```
 
    The loader is already called `P142_WF_AutoDimension.cs` — the name of
-   the file is the name of the macro on the ribbon.
+   the file is the name of the macro on the ribbon.  The second pair is
+   the AIO macro, the one that asks for no licence and dimensions every
+   wall framing layout of a GA sheet on its own.
 
 3. Copy the modules into the app folder:
 
@@ -71,7 +82,9 @@ troubleshooting. It is plain text and can be opened in Notepad.
    ```
 
 5. Start Tekla. The macro is on the ribbon under
-   **Applications ▸ Macros ▸ P142_WF_AutoDimension**.
+   **Applications ▸ Macros ▸ P142_WF_AutoDimension**, and the AIO macro
+   next to it under **Applications ▸ Macros ▸
+   WallFramingAutoDimensionPro-AIO**.
 
 There is no second DLL to register and nothing to install: the modules are
 plain assemblies that the loader picks up at run time.
@@ -163,6 +176,17 @@ This writes `package/WallFramingAutoDimension/` and zips it into
 `package/WallFramingAutoDimension.zip`.  The package holds the loader, the
 icon, the modules, the sources, the build script, the installer and the
 documentation.
+
+With `-ProPath "<the private sources>"` the **Pro** package is written
+beside it, and with `-AioPackage` the **AIO** package — the one of the
+macro that asks for no key and draws everything:
+
+**Command Prompt (Windows)**
+
+```
+cd macros\wall-framing\source
+powershell -NoProfile -File build.ps1 -Package -AioPackage -ProPath "<the private sources>"
+```
 
 The package is self-contained: `source\build.ps1` rebuilds the modules
 from the sources in the package.

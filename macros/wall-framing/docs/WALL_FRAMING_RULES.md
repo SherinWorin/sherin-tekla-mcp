@@ -387,6 +387,79 @@ last one — not from the start to the end of one track.  Without this the
 ledge wall of the new model loses its far end.
 
 
+## R10 — a sheet that carries many wall framing layouts
+
+A GA sheet does not always carry **one** wall framing layout.  The sheet
+of the P142 project that the client built by hand, **[176]**
+`P021.64_SD_MI_BP1 M/U_ST-133`, carries the wall framing layout of
+**19 blocks** of the model, side by side in one view.
+
+The macro of R8 works on **one** layout: it takes the box of all the
+panels of the drawing, and the band chain of that box runs from the
+first block of the sheet to the last one.  On such a sheet the top and
+the bottom chain are one long chain that crosses every block, while the
+left and the right chain of each block is right — which is exactly what
+was reported.
+
+The AIO macro (`WallFramingAutoDimensionPro-AIO`) draws every layout of
+the sheet **on its own**, as if each one of them were alone on a sheet
+of its own.
+
+**R10.1 — the block of a wall panel is the part of its assembly
+position before the first dash.**
+
+| assembly position | block |
+|---|---|
+| `BP1-WP3` | `BP1` |
+| `BP1M-WP12` | `BP1M` |
+| `BP1-LW1` | `BP1` |
+| `LW1` | `LW1` — a name without a dash is a layout of its own |
+
+The rule is in the free rules (`WfRules.BlockOf`), so that it can be
+tested without a running Tekla.
+
+**R10.2 — the block names are compared in a normalised form.**
+
+The model writes the block `BP7M`, and the drawing of that block writes
+`BP07M`.  The names are therefore compared in upper case, without the
+spaces and the dashes, and with the **leading zeros of every run of
+digits dropped** (`NormaliseBlock`): `BP07M` and `BP7M` are the same
+block, but **`BP10` and `BP1` are not**.
+
+**R10.3 — every layout is dimensioned on its own.**
+
+The box of a layout is the box of **its own panels**, and every chain
+of the layout uses that box: the band chains, the top outline, the
+overall dimensions, the north run, the wall-panel marks, the section
+marks and the notes.  The chain of one block never runs into the next
+one — that is the whole point of the AIO macro.
+
+**R10.4 — the stud chain belongs to the panel, not to the layout.**
+
+The chain of the openings of a wall panel is drawn **once for every
+panel of the sheet**, not once for every layout: the panels of a block
+share their layout, but their chains are their own.
+
+**R10.5 — the section marks of the sheet are kept.**
+
+The section marks of a sheet that carries many layouts belong to the
+layouts, and the ones of the client carry the tag of the macro as well
+(a drawing that was put together from the drawings of the macro keeps
+the tag of the objects it was copied from).  The AIO macro therefore
+**does not delete** the section marks of the sheet, and it copies the
+section marks of the drawing of the block only into a layout that has
+**none of its own** — the same rule as R8.4, counted per layout.
+
+**R10.6 — the AIO macro asks for no licence and draws everything.**
+
+`WfCore.ExecuteAio` takes no edition and never reads the licence.  It
+draws the free stages (the stud chain of every panel, the band chains of
+every layout) and, when the Pro module is installed, the Pro stages as
+well (the top outline, the overall dimensions, the north run, the
+wall-panel marks, the section marks and the notes) — for **every** layout
+of the sheet.
+
+
 ## The new model (MODEL-2) — what it changed and what it did not
 
 `MODEL-2` holds 4887 parts in 503 assemblies, of which 3875 are

@@ -86,6 +86,51 @@ not get the Pro annotations, and the log says so.
 The **Pro sources are not in the published repository**.  They live in the
 owner's private tree, and `build.ps1 -ProPath` points the build at them.
 
+## The second macro: the AIO entry point
+
+There is a **second** macro in the package:
+`WallFramingAutoDimensionPro-AIO`, with its own thin loader in the macro
+catalog.  It is the macro for a GA sheet that carries **many** wall
+framing layouts — the sheet of the client that holds the layout of 19
+blocks side by side.
+
+`WfCore.ExecuteAio(dr, result, save)` is the entry point.  It differs
+from `WfCore.Execute` in three ways:
+
+| | `Execute` (the licensed macro) | `ExecuteAio` |
+|---|---|---|
+| the edition | read from the licence | **none — no licence is read at all** |
+| the box | the box of all the panels of the drawing | the box of **each layout** |
+| the Pro stages | only when the licence says Pro | always, when the Pro module is installed |
+
+The grouping of the panels into their layouts is a **rule**, and it lives
+in the free rules (`WF_Rules.dll`), so that it can be tested without a
+running Tekla:
+
+* `WfRules.BlockOf(panel)` — the block of a panel: the part of its
+  assembly position before the first dash;
+* `WfRules.NormaliseBlock(name)` / `WfRules.SameBlock(a, b)` — the
+  comparison of the block names: upper case, no spaces and no dashes,
+  and the leading zeros of every run of digits dropped (the model says
+  `BP7M`, the drawing of the block says `BP07M`);
+* `WfRules.LayoutGroups(panels)` — the layouts of a sheet, each with its
+  own box, from left to right.
+
+The core then walks the layouts one by one: for every layout it sets the
+box (`Bx0`, `By0`, `Bx1`, `By1`) and the panels, draws the band chains
+and calls the Pro module with the name of the block
+(`RunProLayout` → `WF_Pro.ExecuteLayout`), so that the top outline, the
+overall dimensions, the north run, the marks, the section marks and the
+notes of a layout use the box of that layout.
+
+The stud chain of every wall panel is drawn **once for the whole sheet**:
+the chain belongs to the panel, not to the layout.
+
+The **section marks of the sheet are kept** (`CleanUp(view, dr, true)`):
+they belong to the layouts, and the ones of the client carry the tag of
+the macro as well.  The AIO macro copies the section marks of the drawing
+of a block only into a layout that has none of its own.
+
 ## The loader
 
 The file that the Tekla macro catalog compiles is a **thin loader**.  It

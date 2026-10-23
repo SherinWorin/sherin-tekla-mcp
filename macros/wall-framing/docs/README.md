@@ -109,6 +109,11 @@ macros/wall-framing/
     CHANGELOG.md                 the history
     WALL_FRAMING_RULES.md        the annotation rules, derived from [50]
                                  and from MODEL-2
+    SECTION-ELEVATION-AND-ISOMETRIC.md
+                                 the study of the two next drawing kinds:
+                                 the sectional elevation and the isometric
+                                 drawing - the measured ground, the API,
+                                 the note catalogue, the traps and the plan
   tests/                         the test harnesses
     reference/                   the reference dumps - not in the repository
 ```
@@ -175,3 +180,7 @@ them after that, the key goes into
   project ran into, each with the code that works.
 * [LICENSING.md](LICENSING.md) — the two editions, the three day trial,
   the machine binding and the key workflow of the owner.
+* [SECTION-ELEVATION-AND-ISOMETRIC.md](SECTION-ELEVATION-AND-ISOMETRIC.md)
+  — the **study** of the two next macros: what a sectional elevation and
+  an isometric drawing hold, the API that writes them, the note catalogue
+  of the client, the seven traps, and the plan of the seven stages.

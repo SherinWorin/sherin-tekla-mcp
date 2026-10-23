@@ -81,6 +81,8 @@ STEP 1 - Get the files
 
          P142_WF_AutoDimension.cs     (the loader)
          P142_WF_AutoDimension.bmp     (the icon)
+         WallFramingAutoDimensionPro-AIO.cs   (the AIO loader)
+         WallFramingAutoDimensionPro-AIO.bmp  (the AIO icon)
          WF_Core.dll  WF_Rules.dll  WF_License.dll
          (WF_Pro.dll and WF_Rules_Pro.dll as well, in the Pro package)
 
@@ -89,6 +91,8 @@ STEP 1 - Get the files
          WallFramingAutoDimension.zip
            -> source\P142_WF_AutoDimension.cs
            -> source\P142_WF_AutoDimension.bmp
+           -> source\WallFramingAutoDimensionPro-AIO.cs
+           -> source\WallFramingAutoDimensionPro-AIO.bmp
            -> source\WF_Core.dll
            -> source\WF_Rules.dll
            -> source\WF_License.dll
@@ -210,6 +214,8 @@ AFTER THE INSTALL
 
 3. Run the macro:
        Applications > Macros > P142_WF_AutoDimension
+   or, on a sheet with many wall framing layouts:
+       Applications > Macros > WallFramingAutoDimensionPro-AIO
 
 4. A message box appears:
        "Wall framing annotations: 37 created, 0 failed, 0 skipped."
@@ -217,6 +223,29 @@ AFTER THE INSTALL
    (In the free edition: "14 created".)
 
 5. The drawing is saved by the macro itself.  Nothing else to do.
+
+
+THE SECOND MACRO - "WallFramingAutoDimensionPro-AIO"
+----------------------------------------------------
+  On the ribbon:
+
+      Applications > Macros > WallFramingAutoDimensionPro-AIO
+
+  It asks for NO licence key - there is no trial and no key: it is free.
+
+  It is the macro for a GA sheet that carries MANY wall framing layouts.
+  A sheet that holds the layout of 19 blocks side by side is such a
+  sheet, and the macro above would draw one long chain across all of
+  them.  The AIO macro groups the panels of the sheet into their blocks
+  (the part of the assembly position before the first dash, so BP1-WP3
+  belongs to BP1) and dimensions every group with the box of its own
+  panels: its band chains, its top outline, its overall dimensions, its
+  north run, its wall-panel marks, its section marks and its notes.  The
+  chain of one block never runs into the next one.
+
+  The section marks of the sheet are kept: the macro only copies the
+  section marks of the drawing of a block into a layout that has none of
+  its own.
 
 
 FIRST-RUN CHECKLIST

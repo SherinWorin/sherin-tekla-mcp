@@ -18,6 +18,7 @@ works on every computer of a project.
 | language | C#, compiled with the Roslyn `csc.exe` of Visual Studio 2022 |
 | install | a thin loader in the Tekla macro catalog + a few modules in `%LOCALAPPDATA%` — nothing to register |
 | editions | **free** (the dimension chains) and **Pro** (everything) — see [docs/LICENSING.md](docs/LICENSING.md) |
+| second macro | **`WallFramingAutoDimensionPro-AIO`** — free, no licence key: it dimensions every wall framing layout of a GA sheet on its own |
 | risk | **MEDIUM** — it creates drawing objects; it never touches the model, and it refuses an issued or frozen drawing |
 
 ## The layout
@@ -34,6 +35,10 @@ macros/wall-framing/
     WF_Core.cs             the shared drawing machinery
     WF_KeyGen.cs           the owner's licence key tool
     P142_WF_AutoDimension.cs  the LOADER: it holds no rule and no logic
+    WallFramingAutoDimensionPro-AIO.cs
+                             the LOADER of the second macro: it asks for
+                             no licence and dimensions EVERY wall framing
+                             layout of a GA sheet on its own
     build.ps1              builds the modules, the tool and the package
     bin/                   the build output (not in the repository)
   docs/
@@ -53,6 +58,7 @@ macros/wall-framing/
     tekla_bootstrap.py     loads the Tekla assemblies for pythonnet
     test_rules.py          the rules against the reference  (no Tekla needed)
     test_license.py        the licence engine  (no Tekla needed)
+    test_layout_groups.py  the rule of the wall framing layouts  (no Tekla needed)
     test_loader.py         the deployment: the modules load and the licence answers
     test_target_selection.py  which drawing the macro works on
     test_upgrade.py        the rules on a model with many wall layout drawings
@@ -190,6 +196,34 @@ annotations are never touched.
 **12 of the 18 dimension chains** of the reference drawing are reproduced
 exactly; the other six are hand edits in the reference (see the rules
 document).
+
+## The second macro: the AIO one
+
+A GA sheet does not always carry **one** wall framing layout.  The sheet
+**[176]** of the client carries the wall framing layout of **19 blocks**
+side by side in one view.  The macro above works on **one** layout: it
+takes the box of all the panels of the sheet, so the top and the bottom
+chain cross every block, while the left and the right chain of each
+block is right.
+
+`WallFramingAutoDimensionPro-AIO` is the second macro of the package, and
+it is **free — it asks for no licence key at all**:
+
+* it groups the panels of the sheet into their **blocks** — the part of
+  the assembly position before the first dash, `BP1-WP3` → `BP1`;
+* it dimensions every group with the box of **its own** panels: the band
+  chains, the top outline, the overall dimensions, the north run, the
+  wall-panel marks, the section marks and the notes;
+* the stud chain of every wall panel is drawn once, because the chain
+  belongs to the panel and not to the layout;
+* the section marks of the sheet are **kept**: the macro only copies the
+  section marks of the drawing of a block into a layout that has none of
+  its own.
+
+The chain of one block never runs into the next one.  The rules of the
+grouping are in
+[WALL_FRAMING_RULES.md](docs/WALL_FRAMING_RULES.md) (R10) and they are
+tested without a running Tekla (`tests/test_layout_groups.py`).
 
 ## The two editions
 

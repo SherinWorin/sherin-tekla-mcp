@@ -278,6 +278,38 @@ The stations that the macro measures and the drawing does not are listed
 one by one, because they are the places where a rule is still wrong.
 
 
+## 9. `tests/test_layout_groups.py` — the rule of the wall framing layouts
+
+The rule of **R10**: a GA sheet can carry the wall framing layout of
+many blocks, and the chain of one block must not run into the next one.
+The rule is in the **free** rules, so the harness needs **no Tekla** and
+**no reference dump** — it builds its own synthetic panels.
+
+It checks:
+
+* the version of the rules (it is **3** now);
+* the block of a panel — the part of the assembly position before the
+  first dash (`BP1-WP3` → `BP1`, `BP1-LW1` → `BP1`, a name without a
+  dash is a layout of its own);
+* the normalised comparison of the block names — `BP07M` and `BP7M` are
+  the same block, but `BP10` and `BP1` are not;
+* the grouping of a sheet with three blocks into three layouts, from left
+  to right, each with its own box and its own panels.
+
+```
+26 passed, 0 failed
+```
+
+Run it with:
+
+**Command Prompt (Windows)**
+
+```
+cd macros\wall-framing
+python tests\test_layout_groups.py
+```
+
+
 ## How to add a test for a new rule
 
 1. **Write the rule** in `source/WF_Rules.cs` (or in the private

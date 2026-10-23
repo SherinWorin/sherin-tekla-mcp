@@ -90,8 +90,47 @@
       loader** (10768 bytes, no rule in it) and no merged source.
       `tests/test_loader.py` checks the whole chain.
 
+* [x] **The AIO macro** `WallFramingAutoDimensionPro-AIO` — a second
+      macro, for a GA sheet that carries **many** wall framing layouts
+      (R10).  The sheet [176] of the client holds the layout of 19
+      blocks side by side, and the macro of R8 drew one long chain
+      across all of them.  The AIO macro groups the panels into their
+      **blocks** and dimensions every group with the box of its own
+      panels.  It asks for **no licence key**, and it keeps the section
+      marks of the sheet.  The rule of the grouping is in the free rules
+      and is tested by `tests/test_layout_groups.py` (26 checks, no Tekla
+      needed).
+
 ## Next
 
+* [ ] **Deploy the AIO macro and run it on [176] with a save.**  The
+      modules in `%LOCALAPPDATA%\P142\WallFraming\` are the build of
+      2026-10-22, and the macro catalog holds no AIO loader.  The run
+      against [176] was done from the dev tree and was **not saved**, so
+      the sheet still shows the output of the old whole-sheet run.  Both
+      writes are the owner's: the deployment (into the Tekla
+      installation) and the save (a write into a live drawing).
+* [ ] **The packaging of the AIO macro.**  It is free and it draws
+      everything, but the Pro stages live in `WF_Pro.dll`, which the
+      published free package does not carry.  `build.ps1 -AioFree` puts
+      them there — turning it on is the owner's commercial decision.
+      `build.ps1 -AioPackage` writes the **separate** package of the AIO
+      macro, which carries them and is not published.
+* [ ] **The sectional elevation macro** — the study is written
+      ([SECTION-ELEVATION-AND-ISOMETRIC.md](SECTION-ELEVATION-AND-ISOMETRIC.md)),
+      the code is not.  The stages are in section 7 of that document:
+      the target selection (R11.1), the notes (R11.3), the level marks
+      (R11.4), the dimension chains (R11.5) and the marks (R11.6).
+* [ ] **The isometric drawing macro** — the study is written, the code is
+      not: the target selection (R12.1), the marks of the parts with
+      their leaders (R12.3) and the weld marks (R12.4).  An isometric
+      drawing carries no dimension and no note (R12.5).
+* [ ] **The note catalogue of the client** — the wording of the notes of
+      a sectional elevation is the client's wording, and it is a **table**,
+      not a template (the model says `CC61-0.7-7-35` where the note says
+      `C61*35*0.7`).  It belongs in the free rules, so that it can be
+      tested without Tekla.  Whether it is the same for every block is
+      still open.
 * [ ] **One run of the macro against the new model.** The rules are
       checked (`test_upgrade.py`), and the Pro **rules** were run against
       the 19 drawings (19 of 19, no failures, 234 panel marks placed),

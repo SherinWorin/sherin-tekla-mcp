@@ -111,6 +111,29 @@ def main():
     else:
         print(f"  the Pro module is not installed ({pro_path}) - the free edition")
 
+    # ---- the AIO entry point of the core
+    #
+    # The AIO macro (the second one, the free one) calls the core by
+    # reflection as well, and it calls this entry point.  A core that is
+    # older than the AIO loader has no such method, and the macro would
+    # say "the module is an older version" and stop.
+    aio = core_type.GetMethod("ExecuteAio")
+    if aio is None or len(aio.GetParameters()) != 3:
+        print("FATAL: the core has no entry point for the AIO macro")
+        print("       install the modules again (build.ps1 -Deploy)")
+        return 1
+    print("  the core has the AIO entry point (ExecuteAio)")
+
+    # ---- the AIO loader in the macro catalog
+    catalog = Path(TEKLA) / "Environments" / "common" / "macros" / "drawings"
+    aio_loader = catalog / "WallFramingAutoDimensionPro-AIO.cs"
+    if aio_loader.is_file():
+        print(f"  the AIO loader is in the catalog: {aio_loader}")
+    else:
+        print(f"FATAL: the AIO loader is not in the macro catalog: {aio_loader}")
+        print("       install it again (build.ps1 -Deploy)")
+        return 1
+
     print()
     print("the loader chain is OK")
     return 0

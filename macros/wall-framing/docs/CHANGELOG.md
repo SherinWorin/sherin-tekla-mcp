@@ -9,6 +9,62 @@ the project uses [semantic versioning](https://semver.org/).
 
 ### Added
 
+* **The AIO macro** `WallFramingAutoDimensionPro-AIO` — a **second**
+  macro, next to the licensed one, that dimensions **every wall framing
+  layout of a GA sheet on its own**.
+
+  A GA sheet does not always carry one wall framing layout: the sheet
+  **[176]** of the client carries the layout of **19 blocks** side by
+  side.  The macro of R8 takes the box of all the panels of the sheet,
+  so the top and the bottom chain of the sheet crossed every block,
+  while the left and the right chain of each block was right.
+
+  The AIO macro groups the panels of the sheet into their **blocks** —
+  the part of the assembly position before the first dash, `BP1-WP3` →
+  `BP1` — and dimensions every group with the box of its own panels:
+  its band chains, its top outline, its overall dimensions, its north
+  run, its wall-panel marks, its section marks and its notes.  The chain
+  of one block never runs into the next one.
+
+  * the **AIO macro asks for no licence key**: it reads no licence at
+    all, and it draws the **whole** set of annotations — the free stages
+    and, when the Pro module is installed, the Pro stages;
+  * the rules of the grouping are in the **free** rules
+    (`WfRules.BlockOf`, `WfRules.NormaliseBlock`, `WfRules.SameBlock`,
+    `WfRules.LayoutGroups`), so they are tested without a running
+    Tekla — `tests/test_layout_groups.py`, 26 checks;
+  * the version of the free rules is now **3**; the Pro module is built
+    against the same version, and the version handshake refuses a
+    mixed set of modules;
+  * the section marks of the sheet are **kept** (R10.5): they belong to
+    the layouts, and the ones of the client carry the tag of the macro
+    as well.  The AIO macro copies the section marks of the drawing of
+    the block only into a layout that has none of its own.
+* **The AIO loader** `source/WallFramingAutoDimensionPro-AIO.cs` — the
+  thin file that goes into the macro catalog, next to the loader of the
+  licensed macro.  Like the other loader it holds no rule and no drawing
+  logic: it loads `WF_Core.dll` and calls the entry point `ExecuteAio`.
+* **The package of the AIO macro** — `build.ps1 -AioPackage` writes
+  `package/WallFramingAutoDimensionAIO.zip`.  The AIO macro is **free**
+  and it asks for **no key**, and it draws the whole set of annotations —
+  which it can only do with the Pro modules.  The package therefore
+  carries them, like the Pro package, and it is **not published** (rule
+  R10): it is built in the dev tree and handed to a customer directly.
+  `-AioFree` is the other switch: it puts the Pro modules into the
+  **published** free package as well, and that one is the owner's
+  commercial decision.
+* **The study of the two other drawing kinds** — the **sectional
+  elevation** and the **isometric drawing** —
+  `docs/SECTION-ELEVATION-AND-ISOMETRIC.md`.  It is the measured ground
+  for the two next macros: what a sectional elevation holds (a
+  `SectionView` per section line, with the material notes, the level
+  marks, the dimension chains and the marks of the assemblies the
+  section cuts) and what an isometric drawing holds (three `ModelView`s
+  with the marks of the parts and the weld marks, and nothing else), the
+  API of Tekla 2025 that is needed to write them
+  (`View.CreateSectionView`, `View.Create3dView`), the note catalogue of
+  the client, the seven traps and the plan of the seven stages.
+
 * **The two editions.** The macro is sold as a **free** edition and a
   **Pro** edition:
   * the **free** edition draws the dimension chains — the stud chain of

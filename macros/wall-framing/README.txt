@@ -44,6 +44,24 @@ goes into this file:
 The whole licence workflow is in docs\LICENSING.md.
 
 
+THE SECOND MACRO - "WallFramingAutoDimensionPro-AIO"
+----------------------------------------------------
+  A GA sheet does not always carry ONE wall framing layout.  The sheet of
+  the client that holds the layout of 19 blocks side by side is such a
+  sheet.  The macro above works on one layout, so on that sheet the top
+  and the bottom chain cross every block.
+
+  The AIO macro is on the ribbon as well:
+
+      Applications > Macros > WallFramingAutoDimensionPro-AIO
+
+  It asks for NO LICENCE KEY, and it draws the whole set of annotations.
+  It groups the panels of the sheet into their blocks (the part of the
+  assembly position before the first dash, BP1-WP3 -> BP1) and dimensions
+  every group with the box of its own panels, so the chain of one block
+  never runs into the next one.
+
+
 INSTALLING (2 minutes, on the other computer)
 ---------------------------------------------
 1. Unzip the package into any folder, e.g.  C:\Temp\WallFramingAutoDimension
@@ -58,7 +76,8 @@ INSTALLING (2 minutes, on the other computer)
        powershell -NoProfile -File .\install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
 
    The script copies two things:
-     - the loader and the icon into the macro catalog of Tekla
+     - the loaders and the icons into the macro catalog of Tekla
+       (P142_WF_AutoDimension and WallFramingAutoDimensionPro-AIO)
      - the modules into  %LOCALAPPDATA%\P142\WallFraming\
 
 3. Start Tekla Structures 2025 and open a drawing whose title holds
@@ -70,6 +89,7 @@ loads the modules next to it at run time.
 
 The installer puts the loader into the catalog under the name
 P142_WF_AutoDimension.cs, so that is the name of the macro on the ribbon.
+The second loader, WallFramingAutoDimensionPro-AIO.cs, is the AIO macro.
 
 
 IF THE MACRO CATALOG DOES NOT SHOW THE MACRO
@@ -78,6 +98,7 @@ The catalog is re-read when Tekla starts.  If the macro does not appear,
 close Tekla, start it again, and look under
   Applications &gt; Macros &gt; the group of the drawings macro
 The name of the macro is the name of the .cs file: P142_WF_AutoDimension
+The second one is WallFramingAutoDimensionPro-AIO
 
 If the macro appears but says that a module is missing, the modules were
 not copied into  %LOCALAPPDATA%\P142\WallFraming\  - run install.ps1 again.

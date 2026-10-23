@@ -12,6 +12,12 @@ package/WallFramingAutoDimension/
 package/WallFramingAutoDimensionPro/
 package/WallFramingAutoDimensionPro.zip
 
+# The package of the AIO macro is NOT published either: it holds the same
+# two Pro modules, because the AIO macro draws everything and asks for no
+# key.  It is handed to a customer directly, like the Pro package.
+package/WallFramingAutoDimensionAIO/
+package/WallFramingAutoDimensionAIO.zip
+
 # The reference dumps of the project model (see tests/reference/README.md).
 tests/reference/*.txt
 tests/reference/*.json
