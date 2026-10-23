@@ -19,6 +19,7 @@
 // P142-COREL REEF_BP4_MOCKUP-R00; see docs/WALL_FRAMING_RULES.md.
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace P142.WallFraming
 {
@@ -114,6 +115,30 @@ namespace P142.WallFraming
         public double YLo, YHi;
     }
 
+    /// <summary>
+    /// One wall framing layout: the wall panels of ONE block.
+    ///
+    /// A model has one wall framing layout per block, and a GA sheet can
+    /// carry the layouts of many blocks at once.  A layout is what the
+    /// macro treats as "one framing" when it draws the chains of a sheet:
+    /// the chains of one layout must not run into the next one.
+    /// </summary>
+    public sealed class WfLayout
+    {
+        /// <summary>The block of the layout, e.g. "BP1".</summary>
+        public string Block = "";
+        /// <summary>The wall panels of the layout.</summary>
+        public List<WfPanel> Panels = new List<WfPanel>();
+        /// <summary>Minimum X of the layout.</summary>
+        public double X0;
+        /// <summary>Minimum Y of the layout.</summary>
+        public double Y0;
+        /// <summary>Maximum X of the layout.</summary>
+        public double X1;
+        /// <summary>Maximum Y of the layout.</summary>
+        public double Y1;
+    }
+
     /// <summary>Which edge of the layout bounding box a band lies on.</summary>
     public enum WfBandEdge
     {
@@ -148,9 +173,9 @@ namespace P142.WallFraming
         /// Bump this number whenever a member of this assembly changes
         /// shape: a field that becomes a property, a member that is
         /// renamed, a signature that changes.  The number of the rules
-        /// that the 2025 build of the Pro module expects is 2.
+        /// that the 2025 build of the Pro module expects is 3.
         /// </summary>
-        public const int ApiVersion = 2;
+        public const int ApiVersion = 3;
 
         /// <summary>Part names of the light-gauge-steel wall construction.</summary>
         public static readonly string[] WallParts = {
@@ -784,6 +809,135 @@ namespace P142.WallFraming
             }
             if (have) res.Add(R(runHi));
             return Dedupe(res, 0.3);
+        }
+
+        // ------------------------------------------------------------- layouts
+        /// <summary>
+        /// The block a wall panel belongs to.
+        ///
+        /// The block is the part of the assembly position of the panel
+        /// before the first dash: "BP1-WP3" is a panel of the block "BP1",
+        /// and "BP1M-WP12" is a panel of the block "BP1M".  The two are
+        /// different blocks, and the dash is what tells them apart.
+        ///
+        /// A panel whose name carries no dash is a layout of its own.
+        /// </summary>
+        public static string BlockOf(WfPanel p)
+        {
+            if (p == null) return "";
+            string name = p.Name ?? "";
+            int i = name.IndexOf('-');
+            return i > 0 ? name.Substring(0, i) : name;
+        }
+
+        /// <summary>
+        /// The name of a block, in a form that can be compared.
+        ///
+        /// A block is written in two ways in a project: the assembly
+        /// positions of the model say "BP7M" and the title of the drawing of
+        /// that block says "BP07M".  They are the same block, so the
+        /// leading zeros of every run of digits are dropped, the name is put
+        /// in upper case, and the spaces and the punctuation are removed:
+        /// "BP07M", "BP7M" and "bp7-m" all become "BP7M".
+        ///
+        /// The zeros that are NOT leading are kept, so "BP10" stays "BP10"
+        /// and does not become "BP1" - that would be another block.
+        /// </summary>
+        public static string NormaliseBlock(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "";
+            StringBuilder sb = new StringBuilder();
+            bool inRun = false;      // inside a run of digits
+            bool dropping = false;   // the run has not started with a non-zero yet
+            foreach (char c in name)
+            {
+                if (c >= '0' && c <= '9')
+                {
+                    if (!inRun) { inRun = true; dropping = true; }
+                    if (dropping)
+                    {
+                        if (c != '0') { dropping = false; sb.Append(c); }
+                        continue;
+                    }
+                    sb.Append(c);
+                    continue;
+                }
+                inRun = false;
+                dropping = false;
+                if (char.IsLetter(c)) sb.Append(char.ToUpperInvariant(c));
+                // the spaces, the dashes and the other punctuation are dropped
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Are two block names the name of the same block?
+        ///
+        /// The names are compared in their normalised form, so that the
+        /// "BP7M" of the model and the "BP07M" of the drawing title are
+        /// told to be the same block.
+        /// </summary>
+        public static bool SameBlock(string a, string b)
+        {
+            string x = NormaliseBlock(a);
+            string y = NormaliseBlock(b);
+            return x.Length > 0 && x == y;
+        }
+
+        /// <summary>
+        /// The wall framing layouts of a sheet: the wall panels grouped by
+        /// the block they belong to, from left to right.
+        ///
+        /// A GA sheet can carry the wall framing layout of many blocks, and
+        /// the chains of one block must not run into the next one: the
+        /// bottom band chain and the top outline of the whole sheet would
+        /// run through every other layout.  The blocks are told from the
+        /// assembly position of the panels, and every layout carries the
+        /// box of its own panels.
+        /// </summary>
+        /// <param name="panels">The wall panels of the sheet.</param>
+        public static List<WfLayout> LayoutGroups(List<WfPanel> panels)
+        {
+            List<WfLayout> res = new List<WfLayout>();
+            if (panels == null) return res;
+
+            Dictionary<string, WfLayout> byBlock =
+                new Dictionary<string, WfLayout>(StringComparer.OrdinalIgnoreCase);
+            foreach (WfPanel p in panels)
+            {
+                if (p == null) continue;
+                string block = BlockOf(p);
+                WfLayout lay;
+                if (!byBlock.TryGetValue(block, out lay))
+                {
+                    lay = new WfLayout();
+                    lay.Block = block;
+                    byBlock[block] = lay;
+                    res.Add(lay);
+                }
+                lay.Panels.Add(p);
+            }
+
+            // the box of every layout
+            foreach (WfLayout lay in res)
+            {
+                lay.X0 = double.MaxValue; lay.Y0 = double.MaxValue;
+                lay.X1 = double.MinValue; lay.Y1 = double.MinValue;
+                foreach (WfPanel p in lay.Panels)
+                {
+                    lay.X0 = Math.Min(lay.X0, p.XLo);
+                    lay.Y0 = Math.Min(lay.Y0, p.YLo);
+                    lay.X1 = Math.Max(lay.X1, p.XHi);
+                    lay.Y1 = Math.Max(lay.Y1, p.YHi);
+                }
+            }
+
+            // from left to right, the way a person reads a sheet
+            res.Sort(delegate (WfLayout a, WfLayout b)
+            {
+                return a.X0.CompareTo(b.X0);
+            });
+            return res;
         }
     }
 }

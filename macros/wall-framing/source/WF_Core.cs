@@ -105,6 +105,19 @@ namespace P142.WallFraming
         /// <summary>Number of objects that were skipped.</summary>
         public static int Skipped;
 
+        /// <summary>
+        /// True when a note about the Pro module was already written into
+        /// the message of the run - the AIO macro calls the Pro module once
+        /// per layout, and the note is only needed once.
+        /// </summary>
+        static bool ProNoteSaid;
+
+        /// <summary>
+        /// The number of wall framing layouts of the last AIO run - a sheet
+        /// with many layouts is dimensioned layout by layout.
+        /// </summary>
+        public static int Layouts;
+
         /// <summary>All wall parts read from the model.</summary>
         public static readonly List<WfPart> AllParts = new List<WfPart>();
 
@@ -466,9 +479,32 @@ namespace P142.WallFraming
         /// </summary>
         public static int CleanUp(View view, Drawing dr)
         {
+            return CleanUp(view, dr, false);
+        }
+
+
+        /// <summary>
+        /// Deletes the objects a previous run of this macro created.
+        ///
+        /// The section marks can be kept:  a sheet that carries many wall
+        /// framing layouts belongs to the client, and the section lines of
+        /// the client carry the tag of the macro as well - a drawing that
+        /// was put together from the drawings of the macro keeps the tag of
+        /// the objects it was copied from.  Deleting them would take the
+        /// section lines of the client with them, so the AIO macro keeps
+        /// the section marks of the sheet and only draws the ones that a
+        /// layout does not have yet.
+        /// </summary>
+        /// <param name="view">The view the macro draws in.</param>
+        /// <param name="dr">The drawing that is written to.</param>
+        /// <param name="keepSections">
+        /// True to keep the section marks of the drawing.
+        /// </param>
+        public static int CleanUp(View view, Drawing dr, bool keepSections)
+        {
             int removed = 0;
             removed += RemoveTagged<StraightDimensionSet>(view, dr);
-            removed += RemoveTagged<SectionMark>(view, dr);
+            if (!keepSections) removed += RemoveTagged<SectionMark>(view, dr);
             removed += RemoveTagged<DrawingText>(view, dr);
             removed += RemoveTagged<Mark>(view, dr);
             if (removed > 0)
@@ -644,6 +680,38 @@ namespace P142.WallFraming
         }
 
 
+        /// <summary>
+        /// The plan view of a drawing: the view that looks straight down.
+        ///
+        /// The view is found by its COORDINATE SYSTEM and not by its place
+        /// in the list: the first view of a drawing is not always the plan
+        /// view (see HANDOVER/04-TEKLA-2025-API-TRAPS.md, trap 18).
+        /// </summary>
+        /// <returns>The plan view, or null when the drawing has none.</returns>
+        static View PlanView(Drawing dr)
+        {
+            if (dr == null) return null;
+            List<View> views = new List<View>();
+            try
+            {
+                DrawingObjectEnumerator ve = dr.GetSheet().GetViews();
+                while (ve.MoveNext())
+                {
+                    View v = ve.Current as View;
+                    if (v != null) views.Add(v);
+                }
+            }
+            catch { return null; }
+
+            foreach (View v in views)
+            {
+                CoordinateSystem cs = v.DisplayCoordinateSystem;
+                if (cs == null) continue;
+                if (Math.Abs(cs.AxisX.Z) < 1e-3 && Math.Abs(cs.AxisY.Z) < 1e-3) return v;
+            }
+            return null;
+        }
+
         /// <summary>Creates the band chain of one edge of the layout.</summary>
         public static void DimBand(View view, Drawing dr, string what, WfBandEdge edge,
                             double bx0, double by0, double bx1, double by1)
@@ -724,7 +792,29 @@ namespace P142.WallFraming
         }
 
         /// <summary>
-        /// Loads the Pro module and lets it draw the Pro stages.
+        /// Lets the Pro module draw the Pro stages of the whole drawing.
+        /// </summary>
+        static void RunPro(WfResult result)
+        {
+            CallPro("Execute", result, new object[] { result });
+        }
+
+        /// <summary>
+        /// Lets the Pro module draw the stages of ONE wall framing layout.
+        ///
+        /// The module is called once per layout, and it is told which block
+        /// the layout is: the section marks of a layout are the ones of that
+        /// block, and they are copied from the drawing of that block.
+        /// </summary>
+        /// <param name="result">Receives the outcome of the run.</param>
+        /// <param name="block">The block of the layout, e.g. "BP1".</param>
+        static void RunProLayout(WfResult result, string block)
+        {
+            CallPro("ExecuteLayout", result, new object[] { result, block });
+        }
+
+        /// <summary>
+        /// Loads the Pro module and calls one of its entry points.
         ///
         /// The module is a separate assembly (WF_Pro.dll) in the app folder.
         /// It is reached through reflection, so that this assembly does not
@@ -740,61 +830,84 @@ namespace P142.WallFraming
         /// installed.  A mismatch is reported as such, and the Pro stages
         /// are left out rather than failing one by one.
         /// </summary>
-        static void RunPro(WfResult result)
+        /// <param name="entry">The name of the entry point of the module.</param>
+        /// <param name="result">Receives the outcome of the run.</param>
+        /// <param name="args">The arguments of the entry point.</param>
+        /// <returns>True when the module was called.</returns>
+        static bool CallPro(string entry, WfResult result, object[] args)
         {
             try
             {
                 string path = ProModulePath();
                 if (path == null)
                 {
-                    result.Message += "  (the Pro module is not installed)";
-                    return;
+                    ProNote(result, "the Pro module is not installed");
+                    return false;
                 }
                 Assembly asm = Assembly.LoadFrom(path);
                 Type t = asm.GetType("P142.WallFraming.WfPro");
                 if (t == null)
                 {
-                    result.Message += "  (the Pro module is not the expected one)";
-                    return;
+                    ProNote(result, "the Pro module is not the expected one");
+                    return false;
                 }
-                MethodInfo m = t.GetMethod("Execute");
+                MethodInfo m = t.GetMethod(entry);
                 if (m == null)
                 {
-                    result.Message += "  (the Pro module has no entry point)";
-                    return;
+                    ProNote(result, "the Pro module has no entry point '" +
+                        entry + "' - install the modules again");
+                    return false;
                 }
 
                 // ---- the version handshake
                 int wanted = ProApiVersion(t);
                 if (wanted < 0)
                 {
-                    result.Message += "  (the Pro module is older than the " +
+                    ProNote(result, "the Pro module is older than the " +
                         "rules - install the modules again, they are of " +
-                        "different versions)";
-                    return;
+                        "different versions");
+                    return false;
                 }
                 int installed = InstalledRulesApiVersion();
                 if (installed < 0)
                 {
-                    result.Message += "  (the installed rules assembly is " +
-                        "older than this macro - install the modules again)";
-                    return;
+                    ProNote(result, "the installed rules assembly is " +
+                        "older than this macro - install the modules again");
+                    return false;
                 }
                 if (wanted != installed)
                 {
-                    result.Message += "  (the Pro module was built for version " +
+                    ProNote(result, "the Pro module was built for version " +
                         wanted + " of the rules, and the installed rules are " +
                         "version " + installed + " - install the modules " +
-                        "again, they are of different versions)";
-                    return;
+                        "again, they are of different versions");
+                    return false;
                 }
 
-                m.Invoke(null, new object[] { result });
+                m.Invoke(null, args);
+                return true;
             }
             catch (Exception e)
             {
-                result.Message += "  (the Pro module failed: " + e.Message + ")";
+                ProNote(result, "the Pro module failed: " + e.Message);
+                return false;
             }
+        }
+
+
+        /// <summary>
+        /// Writes a note about the Pro module into the message of the run -
+        /// but only the first one.
+        ///
+        /// The AIO macro calls the Pro module once per wall framing layout,
+        /// and a module that is not installed would say the same thing
+        /// nineteen times.
+        /// </summary>
+        static void ProNote(WfResult result, string text)
+        {
+            if (ProNoteSaid) return;
+            ProNoteSaid = true;
+            result.Message += "  (" + text + ")";
         }
 
         /// <summary>
@@ -913,6 +1026,8 @@ namespace P142.WallFraming
         {
             Log.Length = 0;
             Made = Failed = Skipped = 0;
+            ProNoteSaid = false;
+            Layouts = 0;
             ReadCoordinateSystem = null;      // a new run reads the model again
 
             if (dr == null)
@@ -1026,20 +1141,7 @@ namespace P142.WallFraming
         static bool DimensionDrawing(Drawing dr, TSM.Model model, WfResult result, int edition)
         {
             // ---- pick the plan view (looking straight down)
-            View view = null;
-            List<View> views = new List<View>();
-            DrawingObjectEnumerator ve = dr.GetSheet().GetViews();
-            while (ve.MoveNext())
-            {
-                View v = ve.Current as View;
-                if (v != null) views.Add(v);
-            }
-            foreach (View v in views)
-            {
-                CoordinateSystem cs = v.DisplayCoordinateSystem;
-                if (cs == null) continue;
-                if (Math.Abs(cs.AxisX.Z) < 1e-3 && Math.Abs(cs.AxisY.Z) < 1e-3) { view = v; break; }
-            }
+            View view = PlanView(dr);
             if (view == null)
             {
                 Say("no plan view was found in this drawing - it is left alone");
@@ -1114,6 +1216,188 @@ namespace P142.WallFraming
             // in this assembly.  They live in the Pro module of the owner,
             // which is loaded here only when the licence allows it.
             if (edition == 1) RunPro(result);
+
+            return true;
+        }
+
+        // ================================================================
+        // THE AIO ENTRY POINT - a sheet with MANY wall framing layouts
+        // ================================================================
+        /// <summary>
+        /// The core of the AIO macro, with a choice about saving.
+        /// </summary>
+        /// <param name="dr">The drawing that was active when the macro started.</param>
+        /// <param name="result">Receives the outcome of the run.</param>
+        /// <param name="save">True to save the drawing that was written to.</param>
+        public static void ExecuteAio(Drawing dr, WfResult result, bool save)
+        {
+            Log.Length = 0;
+            Made = Failed = Skipped = 0;
+            ProNoteSaid = false;
+            Layouts = 0;
+            ReadCoordinateSystem = null;      // a new run reads the model again
+
+            if (dr == null)
+            {
+                result.Ok = false;
+                result.Message = "No active drawing.";
+                result.Log = Log.ToString();
+                return;
+            }
+
+            // The AIO macro works on the ACTIVE drawing and nowhere else:
+            // it is a GA sheet with many wall framing layouts, and the
+            // drawings of the single layouts are the work of the other
+            // macro.
+            DrawingHandler dh = new DrawingHandler();
+            Drawing working = dh.GetActiveDrawing();
+            if (working == null) working = dr;
+
+            if (IsProtected(working))
+            {
+                Say("the drawing " + working.Mark +
+                    " is issued or frozen - it is not written to");
+                result.Ok = false;
+                result.Message = "The drawing " + working.Mark +
+                    " is issued or frozen - it is not written to.";
+                result.Log = Log.ToString();
+                return;
+            }
+
+            TSM.Model model = new TSM.Model();
+            DimHandler = new StraightDimensionSetHandler();
+
+            Say("=== drawing " + working.Mark + "  (" + working.Name + ") ===");
+
+            bool done = DimensionLayouts(working, model, result);
+
+            // CommitChanges() alone does not persist the objects (API
+            // trap 1): the drawing has to be saved.
+            if (save && done)
+            {
+                try
+                {
+                    dh.SaveActiveDrawing();
+                }
+                catch (Exception e)
+                {
+                    Failed++;
+                    Say("the drawing " + working.Mark +
+                        " could not be saved: " + e.Message);
+                }
+            }
+
+            string msg = "Wall framing annotations: " + Made + " created, " +
+                         Failed + " failed, " + Skipped + " skipped.";
+            if (Layouts > 0)
+            {
+                msg += "  " + Layouts + " wall framing layout(s) on the sheet.";
+            }
+            Say("");
+            Say(msg);
+            result.Ok = (Failed == 0 && done);
+            result.Made = Made;
+            result.Failed = Failed;
+            result.Message = msg;
+            result.Log = Log.ToString();
+        }
+
+        /// <summary>
+        /// Dimensions EVERY wall framing layout of a drawing, each one as if
+        /// it were alone on its own sheet.
+        ///
+        /// The macro of the single-layout drawings treats a drawing as ONE
+        /// wall framing layout.  A GA sheet carries the layouts of many
+        /// blocks, and the chains of one block must not run into the next
+        /// one: the bottom band chain and the top outline of the whole
+        /// sheet would run through every other layout, and the drawing
+        /// would show one long chain instead of one chain per framing.
+        ///
+        /// The panels are therefore grouped into the layouts they belong to
+        /// (the block of a panel is the part of its assembly position
+        /// before the first dash), and every layout is dimensioned on its
+        /// own: its band chains, its top outline, its overall dimensions,
+        /// its north run, its wall-panel marks, its section marks and its
+        /// notes.
+        /// </summary>
+        /// <returns>True when the drawing was dimensioned.</returns>
+        static bool DimensionLayouts(Drawing dr, TSM.Model model, WfResult result)
+        {
+            View view = PlanView(dr);
+            if (view == null)
+            {
+                Say("no plan view was found in this drawing - it is left alone");
+                return false;
+            }
+            ActiveView = view;
+            ActiveDrawing = dr;
+
+            Say("view '" + view.Name + "'  scale 1:" + view.Attributes.Scale);
+
+            // ---- remove the output of a previous run of this macro
+            //
+            // The section marks stay:  they belong to the layouts of the
+            // sheet, and the ones of the client carry the tag of the macro
+            // as well.  Every layout that has no section mark of its own
+            // gets the ones of the drawing of its block.
+            CleanUp(view, dr, true);
+
+            // ---- read the model
+            ReadWallParts(view, model);
+            Say("wall parts read: " + AllParts.Count);
+
+            // ---- the wall panels this drawing shows
+            SelectPanels(view);
+            Say("wall panels: " + Panels.Count);
+            if (Panels.Count == 0)
+            {
+                Say("no wall panel was found for this drawing - it is left alone");
+                return false;
+            }
+
+            // ---- the wall framing layouts of the sheet
+            List<WfLayout> layouts = WfRules.LayoutGroups(Panels);
+            Layouts = layouts.Count;
+            Say("wall framing layouts: " + layouts.Count);
+
+            // ---- the stud-spacing chain of every wall panel
+            //
+            // The chain belongs to the PANEL, not to the layout, so it is
+            // drawn once for every panel of the sheet.
+            foreach (WfPanel p in Panels)
+            {
+                List<double> chain = WfRules.ChainStations(p, TOL);
+                if (chain.Count < 2) continue;
+
+                bool horiz = p.Horiz;
+                double perp = horiz ? p.Bottom.Y0 : p.Bottom.X0;
+                Vector up = horiz ? new Vector(0, -1, 0) : new Vector(-1, 0, 0);
+                DimChain(view, dr, "bays " + p.Name, chain, horiz, perp, up, PAPER_PANEL);
+            }
+
+            // ---- every layout, on its own
+            foreach (WfLayout lay in layouts)
+            {
+                Say("");
+                Say("=== layout " + lay.Block + "  (" + lay.Panels.Count +
+                    " panels, X " + lay.X0.ToString("F0") + " .. " + lay.X1.ToString("F0") + ") ===");
+
+                // the box and the panels of THIS layout: the Pro module
+                // reads them from here
+                Panels.Clear();
+                Panels.AddRange(lay.Panels);
+                Bx0 = lay.X0; By0 = lay.Y0; Bx1 = lay.X1; By1 = lay.Y1;
+
+                // the band chain of every edge of the layout
+                DimBand(view, dr, "band bottom", WfBandEdge.Bottom, Bx0, By0, Bx1, By1);
+                DimBand(view, dr, "band left", WfBandEdge.Left, Bx0, By0, Bx1, By1);
+                DimBand(view, dr, "band right", WfBandEdge.Right, Bx0, By0, Bx1, By1);
+
+                // the Pro stages of this layout: the top outline, the two
+                // overall dimensions, the north run, the wall-panel marks,
+                // the section marks and the text notes
+                RunProLayout(result, lay.Block);
+            }
 
             return true;
         }
