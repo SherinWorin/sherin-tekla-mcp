@@ -1,0 +1,15 @@
+# The reference dumps of the project model.
+#
+# They hold the geometry of a client project (part identifiers, profiles,
+# coordinates and the name of the issued drawing), so they are NOT committed
+# to this public repository.  See README.md for how to regenerate them.
+asm_parts.txt
+full_50.txt
+full_57.txt
+marks_50.json
+marks_50.txt
+dims_50.txt
+dims_57.txt
+dims_out.txt
+wall_panels.txt
+model_walls.txt

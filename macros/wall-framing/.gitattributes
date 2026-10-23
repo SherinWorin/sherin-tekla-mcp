@@ -1,0 +1,11 @@
+# The macro sources are committed byte for byte.
+#
+# The build merges them into ONE .cs file, and the merged file has to come
+# out identical on every computer - the package ships the merged file, and
+# the source tree must be able to rebuild exactly it.  A line-ending
+# conversion between the commit and the working copy would change the
+# merged output, so these files are marked as "not text" and are never
+# touched by the line-ending conversion.
+source/*.cs        -text
+source/*.ps1       -text
+install.ps1        -text

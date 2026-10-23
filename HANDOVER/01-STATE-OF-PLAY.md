@@ -1,0 +1,256 @@
+# 01 — State of play
+
+Date of this snapshot: **2026-10-22**.
+
+## The GitHub repository
+
+`https://github.com/SherinWorin/sherin-tekla-mcp` — MIT, public.
+The token is **not** in any file.  Get it at the moment it is needed:
+
+**Command Prompt (Windows)**
+
+```
+printf 'protocol=https\nhost=github.com\n\n' | git credential fill
+```
+
+(the credential helper is `manager`; it returns `username=` and `password=`
+lines, and the password is the token).
+
+### Branches
+
+| branch | what it holds | state |
+|---|---|---|
+| `main` | the C# MCP server product | 4 commits of its own history |
+| `feature/tekla-ai-assistant` | the upstream project under its old `TeklaAiAssistant.*` names | **deliberately unmerged** |
+| `feature/wall-framing-dimensioner` | the wall-framing macro, on top of `main` | **PR #1 open** |
+
+**Do not merge `feature/tekla-ai-assistant` into `main`.**  The two histories
+are unrelated — `git merge-base main origin/feature/tekla-ai-assistant`
+returns nothing — so a merge would need `--allow-unrelated-histories` and
+would produce two parallel `src/` trees.  Reconciling them means porting one
+namespace scheme onto the other, not merging.
+
+### The open pull request
+
+**PR #1** — *Add the wall-framing layout auto-dimensioner (Tekla 2025)*
+<https://github.com/SherinWorin/sherin-tekla-mcp/pull/1>
+
+- `feature/wall-framing-dimensioner` → `main`
+- 9 commits, 56 files, +12511 / −0 (as pushed on 2026-10-22, 23:05)
+- both CI jobs green on the head commit:
+  - `test-and-smoke` — 48 unit tests + the MCP smoke test on the mock backend
+  - `build-windows-tekla2025` — the net48 build for Tekla 2025 + the smoke test
+- **not merged** — that is the owner's call.
+
+The last three commits of the branch are the ones of 2026-10-22:
+
+| commit | what it holds |
+|---|---|
+| `d652e9a` | the rules on a model with many wall layout drawings |
+| `ca54c8a` | the three new harnesses (section lines, version handshake, the rules on a model with many blocks) |
+| `5d1ca66` | the handover pack, and the client model under the neutral name `MODEL-2` |
+
+## The macro — what is done
+
+Everything in `macros/wall-framing/docs/TODO.md` under **Done** is done:
+
+- the wall parts are read out of the model and grouped into panels
+  (`ASSEMBLY_POS`, prefix `BP4-WP`, 11 panels `BP4-WP1`..`BP4-WP11`);
+- the **bay chain** of every panel (R1, R2) — the track ends, the assembly
+  ends, the stud centres, the openings;
+- the **band chains** of the bottom, left and right edges of the layout (R3);
+- the **top outline** (R4) — a staircase, chamfered over a wall that crosses
+  it, a narrow notch bridged when the level is the same on both sides;
+- the **overall height** and the **overall width** (R5);
+- the **north run** (R6);
+- the 11 **wall-panel marks**, with the text angle, the leader line and the
+  label offset derived from the model;
+- the 5 **section marks**, copied from the reference drawing — and the
+  reference is now the hand-made drawing of the **same block**
+  (`[87] BP07M-10001` for `BP07M`), with the lines checked against the
+  layout of the drawing that is being dimensioned.  The check is a rule
+  of the Pro rules (`WfRulesPro.SectionLinesInLayout`) and it is tested
+  without Tekla by `tests/test_section_lines.py`; the Pro rules carry a
+  version number of their own, so a Pro module and a Pro rules assembly
+  of different builds are refused.
+- the 3 **notes**;
+- **idempotency** — the output is tagged with a user property and replaced on
+  a re-run, never duplicated;
+- the **operation log**;
+- the build script, the thin loader, the deployment packages;
+- the **target drawing is found by its title, not by its mark** (R8) — so the
+  same file works on another computer where the mark is different;
+- an **issued or frozen drawing is refused**;
+- the **wall panels are found automatically** when the configured prefix
+  matches nothing (R9);
+- the **two editions** — the free one (the dimension chains) and the Pro one
+  (everything), cut at the assembly boundary: the Pro stages are in
+  `WF_Pro.dll`, the Pro rules in `WF_Rules_Pro.dll`, and the Pro sources
+  are **not** in the public repository;
+- the **licence engine** — a signed key (RSA-2048 over SHA-256), a three
+  day trial from the first run, a machine binding on three hashes, a
+  clock-rollback rule, and the owner's key tool `WF_KeyGen.exe`.  42
+  checks, no Tekla needed.
+- the **AIO macro** `WallFramingAutoDimensionPro-AIO` — the second macro
+  of the package, for a GA sheet that carries **many** wall framing
+  layouts.  The sheet **[176]** of the client holds the layout of **19
+  blocks** side by side, and the macro of R8 drew one long chain across
+  all of them (the left and the right chain of each block were right —
+  that is what was reported).  The AIO macro:
+  - groups the panels of the sheet into their **blocks** (the part of the
+    assembly position before the first dash, `BP1-WP3` → `BP1`) and
+    dimensions every group with the box of **its own** panels (R10);
+  - asks for **no licence key** — `WfCore.ExecuteAio` reads no licence
+    at all and draws the whole set of annotations;
+  - **keeps** the section marks of the sheet, and copies the section
+    marks of the drawing of a block only into a layout that has none of
+    its own (R10.5) — the section marks of the client carry the tag of
+    the macro as well, and the old cleanup would have deleted them;
+  - the rule of the grouping is in the **free** rules
+    (`WfRules.BlockOf`, `NormaliseBlock`, `SameBlock`, `LayoutGroups`),
+    so it is tested without a running Tekla —
+    `tests/test_layout_groups.py`, 26 checks;
+  - the version of the free rules is now **3**, and the Pro module is
+    built against the same version.
+- the **study of the two next drawing kinds** — the **sectional
+  elevation** and the **isometric drawing** —
+  `macros/wall-framing/docs/SECTION-ELEVATION-AND-ISOMETRIC.md`.  It is
+  the measured ground for the two next macros (nothing is built yet):
+  - a **sectional elevation** is a GA drawing whose `Title2` is
+    `SECTIONAL ELEVATION`; it holds one **`SectionView`** per section
+    line (`S1` … `S4`), and every view holds the material **notes** (8-12
+    texts with their leader lines), the **level marks** (`SSL`, `FFL`,
+    `T.O.S`), 3-5 **dimension sets** and the **marks** of the assemblies
+    the section cuts (12-71);
+  - an **isometric drawing** is a GA drawing whose `Title2` is
+    `ISOMETRIC VIEW`; it holds three **`ModelView`s** named `3d` and
+    **nothing else than marks**: the marks of the parts (211 in the
+    middle view), 20 **weld marks** and their leader lines — no
+    dimension, no text;
+  - both references of the client are **issued and frozen** — the macro
+    must refuse them, as it refuses the frozen plan;
+  - the API that is needed is confirmed: `View.CreateSectionView(...)`
+    and `View.Create3dView(...)` create the views, `View.GetAllObjects()`
+    gives the model objects of a view, and the core already reads them
+    (`WfCore.ShownAssemblies`, `WfCore.ReadWallParts`);
+  - the **note catalogue** is a **table**, not a template: the model
+    says `CC61-0.7-7-35` where the client's note says `C61*35*0.7`;
+  - the **rules** are proposed as R11 (the sectional elevation) and R12
+    (the isometric drawing), in seven stages — the last one (creating
+    the views) is the owner's decision, because it writes a view into
+    the drawing.
+- the macro works on a **model with many wall layout drawings** — it was
+  checked against **`MODEL-2`** (4887 parts, 234 wall panels, 19
+  writable wall layout drawings) and changed for it:
+  - it works on **every** wall layout drawing of the model, one after the
+    other, not only on the one that is open;
+  - the panels of a drawing are the **assemblies the drawing shows**, so
+    a block is never dimensioned on the drawing of another block;
+  - the parts are grouped by the **id of the assembly**, not by
+    `ASSEMBLY_POS` — two assemblies can carry the same position;
+  - the `ASSEMBLY_POS` is read from the **assembly**, because that model
+    leaves it off its parts;
+  - a **ledge wall** (more than one `BOTTOM_TRACK`) runs from the first
+    track to the last one;
+  - **R2.2** — an opening **without a door frame** (a gap in the wall) is
+    measured at the **centre** of its members: the jambs are ordinary
+    members of the wall, and so is the mullion between them.  The old
+    model has no opening of this kind, so nothing there changed.
+- **`tests/test_upgrade.py`** — the rules against the new model.  It
+  **reads only**.  205 of 291 chains are a subset of a hand-made chain,
+  132 are the same, 0 failures.
+- the **target selection was measured on the live model** — of the 695
+  drawings of `MODEL-2`, 21 match the title rule, 2 of them
+  ([50] and [72]) are frozen and refused, and **19** are the targets.  No
+  `WALL_PANEL`, no `LEDGE WALL` and no per-block drawing is ever picked
+  up.  The rule searches the four title fields **one by one**: glued
+  together they would match 40 drawings instead of 21 (the per-block
+  drawings have the phrase split over two fields).  This is trap 17 of
+  [04-TEKLA-2025-API-TRAPS.md](04-TEKLA-2025-API-TRAPS.md).
+
+### What it reproduces, measured
+
+| what | result |
+|---|---|
+| dimension chains of [50] reproduced exactly in [57] | **12 of 18** |
+| mark angle | 11 / 11 |
+| mark leader direction | 9 / 11 |
+| mark offset | 9 / 11 |
+| objects per run | 37 (0 failed, 0 skipped) |
+| [50] after the run | 18 dimsets / 126 marks / 5 section marks / 3 texts — **unchanged** |
+| the rules on `MODEL-2` | 205 of 291 chains are a subset of a hand-made chain (70 %), 132 are the same, 0 failures |
+| the target selection on `MODEL-2` | 21 of 695 drawings match the title rule, 2 are frozen and refused, **19** are the targets |
+| the section marks of the 19 targets | every one of them carries its **own** section lines (1 or 2), and every one of them **keeps** them — the reference is a hand-made drawing, never another block's drawing |
+| the version handshake | the rules and the Pro module are both **version 2**; a mismatch is now reported as such instead of as 234 `Method not found` failures |
+
+The six chains that do **not** match are **hand edits of the issued drawing**
+— a value typed by hand (2999.32 instead of 2981.82), extra jamb centres
+added by hand, two hand-placed wall lines whose end points are hand points
+(296.07 and 1705.85), a hand-typed 1034.30 instead of 1035.00, and a pair
+where both 568.32 and 603.32 are written.  **The macro reproduces the rule,
+not the hand work.**  That is the right behaviour: those numbers cannot be
+derived from the model, and hard-coding them would make the macro wrong on
+every other project.
+
+## The macro — what is still open
+
+See [06-OPEN-QUESTIONS.md](06-OPEN-QUESTIONS.md) for the full list with
+owners.  The short version:
+
+| # | open item | where it lives |
+|---|---|---|
+| 1 | **the Pro path has never been run against a live Tekla** — the Pro stages were moved into `WF_Pro.dll` after the drawing was finished.  The harnesses prove the *rules* were moved without changing an answer, but that the Pro module *writes* the same objects in the same places is not proven | `docs/TODO.md` |
+| 2 | **the owner has not pasted the public key** into `PublicKeyXml` in `source/WF_License.cs` — it is still the placeholder, so **no key verifies** and the licence cannot be issued end to end yet | `source/WF_License.cs` |
+| 3 | **the north run placement on the sheet** — it sits 30 mm north of the wall it measures; nobody has looked at it and confirmed it reads well | `PAPER_NORTH` in the Pro module |
+| 4 | **the settings file** — the paper distances, the notch width, the panel prefix, the reference drawing and the list of wall-layout title fragments are still constants in the code | the core's `const` block |
+| 5 | **a unit test of the writing path** — it needs a live Tekla; today the writing path is verified by running the macro and dumping the result | `docs/TESTING.md` |
+| 6 | **the package has never been run on a second computer** — the installer is dry-run here only | `package/` |
+| 7 | **the two macros have no shared style** — the base-framing macro `P142_BF_AutoDimension.cs` and the wall-framing macro do not share a style definition, so the two drawings do not look the same | the dev tree |
+| 8 | **a plugin instead of a macro** — the rules assembly is already separate, so it can be lifted into a plugin unchanged | later |
+| 9 | **DONE — the modules are deployed.**  All five are in `%LOCALAPPDATA%\P142\WallFraming\`, byte for byte the ones the build wrote, and the handshake says *the rules and the Pro module are both version 2*.  `tests/test_loader.py` ends with *the loader chain is OK* | `source/build.ps1 -Deploy` |
+| 9a | **DONE — the macro catalog holds the thin loader.**  `C:\TeklaStructures\2025.0\Environments\common\macros\drawings\P142_WF_AutoDimension.cs` is the 10768-byte loader, byte for byte the one of the repository, and no merged source is there any more.  The leftover `WF_Rules.cs` (the old merged Pro source, 44655 bytes) was **deleted from the catalog on 2026-10-22**; it is kept in the **private** tree at `macros\_legacy_2026-10-22\WF_Rules.cs` (SHA256 `D4734D04…78E4`, the same bytes), and it is **not** in the public repository, because it holds the Pro stages | `macros/wall-framing/source/P142_WF_AutoDimension.cs` |
+| 10 | **the writing path has never run on the new model** — the rules are checked, but one real run over the 19 wall layout drawings of `MODEL-2` is still to be done | `docs/TODO.md` |
+| 12 | **the AIO macro is built but NOT deployed.**  The five modules in `%LOCALAPPDATA%\P142\WallFraming\` are the build of 2026-10-22 23:03, and the macro catalog holds only `P142_WF_AutoDimension.cs` — the AIO loader is not there.  The run against [176] was done from the dev tree (`debug/run_aio.py`), against the modules of `source\bin`, and it was **not saved**: the objects of a run that is not saved are lost, and the sheet still holds the output of the old whole-sheet run | `source/build.ps1 -Deploy` |
+| 13 | **the packaging question of the AIO macro.**  The AIO macro is free and does everything, but the Pro stages live in `WF_Pro.dll`, which the published free package does not carry (rule R10).  So the AIO macro of a **free** install draws the chains of every layout, and the AIO macro of a **Pro** install draws everything.  Whether the free package is to carry the Pro modules is the owner's call | `source/build.ps1 -Package` |
+| 11 | **the 163 stations** that the macro measures and the hand-made drawings of the new model do not — most of them belong to the ledge-wall (LW) family, whose drawings measure no opening at all.  Each one is either a rule that is wrong or a drawing that is incomplete | `tests/test_upgrade.py` |
+
+## The MCP server — what is done
+
+- 16 tools: 7 read, 4 geometry/rule, 3 write, 2 report.
+- `SherinTeklaMcp.Core` has no Tekla reference and is covered by 42 unit
+  tests against `MockTeklaService`.
+- The write pipeline is `preview → confirm token → apply → commit →
+  read back → log`; the confirm token is bound to the arguments and expires
+  after 10 minutes.
+- `config/settings.json` ships **read-only** (`"ReadOnly": true`,
+  `"AllowDelete": false`).
+- The operation log is `operations-YYYYMMDD.jsonl`.
+- CI is green on both jobs on both commits.
+
+### The MCP server — what is still open
+
+The live Tekla connection has **not** been tested against the C# server.
+It has only been tested against the *other* server (the Python one, see
+below).  Start read-only, on a **copy** of a model — see
+`docs/TESTING.md` in the repository root.
+
+## The other Tekla MCP server on this machine
+
+There is a **second, unrelated** MCP server installed here:
+
+```
+C:\Users\sheri\projects\tekla-modeling-tool\Tekla-MCP\tekla_mcp_server\
+```
+
+It is `teknovizier/tekla_mcp_server` v0.2.3 — **GPLv3**, 64 tools, Python,
+registered with Claude Code at user scope under the name `tekla`
+(`claude mcp list` shows it).  It was complete before this work started.
+
+**Two rules about it:**
+
+1. **It is GPLv3.  It must never be merged into the MIT repository.**  That
+   is a licence condition, not a preference.
+2. **Do not generate a replacement for it.**  Extend it if it needs
+   extending.  The C# server in the repository is a separate, cleaner
+   re-implementation of a different idea (typed tools + a write pipeline),
+   and the two are allowed to coexist.
