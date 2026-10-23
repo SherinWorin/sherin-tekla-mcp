@@ -55,6 +55,8 @@ touched**:
 | `WF_KeyGen.exe` | the owner's licence key tool |
 | `P142_WF_AutoDimension.dll` | **the loader** — the file to install |
 | `P142_WF_AutoDimension.bmp` | the ribbon icon |
+| `WallFramingAutoDimensionPro-AIO.dll` | **the loader of the AIO macro** — the second file to install |
+| `WallFramingAutoDimensionPro-AIO.bmp` | the ribbon icon of the AIO macro |
 
 The loader holds **no rule and no drawing logic**: it loads `WF_Core.dll`
 out of `%LOCALAPPDATA%\P142\WallFraming` at run time.  That is what keeps
@@ -90,6 +92,20 @@ writes `macros\wall-framing\package\WallFramingAutoDimension.zip` and the
 unzipped `package\WallFramingAutoDimension\`.  With `-ProPath` it writes
 the Pro package beside it, `package\WallFramingAutoDimensionPro.zip`.
 
+**`-AioFree`** puts the Pro modules into the **free** package as well, so
+that the AIO macro of a free install draws the whole set of annotations:
+
+**Command Prompt (Windows)**
+
+```
+cd macros\wall-framing\source
+powershell -NoProfile -File build.ps1 -Package -AioFree -ProPath "<the private sources>"
+```
+
+The switch is **off** by default, because the Pro stages are not
+published (rule R10).  Turning it on is the owner's commercial decision —
+see [06-OPEN-QUESTIONS.md](06-OPEN-QUESTIONS.md) (A9b).
+
 **The zip is written by hand** with `System.IO.Compression.ZipArchive`, so
 the entries use `/` as the separator.  `Compress-Archive` writes `\`, and
 `unzip` then refuses the file with *"appears to use backslashes as path
@@ -107,6 +123,8 @@ See [02-ENVIRONMENT.md](02-ENVIRONMENT.md) for the full instructions.
 set TEKLA=C:\TeklaStructures\2025.0
 copy "macros\wall-framing\source\bin\P142_WF_AutoDimension.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
 copy "macros\wall-framing\source\bin\P142_WF_AutoDimension.bmp" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+copy "macros\wall-framing\source\bin\WallFramingAutoDimensionPro-AIO.cs" "%TEKLA%\Environments\common\macros\drawings\WallFramingAutoDimensionPro-AIO.cs"
+copy "macros\wall-framing\source\bin\WallFramingAutoDimensionPro-AIO.bmp" "%TEKLA%\Environments\common\macros\drawings\WallFramingAutoDimensionPro-AIO.bmp"
 
 set APP=%LOCALAPPDATA%\P142\WallFraming
 if not exist "%APP%" mkdir "%APP%"
@@ -167,6 +185,7 @@ python tests\test_version_handshake.py
 python tests\test_loader.py
 python tests\test_marks.py
 python tests\test_section_lines.py
+python tests\test_layout_groups.py
 ```
 
 Expected:
@@ -181,6 +200,7 @@ exact mark placements: 7 / 11
   leader line (rule-derived):   9 / 11
   label offset(rule-derived):   9 / 11
 12 passed, 0 failed
+26 passed, 0 failed
 ```
 
 `test_marks.py` needs the **Pro rules** (`WF_Rules_Pro.dll`), so it needs

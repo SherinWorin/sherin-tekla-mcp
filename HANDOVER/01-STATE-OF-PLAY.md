@@ -91,6 +91,54 @@ Everything in `macros/wall-framing/docs/TODO.md` under **Done** is done:
   day trial from the first run, a machine binding on three hashes, a
   clock-rollback rule, and the owner's key tool `WF_KeyGen.exe`.  42
   checks, no Tekla needed.
+- the **AIO macro** `WallFramingAutoDimensionPro-AIO` — the second macro
+  of the package, for a GA sheet that carries **many** wall framing
+  layouts.  The sheet **[176]** of the client holds the layout of **19
+  blocks** side by side, and the macro of R8 drew one long chain across
+  all of them (the left and the right chain of each block were right —
+  that is what was reported).  The AIO macro:
+  - groups the panels of the sheet into their **blocks** (the part of the
+    assembly position before the first dash, `BP1-WP3` → `BP1`) and
+    dimensions every group with the box of **its own** panels (R10);
+  - asks for **no licence key** — `WfCore.ExecuteAio` reads no licence
+    at all and draws the whole set of annotations;
+  - **keeps** the section marks of the sheet, and copies the section
+    marks of the drawing of a block only into a layout that has none of
+    its own (R10.5) — the section marks of the client carry the tag of
+    the macro as well, and the old cleanup would have deleted them;
+  - the rule of the grouping is in the **free** rules
+    (`WfRules.BlockOf`, `NormaliseBlock`, `SameBlock`, `LayoutGroups`),
+    so it is tested without a running Tekla —
+    `tests/test_layout_groups.py`, 26 checks;
+  - the version of the free rules is now **3**, and the Pro module is
+    built against the same version.
+- the **study of the two next drawing kinds** — the **sectional
+  elevation** and the **isometric drawing** —
+  `macros/wall-framing/docs/SECTION-ELEVATION-AND-ISOMETRIC.md`.  It is
+  the measured ground for the two next macros (nothing is built yet):
+  - a **sectional elevation** is a GA drawing whose `Title2` is
+    `SECTIONAL ELEVATION`; it holds one **`SectionView`** per section
+    line (`S1` … `S4`), and every view holds the material **notes** (8-12
+    texts with their leader lines), the **level marks** (`SSL`, `FFL`,
+    `T.O.S`), 3-5 **dimension sets** and the **marks** of the assemblies
+    the section cuts (12-71);
+  - an **isometric drawing** is a GA drawing whose `Title2` is
+    `ISOMETRIC VIEW`; it holds three **`ModelView`s** named `3d` and
+    **nothing else than marks**: the marks of the parts (211 in the
+    middle view), 20 **weld marks** and their leader lines — no
+    dimension, no text;
+  - both references of the client are **issued and frozen** — the macro
+    must refuse them, as it refuses the frozen plan;
+  - the API that is needed is confirmed: `View.CreateSectionView(...)`
+    and `View.Create3dView(...)` create the views, `View.GetAllObjects()`
+    gives the model objects of a view, and the core already reads them
+    (`WfCore.ShownAssemblies`, `WfCore.ReadWallParts`);
+  - the **note catalogue** is a **table**, not a template: the model
+    says `CC61-0.7-7-35` where the client's note says `C61*35*0.7`;
+  - the **rules** are proposed as R11 (the sectional elevation) and R12
+    (the isometric drawing), in seven stages — the last one (creating
+    the views) is the owner's decision, because it writes a view into
+    the drawing.
 - the macro works on a **model with many wall layout drawings** — it was
   checked against **`MODEL-2`** (4887 parts, 234 wall panels, 19
   writable wall layout drawings) and changed for it:
@@ -162,6 +210,8 @@ owners.  The short version:
 | 9 | **DONE — the modules are deployed.**  All five are in `%LOCALAPPDATA%\P142\WallFraming\`, byte for byte the ones the build wrote, and the handshake says *the rules and the Pro module are both version 2*.  `tests/test_loader.py` ends with *the loader chain is OK* | `source/build.ps1 -Deploy` |
 | 9a | **DONE — the macro catalog holds the thin loader.**  `C:\TeklaStructures\2025.0\Environments\common\macros\drawings\P142_WF_AutoDimension.cs` is the 10768-byte loader, byte for byte the one of the repository, and no merged source is there any more.  The leftover `WF_Rules.cs` (the old merged Pro source, 44655 bytes) was **deleted from the catalog on 2026-10-22**; it is kept in the **private** tree at `macros\_legacy_2026-10-22\WF_Rules.cs` (SHA256 `D4734D04…78E4`, the same bytes), and it is **not** in the public repository, because it holds the Pro stages | `macros/wall-framing/source/P142_WF_AutoDimension.cs` |
 | 10 | **the writing path has never run on the new model** — the rules are checked, but one real run over the 19 wall layout drawings of `MODEL-2` is still to be done | `docs/TODO.md` |
+| 12 | **the AIO macro is built but NOT deployed.**  The five modules in `%LOCALAPPDATA%\P142\WallFraming\` are the build of 2026-10-22 23:03, and the macro catalog holds only `P142_WF_AutoDimension.cs` — the AIO loader is not there.  The run against [176] was done from the dev tree (`debug/run_aio.py`), against the modules of `source\bin`, and it was **not saved**: the objects of a run that is not saved are lost, and the sheet still holds the output of the old whole-sheet run | `source/build.ps1 -Deploy` |
+| 13 | **the packaging question of the AIO macro.**  The AIO macro is free and does everything, but the Pro stages live in `WF_Pro.dll`, which the published free package does not carry (rule R10).  So the AIO macro of a **free** install draws the chains of every layout, and the AIO macro of a **Pro** install draws everything.  Whether the free package is to carry the Pro modules is the owner's call | `source/build.ps1 -Package` |
 | 11 | **the 163 stations** that the macro measures and the hand-made drawings of the new model do not — most of them belong to the ledge-wall (LW) family, whose drawings measure no opening at all.  Each one is either a rule that is wrong or a drawing that is incomplete | `tests/test_upgrade.py` |
 
 ## The MCP server — what is done

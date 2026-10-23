@@ -88,6 +88,10 @@ wall-panel marks, section marks, notes).
   [macros/wall-framing/docs/LICENSING.md](macros/wall-framing/docs/LICENSING.md).
 - A deployment package (`macros/wall-framing/package/WallFramingAutoDimension.zip`,
   and the Pro one beside it) installs it on another computer.
+- A **second macro**, `WallFramingAutoDimensionPro-AIO`, is **free** - it asks
+  for no licence key - and it is for a GA sheet that carries **many** wall
+  framing layouts: it dimensions every block on its own, so that the chain of
+  one block does not run into the next one.
 
 See [macros/wall-framing/README.md](macros/wall-framing/README.md) and
 [macros/wall-framing/INSTALL_NOTES.txt](macros/wall-framing/INSTALL_NOTES.txt).

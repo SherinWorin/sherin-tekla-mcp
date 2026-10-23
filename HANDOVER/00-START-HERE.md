@@ -43,12 +43,21 @@ features are free for three days.  The Pro stages are **not** in the public
 repository — they are a separate module, loaded only when the licence
 allows it.  See `macros/wall-framing/docs/LICENSING.md`.
 
+There is a **second macro** in the same package,
+`WallFramingAutoDimensionPro-AIO`: it is **free** — it asks for no
+licence key — and it is for a GA sheet that carries **many** wall framing
+layouts.  It groups the panels of the sheet into their blocks and
+dimensions every block on its own, so that the chain of one block does not
+run into the next one (R10 in
+`macros/wall-framing/docs/WALL_FRAMING_RULES.md`).
+
 ```
 macros/wall-framing/source/WF_Rules.cs             the free rules, no Tekla reference
 macros/wall-framing/source/WF_License.cs           the licence engine, no Tekla reference
 macros/wall-framing/source/WF_Core.cs              the shared drawing machinery
 macros/wall-framing/source/WF_KeyGen.cs            the owner's key tool
 macros/wall-framing/source/P142_WF_AutoDimension.cs the LOADER (no rule in it)
+macros/wall-framing/source/WallFramingAutoDimensionPro-AIO.cs the LOADER of the AIO macro
 macros/wall-framing/source/build.ps1               compiles + packages
 macros/wall-framing/install.ps1                    installs into the Tekla catalog
 macros/wall-framing/tests/                         7 harnesses

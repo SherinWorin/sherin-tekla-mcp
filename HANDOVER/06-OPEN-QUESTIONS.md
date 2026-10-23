@@ -112,6 +112,77 @@ drawings (`tests/dump_dims.py "<mark>" <file>`) and look at them.  The
 **frozen** drawings of that model ([50], [72] and every `WALL_PANEL` and
 `BASE, CEILING, WALL` drawing) must not change.
 
+### A9a — The AIO macro is not deployed, and its run was not saved
+
+The **AIO macro** (`WallFramingAutoDimensionPro-AIO`) is built, and it
+was run against the sheet **[176]** of the client — but **not saved**, and
+it is **not installed**: the five modules in `%LOCALAPPDATA%\P142\WallFraming\`
+are the build of 2026-10-22 23:03, and the macro catalog holds only
+`P142_WF_AutoDimension.cs`.
+
+Two writes are needed, and both are the owner's:
+
+1. the **deployment** — the five modules into
+   `%LOCALAPPDATA%\P142\WallFraming\` and the AIO loader and its icon
+   into `C:\TeklaStructures5.0\Environments\common\macros\drawings\`
+   (rule R8: an assistant does not write into the Tekla installation);
+2. the **run that is saved** — the AIO macro on [176], with the drawing
+   saved, so that the output is really on the sheet.
+
+*Where:* `source/build.ps1 -Deploy` and the dev tree
+(`debug/run_aio.py "[176]" --save`).
+*How to settle it:* deploy, restart Tekla (the catalog is read at
+start-up), run the macro on [176] and look at the sheet.  The run before
+it made 665 objects, and 7 of them failed — the **ledge walls**
+(`FAIL mark <X>-LW1 : no drawing part for model id …`), the same code path
+as the single-drawing macro, not something of the AIO change.
+
+The run of **2026-10-23** (from the dev tree, `debug/run_aio.py "[176]"` —
+`debug/aio_run3.txt`) proved the **keepSections** change: the cleanup
+removed **470** objects and **kept** the **5** section marks of the client
+(the BP1 layout says *"the drawing brings its own 5 section marks - none
+were copied"*), and the 18 other layouts each took the section marks of
+the drawing of their own block.  **663 created, 7 failed, 0 skipped** — the
+7 failures are the known ledge-wall marks.
+
+### A9b — Does the free package carry the Pro modules?
+
+The AIO macro asks for **no licence key** and draws the **whole** set of
+annotations — that is the owner's instruction.  The Pro stages live in
+`WF_Pro.dll`, and the published free package does not carry it (rule
+R10: the Pro package is built in the dev tree and handed to a customer
+directly).
+
+So today:
+
+| install | the AIO macro draws |
+|---|---|
+| the free package | the chains of every layout (the stud chain of every panel, the band chains of every layout) |
+| the Pro package | everything, for every layout (the top outline, the overall dimensions, the north run, the wall-panel marks, the section marks, the notes) |
+| the **AIO package** (new, 2026-10-23) | everything, for every layout — and it asks for no key |
+
+There are now **two** switches:
+
+* `-AioPackage` writes the **separate** package of the AIO macro,
+  `package/WallFramingAutoDimensionAIO.zip`, with the Pro modules in it.
+  It is **not published** (it is in `.gitignore`), like the Pro package.
+  **This is the answer to the owner's instruction**: the AIO macro of a
+  customer is free, complete, and asks for no key.
+* `-AioFree` puts the Pro modules into the **published** free package as
+  well.  That puts the compiled Pro stages into the public repository, and
+  it is a **commercial decision of the owner**, not a technical one.
+
+To make the AIO macro of a **free** install complete, the free package
+has to carry `WF_Pro.dll` and `WF_Rules_Pro.dll` — which puts the Pro
+stages (compiled) into the public repository, and that is a **commercial
+decision of the owner**, not a technical one.  The build script can do it
+with one switch.
+
+*Where:* `source/build.ps1 -Package -AioPackage -ProPath "<the private
+sources>"` and `source/build.ps1 -Package -AioFree`.
+*How to settle it:* the owner says whether the **published** free package
+is to carry the Pro modules; the AIO package is built either way.
+
 ### A10 — The 163 stations the hand-made drawings of the new model do not measure
 
 `test_upgrade.py` lists them one by one.  Most of them belong to the
@@ -185,6 +256,29 @@ and it does not depend on the macro catalog.
 
 *Why it is not done:* a macro is the least thing a Tekla user has to
 install, and that was the point of this deliverable.
+
+---
+
+## B2. The two next macros: the sectional elevation and the isometric drawing
+
+The **study** is written — `macros/wall-framing/docs/SECTION-ELEVATION-AND-ISOMETRIC.md`.
+Nothing is built yet.  Six questions are open, and they are the ones of
+section 8 of the study:
+
+| # | the question | why it matters |
+|---|---|---|
+| 1 | Is the **note catalogue** the same for every block? | the reference is one block of one project; the catalogue is a table, and a table of one block is a table of one block |
+| 2 | Which **three directions** are the isometric views of? | they are in the attributes of the reference drawing |
+| 3 | Do the two macros ask for a **licence**, or are they free like the AIO one? | the owner's commercial decision |
+| 4 | What is the **placement** of a note (the offset of the text and of the leader)? | it is a constant per family, like the paper distances of the plan; it has to be measured on the reference |
+| 5 | Shall the macro **create** the section views and the 3D views, or only fill the ones that are already there? | creating a view **writes a view into the drawing** — the last stage, and the owner's decision |
+| 6 | The **211 marks** of the middle isometric view: every part of the block, or only the parts of a family? | it is the difference between 211 marks and a handful |
+
+*Where:* the study, and `macros/wall-framing/docs/TODO.md`.
+*How to settle it:* read the reference drawings of the client (both are
+**issued and frozen** — read only) and answer them one by one; the
+harnesses of the new rules are written like the ones of the plan, without
+Tekla.
 
 ---
 
