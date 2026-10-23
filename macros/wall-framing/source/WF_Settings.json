@@ -1,0 +1,38 @@
+{
+  "$schema": "./WF_Settings.schema.json",
+  "version": "1.0",
+  "description": "Configuration for the wall-framing auto-dimensioner. These values are project-specific and can be changed without recompiling the macro.",
+
+  "panelPrefix": "BP4-WP",
+  "panelPrefixComment": "Assembly-position prefix of wall panels. The automatic detection takes over when this matches nothing.",
+
+  "paperDistances": {
+    "panel": 8.8,
+    "band": 15.9,
+    "panelComment": "Paper distance of a panel chain (bay chain), in mm",
+    "bandComment": "Paper distance of a band chain, in mm"
+  },
+
+  "wallLayoutTitles": [
+    "WALL FRAMING",
+    "WALL LAYOUT",
+    "WALL FRAMING LAYOUT"
+  ],
+  "wallLayoutTitlesComment": "Title fragments that identify a wall layout drawing. The macro works on any GA drawing whose title holds one of these fragments.",
+
+  "referenceDrawing": {
+    "mark": "[50]",
+    "comment": "The issued reference drawing. Section marks are copied from this drawing. Optional - if not found, section marks are skipped."
+  },
+
+  "proSettings": {
+    "comment": "Settings for the Pro edition. These are loaded by WF_Pro.dll when available.",
+    "notchWidth": 2.0,
+    "paperDistances": {
+      "outline": 21.82,
+      "overallHeight": 24.27,
+      "overallWidth": 27.74,
+      "northRun": 30.0
+    }
+  }
+}

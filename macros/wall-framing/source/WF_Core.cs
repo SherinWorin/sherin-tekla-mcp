@@ -62,13 +62,31 @@ namespace P142.WallFraming
         /// <summary>Value of the user property, so a re-run can find its own output.</summary>
         public const string TAG_VALUE = "1";
 
+        /// <summary>
+        /// Configuration settings loaded from WF_Settings.json or defaults.
+        /// Loaded once on first access.
+        /// </summary>
+        static WfSettings _settings;
+        public static WfSettings Settings
+        {
+            get
+            {
+                if (_settings == null)
+                    _settings = WfSettingsLoader.Load();
+                return _settings;
+            }
+        }
+
         /// <summary>Assembly-position prefix of the wall panels.</summary>
+        [Obsolete("Use Settings.PanelPrefix instead")]
         public const string PANEL_PREFIX = "BP4-WP";
 
         /// <summary>Paper distance of a panel chain, in mm.</summary>
+        [Obsolete("Use Settings.PaperDistances.Panel instead")]
         public const double PAPER_PANEL = 8.8;
 
         /// <summary>Paper distance of a band chain, in mm.</summary>
+        [Obsolete("Use Settings.PaperDistances.Band instead")]
         public const double PAPER_BAND = 15.9;
 
         /// <summary>
@@ -77,6 +95,7 @@ namespace P142.WallFraming
         /// of them - the mark number does not matter, so the same macro
         /// works on every computer of the project.
         /// </summary>
+        [Obsolete("Use Settings.WallLayoutTitles instead")]
         public static readonly string[] WALL_LAYOUT_TITLES = {
             "WALL FRAMING", "WALL LAYOUT", "WALL FRAMING LAYOUT"
         };
@@ -307,11 +326,11 @@ namespace P142.WallFraming
             // no fallback: the view shows nothing that the macro can read
             Say("the view shows no wall assembly - the wall panels were found " +
                 "by their name and by their construction instead");
-            Panels.AddRange(WfRules.BuildPanels(AllParts, PANEL_PREFIX, TOL));
+            Panels.AddRange(WfRules.BuildPanels(AllParts, Settings.PanelPrefix, TOL));
             if (Panels.Count == 0)
             {
                 Panels.AddRange(WfRules.BuildPanelsAuto(AllParts));
-                Say("no part matched the prefix '" + PANEL_PREFIX +
+                Say("no part matched the prefix '" + Settings.PanelPrefix +
                     "' - the wall panels were found automatically");
             }
         }
@@ -581,7 +600,7 @@ namespace P142.WallFraming
             foreach (string t in texts)
             {
                 if (string.IsNullOrEmpty(t)) continue;
-                foreach (string f in WALL_LAYOUT_TITLES)
+                foreach (string f in Settings.WallLayoutTitles)
                     if (t.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
             return false;
@@ -731,7 +750,7 @@ namespace P142.WallFraming
             }
             // the up vector points away from the layout
             Vector up = horiz ? new Vector(0, -1, 0) : new Vector(-1, 0, 0);
-            DimChain(view, dr, what, vals, horiz, line, up, PAPER_BAND);
+            DimChain(view, dr, what, vals, horiz, line, up, Settings.PaperDistances.Band);
         }
 
         // ------------------------------------------------------------ licence
@@ -1196,7 +1215,7 @@ namespace P142.WallFraming
                 bool horiz = p.Horiz;
                 double perp = horiz ? p.Bottom.Y0 : p.Bottom.X0;
                 Vector up = horiz ? new Vector(0, -1, 0) : new Vector(-1, 0, 0);
-                DimChain(view, dr, "bays " + p.Name, chain, horiz, perp, up, PAPER_PANEL);
+                DimChain(view, dr, "bays " + p.Name, chain, horiz, perp, up, Settings.PaperDistances.Panel);
             }
 
             // 1b. the band chain of every edge of the layout
@@ -1372,7 +1391,7 @@ namespace P142.WallFraming
                 bool horiz = p.Horiz;
                 double perp = horiz ? p.Bottom.Y0 : p.Bottom.X0;
                 Vector up = horiz ? new Vector(0, -1, 0) : new Vector(-1, 0, 0);
-                DimChain(view, dr, "bays " + p.Name, chain, horiz, perp, up, PAPER_PANEL);
+                DimChain(view, dr, "bays " + p.Name, chain, horiz, perp, up, Settings.PaperDistances.Panel);
             }
 
             // ---- every layout, on its own

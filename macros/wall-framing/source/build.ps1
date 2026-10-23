@@ -193,7 +193,8 @@ $framework = @(
     (Join-Path $fw 'System.Core.dll'),
     (Join-Path $fw 'System.Drawing.dll'),
     (Join-Path $fw 'System.Windows.Forms.dll'),
-    (Join-Path $fw 'System.Management.dll')
+    (Join-Path $fw 'System.Management.dll'),
+    (Join-Path $fw 'System.Web.Extensions.dll')
 )
 $teklaDlls = @(
     (Join-Path $dllDir 'Tekla.Structures.dll'),
@@ -251,7 +252,7 @@ Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_License.cs') -Out (Join
 Write-Output 'Building WF_Core.dll ...'
 Invoke-Csc -Refs ($framework + $teklaDlls +
             @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'))) `
-            -Source (Join-Path $here 'WF_Core.cs') `
+            -Source @((Join-Path $here 'WF_Settings.cs'), (Join-Path $here 'WF_Core.cs')) `
             -Out (Join-Path $outDir 'WF_Core.dll')
 
 Write-Output 'Building WF_KeyGen.exe ...'
@@ -347,9 +348,9 @@ function New-Package {
         if (Test-Path $f) { Copy-Item $f $pkgSrc -Force }
     }
     # the sources and the build script, for a re-build on the other computer
-    foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs',
+    foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs', 'WF_Settings.cs',
                      'P142_WF_AutoDimension.cs', 'WallFramingAutoDimensionPro-AIO.cs',
-                     'WF_KeyGen.cs', 'build.ps1')) {
+                     'WF_KeyGen.cs', 'WF_Settings.json', 'build.ps1')) {
         Copy-Item (Join-Path $here $s) $pkgSrc -Force
     }
 
@@ -461,6 +462,15 @@ if ($Deploy) {
     foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll')) {
         Copy-Item (Join-Path $outDir $dll) $appFolder -Force
         Write-Output ("  OK  {0}" -f (Join-Path $appFolder $dll))
+    }
+    # Deploy settings file (create from default if not exists in appFolder)
+    $settingsSrc = Join-Path $here 'WF_Settings.json'
+    $settingsDst = Join-Path $appFolder 'WF_Settings.json'
+    if (-not (Test-Path $settingsDst)) {
+        Copy-Item $settingsSrc $settingsDst -Force
+        Write-Output ("  OK  {0} (default settings)" -f $settingsDst)
+    } else {
+        Write-Output ("  existing settings kept: {0}" -f $settingsDst)
     }
     if ($proBuilt) {
         foreach ($dll in @('WF_Pro.dll', 'WF_Rules_Pro.dll')) {

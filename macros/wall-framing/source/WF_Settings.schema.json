@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WallFraming Settings Schema",
+  "description": "Configuration schema for the wall-framing auto-dimensioner",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Settings file version"
+    },
+    "description": {
+      "type": "string"
+    },
+    "panelPrefix": {
+      "type": "string",
+      "description": "Assembly-position prefix of wall panels (e.g. 'BP4-WP')"
+    },
+    "paperDistances": {
+      "type": "object",
+      "properties": {
+        "panel": {
+          "type": "number",
+          "description": "Paper distance of panel chain in mm"
+        },
+        "band": {
+          "type": "number",
+          "description": "Paper distance of band chain in mm"
+        }
+      },
+      "required": ["panel", "band"]
+    },
+    "wallLayoutTitles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Title fragments that identify a wall layout drawing"
+    },
+    "referenceDrawing": {
+      "type": "object",
+      "properties": {
+        "mark": {
+          "type": "string",
+          "description": "Mark of the reference drawing (e.g. '[50]')"
+        }
+      }
+    },
+    "proSettings": {
+      "type": "object",
+      "description": "Settings for the Pro edition",
+      "properties": {
+        "notchWidth": {
+          "type": "number",
+          "description": "Width of the notch bridged in top outline (mm)"
+        },
+        "paperDistances": {
+          "type": "object",
+          "properties": {
+            "outline": {
+              "type": "number"
+            },
+            "overallHeight": {
+              "type": "number"
+            },
+            "overallWidth": {
+              "type": "number"
+            },
+            "northRun": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["version", "panelPrefix", "paperDistances", "wallLayoutTitles"]
+}
