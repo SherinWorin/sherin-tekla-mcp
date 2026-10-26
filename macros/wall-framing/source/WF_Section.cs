@@ -447,21 +447,30 @@ namespace P142.WallFraming
                 dim(pts.ToArray(), new Vector(-1, 0, 0), 6 * s, null);
             }
 
-            // openings: between the jambs under each lintel of the viewed wall
+            // openings: between the jambs under each lintel of EVERY wall parallel to the view
+            // (owner: "wherever an opening is, dimension it"), one per opening
             int nOpen = 0;
             var openPts = new List<double[]>();
-            foreach (var li in wall.FindAll(p => p.Name == "LINTEL"))
+            var done = new List<double[]>();
+            // the tag only, no part count ("2 x OPENING", BP40M 2026-10-26)
+            sa.IncludePartCountInTag = sa.IncludePartCountInTagA = sa.IncludePartCountInTagB = sa.IncludePartCountInTagC =
+                sa.IncludePartCountInTagD = sa.IncludePartCountInTagE = sa.IncludePartCountInTagF = sa.IncludePartCountInTagG = false;
+            foreach (var li in ps.FindAll(p => p.Name == "LINTEL" && p.X1 - p.X0 > p.Z1 - p.Z0))
             {
                 SP left = null, right = null;
-                foreach (var j in wall)
+                double lz = (li.Z0 + li.Z1) / 2;
+                foreach (var j in ps)
                 {
-                    if (!j.Name.StartsWith("JAMB") || j.Y1 < li.Y0 - 50) continue;
+                    if (!j.Name.StartsWith("JAMB") || j.Y1 < li.Y0 - 50 || Math.Abs((j.Z0 + j.Z1) / 2 - lz) > 100) continue;
+                    if (j.X1 < li.X0 - 100 || j.X0 > li.X1 + 100) continue;
                     if (j.X1 <= li.X0 + (li.X1 - li.X0) / 2 && (left == null || j.X1 > left.X1)) left = j;
                     if (j.X0 >= li.X0 + (li.X1 - li.X0) / 2 && (right == null || j.X0 < right.X0)) right = j;
                 }
                 if (left == null || right == null || right.X0 - left.X1 < 300) continue;
                 double ox0 = left.X1, ox1 = right.X0, top = li.Y0, bot = double.IsNaN(ffl) ? wB : ffl;
-                foreach (var sl in wall) if (sl.Name == "SILL" && sl.X0 < ox1 && sl.X1 > ox0 && sl.Y1 < top) bot = Math.Max(bot, sl.Y1);
+                foreach (var sl in ps) if (sl.Name == "SILL" && sl.X0 < ox1 && sl.X1 > ox0 && sl.Y1 < top && Math.Abs((sl.Z0 + sl.Z1) / 2 - lz) < 100) bot = Math.Max(bot, sl.Y1);
+                if (done.Exists(o => Math.Abs(o[0] - ox0) < 20 && Math.Abs(o[1] - ox1) < 20 && Math.Abs(o[2] - top) < 20)) continue;
+                done.Add(new[] { ox0, ox1, top });
                 double cx = (ox0 + ox1) / 2, cy = bot + (top - bot) * 0.55;
                 dim(new[] { new[] { ox0, cy }, new[] { ox1, cy } }, new Vector(0, 1, 0), 0, null);
                 dim(new[] { new[] { cx, bot }, new[] { cx, top } }, new Vector(-1, 0, 0), 0, null);
