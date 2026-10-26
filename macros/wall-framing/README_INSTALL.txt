@@ -14,8 +14,9 @@ Five drawing macros (Applications > Macros, drawing mode):
                                         base / ceiling / wall dimensions,
                                         CEILING_GYPSUM shown
   P142_WF_Isometric                   ISOMETRIC drawing (e.g. BP20M-80001)
-  P142_WF_Section                     SECTIONAL ELEVATION (-20001) - READ-ONLY study
-                                        mode for now (the create mode is next)
+  P142_WF_Section                     SECTIONAL ELEVATION (-20001): on an empty
+                                        drawing, one view per S mark of the base
+                                        plan (S1..S4 + extras); else READ-ONLY study
   P142_WF_AutoDimension               WALL FRAMING LAYOUT drawing (one block)
   WallFramingAutoDimensionPro-AIO     GA sheet with many wall framing layouts
 

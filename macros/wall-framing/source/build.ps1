@@ -293,8 +293,11 @@ Invoke-Csc -Refs ($framework + $teklaDlls) `
             -Source (Join-Path $here 'P142_WF_Isometric.cs') `
             -Out (Join-Path $outDir 'P142_WF_Isometric.dll')
 
+Write-Output 'Building WF_SectionRules.dll ...'
+Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_SectionRules.cs') -Out (Join-Path $outDir 'WF_SectionRules.dll')
+
 Write-Output 'Building WF_BaseCW.dll (BASE, CEILING, WALL drawing) ...'
-Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'), (Join-Path $outDir 'WF_Isometric.dll'), (Join-Path $outDir 'WF_IsometricRules.dll'))) `
+Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'), (Join-Path $outDir 'WF_Isometric.dll'), (Join-Path $outDir 'WF_IsometricRules.dll'), (Join-Path $outDir 'WF_SectionRules.dll'))) `
             -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs'), (Join-Path $here 'WF_BcwNotes.cs')) `
             -Out (Join-Path $outDir 'WF_BaseCW.dll')
 
@@ -303,11 +306,8 @@ Invoke-Csc -Refs ($framework + $teklaDlls) `
             -Source (Join-Path $here 'P142_BASE_C_W.cs') `
             -Out (Join-Path $outDir 'P142_BASE_C_W.dll')
 
-Write-Output 'Building WF_SectionRules.dll ...'
-Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_SectionRules.cs') -Out (Join-Path $outDir 'WF_SectionRules.dll')
-
 Write-Output 'Building WF_Section.dll ...'
-Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_SectionRules.dll'), (Join-Path $outDir 'WF_Rules.dll'))) `
+Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_SectionRules.dll'), (Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_BaseCW.dll'), (Join-Path $outDir 'WF_Isometric.dll'), (Join-Path $outDir 'WF_IsometricRules.dll'))) `
             -Source (Join-Path $here 'WF_Section.cs') `
             -Out (Join-Path $outDir 'WF_Section.dll')
 

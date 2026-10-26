@@ -211,7 +211,7 @@ namespace P142.WallFraming
         sealed class BPart
         {
             public TSM.Part Part;
-            public string Name = "", Block = "", Profile = "";
+            public string Name = "", Block = "", Profile = "", Asm = "";
             public int AsmId;
             public double[] Min = new double[3], Max = new double[3];
         }
@@ -254,6 +254,7 @@ namespace P142.WallFraming
                         }
                         apos = apos ?? "";
                         if (asm != null) bp.AsmId = asm.Identifier.ID;
+                        bp.Asm = apos;
                         int dash = apos.IndexOf('-');
                         bp.Block = WfRules.NormaliseBlock(dash > 0 ? apos.Substring(0, dash) : apos);
                         res.Add(bp);
@@ -359,20 +360,13 @@ namespace P142.WallFraming
 
             // ---- 1. the pod
             string block = WfRules.NormaliseBlock(BlockOf(dr));
-            var all = ReadParts(model);
-            var own = all.FindAll(p => p.Block == block);
-            if (own.Count == 0)
+            double x0, y0, x1, y1; int ownCount;
+            var pod = PodParts(ReadParts(model), block, out x0, out y0, out x1, out y1, out ownCount);
+            if (ownCount == 0)
             {
                 result.Ok = false; result.Message = "No part of block " + block + " (ASSEMBLY_POS " + block + "-...) was found in the model - nothing done."; return;
             }
-            double x0 = double.MaxValue, y0 = double.MaxValue, x1 = double.MinValue, y1 = double.MinValue;
-            foreach (var p in own) { x0 = Math.Min(x0, p.Min[0]); y0 = Math.Min(y0, p.Min[1]); x1 = Math.Max(x1, p.Max[0]); y1 = Math.Max(y1, p.Max[1]); }
-            var pod = all.FindAll(p =>
-            {
-                double cx = (p.Min[0] + p.Max[0]) / 2, cy = (p.Min[1] + p.Max[1]) / 2;
-                return cx >= x0 - 1 && cx <= x1 + 1 && cy >= y0 - 1 && cy <= y1 + 1;
-            });
-            Say("block " + block + ": " + own.Count + " part(s) of its own, " + pod.Count + " part(s) in its plan extent (" +
+            Say("block " + block + ": " + ownCount + " part(s) of its own, " + pod.Count + " part(s) in its plan extent (" +
                 F1(x0) + ", " + F1(y0) + ") - (" + F1(x1) + ", " + F1(y1) + ")");
 
             // ---- 2. the levels
@@ -580,6 +574,20 @@ namespace P142.WallFraming
                 Say("NOTES " + role + ":"); Say(nl.ToString().TrimEnd());
             }
             dr.CommitChanges("P142 BCW standard notes");
+
+            // ---- 6. section marks S1 ... on the base plan, looking inside-out (WfSectionRules.SectionCuts)
+            int bi = plans.FindIndex(pl => pl.Role == ROLE_BASE);
+            if (bi >= 0)
+            {
+                try
+                {
+                    View v = made[bi].Key; View sv; style.TryGetValue(ROLE_BASE, out sv);
+                    var cuts = WfSectionRules.SectionCuts(WallLines(pod, baseTop), x0, y0, x1, y1);
+                    Say("SECTION MARKS: " + SectionMarks(v, sv, cuts) + " of " + cuts.Count + " placed");
+                }
+                catch (Exception ex) { Failed++; Say("FAIL section marks: " + ex.GetType().Name + ": " + ex.Message); }
+                dr.CommitChanges("P142 BCW section marks");
+            }
             PlaceAll(dr, made, centres, "after the dimensions");
 
             if (save && Made > 0)
@@ -591,6 +599,86 @@ namespace P142.WallFraming
             result.Message = "BASE, CEILING, WALL on " + mark + " (" + block + "), built from its own parts: " +
                              Made + " view(s), " + Failed + " failure(s).";
             Say(result.Message);
+        }
+
+        /// <summary>The parts in the plan extent of a block's own parts (the pod), and that extent.</summary>
+        static List<BPart> PodParts(List<BPart> all, string block, out double x0, out double y0, out double x1, out double y1, out int ownCount)
+        {
+            var own = all.FindAll(p => p.Block == block);
+            ownCount = own.Count;
+            double a0 = double.MaxValue, b0 = double.MaxValue, a1 = double.MinValue, b1 = double.MinValue;
+            foreach (var p in own) { a0 = Math.Min(a0, p.Min[0]); b0 = Math.Min(b0, p.Min[1]); a1 = Math.Max(a1, p.Max[0]); b1 = Math.Max(b1, p.Max[1]); }
+            x0 = a0; y0 = b0; x1 = a1; y1 = b1;
+            return all.FindAll(p =>
+            {
+                double cx = (p.Min[0] + p.Max[0]) / 2, cy = (p.Min[1] + p.Max[1]) / 2;
+                return cx >= a0 - 1 && cx <= a1 + 1 && cy >= b0 - 1 && cy <= b1 + 1;
+            });
+        }
+
+        /// <summary>The floor-level wall lines of the pod: its BOTTOM_TRACKs (raised vanity tracks left out).</summary>
+        static List<WfSectionRules.WallLine> WallLines(List<BPart> pod, double baseTop)
+        {
+            var res = new List<WfSectionRules.WallLine>();
+            foreach (var p in pod)
+            {
+                if (p.Name != "BOTTOM_TRACK" || p.Min[2] > baseTop + 200) continue;
+                bool alongY = p.Max[1] - p.Min[1] > p.Max[0] - p.Min[0];
+                double cx = (p.Min[0] + p.Max[0]) / 2, cy = (p.Min[1] + p.Max[1]) / 2;
+                res.Add(alongY ? new WfSectionRules.WallLine { X0 = cx, X1 = cx, Y0 = p.Min[1], Y1 = p.Max[1] }
+                               : new WfSectionRules.WallLine { Y0 = cy, Y1 = cy, X0 = p.Min[0], X1 = p.Max[0] });
+                res[res.Count - 1].Ledge = p.Asm.ToUpperInvariant().Contains("-LW");
+            }
+            return res;
+        }
+
+        /// <summary>
+        /// The section cuts of a block, from the model (for the SECTIONAL ELEVATION macro):
+        /// the cuts, the pod's part ids, its global extent (x0, y0, z0, x1, y1, z1).  Null when the block has no wall.
+        /// </summary>
+        public static List<WfSectionRules.Cut> PodSections(TSM.Model model, string block, out ArrayList partIds, out double[] extent)
+        {
+            double x0, y0, x1, y1; int own;
+            var pod = PodParts(ReadParts(model), WfRules.NormaliseBlock(block), out x0, out y0, out x1, out y1, out own);
+            partIds = new ArrayList();
+            double z0 = double.MaxValue, z1 = double.MinValue, baseTop = double.MaxValue;
+            foreach (var p in pod)
+            {
+                partIds.Add(p.Part.Identifier);
+                z0 = Math.Min(z0, p.Min[2]); z1 = Math.Max(z1, p.Max[2]);
+                if (p.Name == "BOTTOM_TRACK") baseTop = Math.Min(baseTop, p.Min[2]);
+            }
+            extent = new[] { x0, y0, z0, x1, y1, z1 };
+            if (own == 0 || baseTop == double.MaxValue) return null;
+            return WfSectionRules.SectionCuts(WallLines(pod, baseTop), x0, y0, x1, y1);
+        }
+
+        /// <summary>
+        /// Puts the section marks on the base plan, with the properties of a section
+        /// mark of the house-style base plan (name changed).  Returns how many were placed.
+        /// </summary>
+        static int SectionMarks(View v, View style, List<WfSectionRules.Cut> cuts)
+        {
+            SectionMarkBase.SectionMarkAttributes sa = null;
+            if (style != null)
+            {
+                DrawingObjectEnumerator en = style.GetAllObjects(typeof(SectionMark));
+                if (en.MoveNext() && en.Current != null) sa = ((SectionMark)en.Current).Attributes;
+            }
+            Say("     section mark properties: " + (sa != null ? "house style ('" + style.Name + "')" : "standard"));
+            Matrix toView = MatrixFactory.ToCoordinateSystem(v.DisplayCoordinateSystem);
+            int n = 0;
+            foreach (var c in cuts)
+            {
+                if (sa == null) sa = new SectionMarkBase.SectionMarkAttributes();
+                sa.MarkName = c.Name;
+                var sm = new SectionMark(v, toView.Transform(new Point(c.LeftX, c.LeftY, 0)), toView.Transform(new Point(c.RightX, c.RightY, 0)), sa);
+                bool ok = sm.Insert();
+                if (ok) n++; else Failed++;
+                Say("     " + (ok ? "OK   " : "FAIL ") + c.Name + " looks " + (c.Look > 0 ? "+" : "-") + c.Axis + " at the wall line " + F1(c.Target) +
+                    ", mark line " + F1(c.At) + " (" + F1(c.Ahead) + " in front)");
+            }
+            return n;
         }
 
         /// <summary>

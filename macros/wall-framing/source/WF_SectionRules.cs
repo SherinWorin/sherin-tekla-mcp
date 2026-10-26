@@ -156,6 +156,161 @@ namespace P142.WallFraming
             return best;
         }
 
+        // ------------------------------------------------------------ where the sections cut
+        // Learned 2026-10-26 from the S marks of the 19 BASE, CEILING, WALL drawings of
+        // RIV-MAR-3-R00 (BP01 ... BP10M, built independently - no twin is read):
+        //   * every pod gets four "inside-out" sections, one looking at each outer
+        //     wall line (-x, +x, -y, +y);
+        //   * plus one per full-length partition (an inner wall line spanning >= 55 %
+        //     of the pod, > 200 mm from the outer lines; lines closer than 300 mm
+        //     are one partition), seen from the larger room;
+        //   * a pod without partitions, with a ledge wall (-LW) that has returns
+        //     along y: one more cut on the ledge, looking at the nearest inner wall.
+        // 16 of 19 reference plans match exactly, the other 3 differ by one extra
+        // cut or its direction.
+
+        /// <summary>A wall line (bottom track, global plan mm).</summary>
+        public sealed class WallLine
+        {
+            /// <summary>Start / end.</summary>
+            public double X0, Y0, X1, Y1;
+            /// <summary>True for a ledge (vanity) wall - assembly position ...-LWn.</summary>
+            public bool Ledge;
+        }
+
+        /// <summary>One section cut, its mark line and the wall it looks at.</summary>
+        public sealed class Cut
+        {
+            /// <summary>S1, S2 ...</summary>
+            public string Name;
+            /// <summary>'x' (the cut looks along x) or 'y'.</summary>
+            public char Axis;
+            /// <summary>+1 / -1: the look direction along the axis.</summary>
+            public int Look;
+            /// <summary>The viewed wall line (along the axis) and the mark line position.</summary>
+            public double Target, At;
+            /// <summary>The section mark: left point -> right point (look = left->right turned +90 degrees).</summary>
+            public double LeftX, LeftY, RightX, RightY;
+            /// <summary>Distance from the mark line to the viewed wall line.</summary>
+            public double Ahead { get { return Math.Abs(Target - At); } }
+        }
+
+        /// <summary>The mark line runs past the pod by this much at both ends.</summary>
+        public const double MarkOverhang = 80;
+
+        /// <summary>
+        /// The section cuts of a pod from its wall lines and plan extent (global).
+        /// Always at least four; named S1 ... in the reference order (the axis of
+        /// the extra cut first, its outer cut S1; then -, + of the other axis; extras last).
+        /// </summary>
+        public static List<Cut> SectionCuts(IList<WallLine> walls, double ex0, double ey0, double ex1, double ey1)
+        {
+            var outer = new List<Cut>();
+            var extra = new List<Cut>();
+            foreach (char ax in new[] { 'x', 'y' })
+            {
+                // walls across the axis: for 'x' the walls running along y
+                var perp = new List<double[]>();     // c, lo, hi
+                foreach (var w in walls)
+                {
+                    bool alongY = Math.Abs(w.X1 - w.X0) < Math.Abs(w.Y1 - w.Y0);
+                    if ((ax == 'x') != alongY) continue;
+                    perp.Add(ax == 'x' ? new[] { (w.X0 + w.X1) / 2, Math.Min(w.Y0, w.Y1), Math.Max(w.Y0, w.Y1) }
+                                       : new[] { (w.Y0 + w.Y1) / 2, Math.Min(w.X0, w.X1), Math.Max(w.X0, w.X1) });
+                }
+                double e0 = ax == 'x' ? ex0 : ey0, e1 = ax == 'x' ? ex1 : ey1;
+                double cmin = e0, cmax = e1;
+                if (perp.Count > 0)
+                {
+                    cmin = double.MaxValue; cmax = double.MinValue;
+                    foreach (var p in perp) { cmin = Math.Min(cmin, p[0]); cmax = Math.Max(cmax, p[0]); }
+                }
+                double span = ax == 'x' ? ey1 - ey0 : ex1 - ex0;
+                var inner = new List<double>();
+                foreach (var p in perp)
+                    if (p[0] - cmin > 200 && cmax - p[0] > 200 && p[2] - p[1] >= 0.55 * span) inner.Add(Math.Round(p[0]));
+                inner.Sort();
+                var parts = new List<double>();
+                foreach (double c in inner) if (parts.Count == 0 || c - parts[parts.Count - 1] > 300) parts.Add(c);
+                var bounds = new List<double> { cmin }; bounds.AddRange(parts); bounds.Add(cmax);
+
+                outer.Add(new Cut { Axis = ax, Look = -1, Target = cmin, At = cmin + Front(bounds[1] - cmin, false) });
+                outer.Add(new Cut { Axis = ax, Look = +1, Target = cmax, At = cmax - Front(cmax - bounds[bounds.Count - 2], false) });
+                for (int i = 0; i < parts.Count; i++)
+                {
+                    double c = parts[i], left = c - bounds[i], right = bounds[i + 2] - c;
+                    // seen from the larger room
+                    if (right >= left) extra.Add(new Cut { Axis = ax, Look = -1, Target = c, At = c + Front(right, true) });
+                    else extra.Add(new Cut { Axis = ax, Look = +1, Target = c, At = c - Front(left, true) });
+                }
+            }
+            if (extra.Count == 0) extra.AddRange(LedgeCut(walls));
+
+            // order: the axis of the first extra first, its outer cut with the same look as S1
+            char first = extra.Count > 0 ? extra[0].Axis : 'x';
+            int firstLook = extra.Count > 0 ? extra[0].Look : +1;
+            var res = new List<Cut>();
+            res.Add(outer.Find(c => c.Axis == first && c.Look == firstLook));
+            res.Add(outer.Find(c => c.Axis == first && c.Look == -firstLook));
+            res.Add(outer.Find(c => c.Axis != first && c.Look == -1));
+            res.Add(outer.Find(c => c.Axis != first && c.Look == +1));
+            res.AddRange(extra);
+            for (int i = 0; i < res.Count; i++)
+            {
+                Cut c = res[i];
+                c.Name = "S" + (i + 1);
+                double lo = (c.Axis == 'x' ? ey0 : ex0) - MarkOverhang, hi = (c.Axis == 'x' ? ey1 : ex1) + MarkOverhang;
+                // left -> right turned +90 degrees is the look direction
+                if (c.Axis == 'x')
+                {
+                    c.LeftX = c.RightX = c.At;
+                    c.LeftY = c.Look > 0 ? hi : lo; c.RightY = c.Look > 0 ? lo : hi;
+                }
+                else
+                {
+                    c.LeftY = c.RightY = c.At;
+                    c.LeftX = c.Look > 0 ? lo : hi; c.RightX = c.Look > 0 ? hi : lo;
+                }
+            }
+            return res;
+        }
+
+        /// <summary>How far in front of the viewed wall the mark line sits (room = depth of the room it is in).</summary>
+        static double Front(double room, bool partition)
+        {
+            double f = partition ? room * 0.2 : room * 0.45;
+            return Math.Max(150, Math.Min(partition ? 300 : 900, f));
+        }
+
+        /// <summary>The ledge-wall cut of a pod without partitions (along x only, as on the reference).</summary>
+        static List<Cut> LedgeCut(IList<WallLine> walls)
+        {
+            var res = new List<Cut>();
+            var returns = new List<double>(); var main = new List<double>();
+            foreach (var w in walls)
+            {
+                if (Math.Abs(w.X1 - w.X0) >= 1) continue;          // returns / walls running along y
+                (w.Ledge ? returns : main).Add(w.X0);
+            }
+            if (returns.Count == 0 || main.Count == 0) return res;
+            returns.Sort(); main.Sort();
+            double mid = (returns[0] + returns[returns.Count - 1]) / 2, cmin = main[0], cmax = main[main.Count - 1];
+            double best = double.NaN;
+            foreach (double x in main)
+                if (x - cmin > 200 && cmax - x > 200 && (double.IsNaN(best) || Math.Abs(x - mid) < Math.Abs(best - mid))) best = x;
+            if (double.IsNaN(best)) return res;
+            res.Add(new Cut { Axis = 'x', Look = best > mid ? +1 : -1, Target = best, At = mid });
+            return res;
+        }
+
+        /// <summary>The look direction of a mark (left -> right turned +90 degrees): "+x", "-x", "+y" or "-y".</summary>
+        public static string LookOf(double lx, double ly, double rx, double ry)
+        {
+            double nx = -(ry - ly), ny = rx - lx;
+            if (Math.Abs(nx) > Math.Abs(ny)) return nx > 0 ? "+x" : "-x";
+            return ny > 0 ? "+y" : "-y";
+        }
+
         /// <summary>The block of a drawing name: the part before the first dash.</summary>
         public static string BlockOfName(string name)
         {

@@ -1,4 +1,20 @@
-// WF_Section.cs - SECTIONAL ELEVATION macro, STUDY (read-only) edition.  Tekla Structures 2025.
+// WF_Section.cs - SECTIONAL ELEVATION macro.  Tekla Structures 2025.
+//
+// CREATE (2026-10-26): on a SECTIONAL ELEVATION drawing (e.g. BP20M-20001) that
+// holds no view, or only views this macro made (REBUILD after a YES), it builds
+// one section view per S mark of the block, looking inside-out:
+//   * the S marks are read (not opened) from the block's BASE, CEILING, WALL
+//     drawing (-10001, placed there by P142_BASE_C_W); without marks the cuts
+//     come from the same rule (WfSectionRules.SectionCuts on the pod's walls);
+//   * view X = mark left -> right, view Y = global Z; the box runs from the
+//     mark line to just behind the viewed wall (+150), over the pod height;
+//   * the parts = every part of the pod; the view properties come from a
+//     finished sectional elevation (house style, BP02M-20001 first); the
+//     views go into the template panes S1 ... S5 (more: right of the sheet);
+//   * colour code, no part / weld marks.  Notes and dimensions: not yet.
+// It writes ONLY into the open drawing, never switches drawings, never
+// touches the model.  Anything else (issued / frozen drawing, a finished
+// sectional elevation, a BASE, CEILING, WALL drawing) gets the READ-ONLY study:
 //
 // On a BASE, CEILING, WALL drawing it also writes WF_BCW_survey.txt: a read-only
 // survey of EVERY BASE, CEILING, WALL drawing of the model (section marks in
@@ -66,6 +82,12 @@ namespace P142.WallFraming
         /// <summary>Reads the open drawing and writes the dump file.</summary>
         public static void Execute(Drawing dr, WfSectionResult result, bool save)
         {
+            if (dr != null && IsSectionDrawing(dr) && !(dr.IsFrozen || dr.IsIssued || dr.IsIssuedButModified))
+            {
+                var vs = AllViews(dr.GetSheet());
+                var ours = vs.FindAll(IsOurs);
+                if (ours.Count == vs.Count) { Create(dr, result, save, ours); return; }
+            }
             Out = new StringBuilder();
             string path = "";
             try
@@ -105,6 +127,220 @@ namespace P142.WallFraming
         }
 
         static void W(string s) { Out.AppendLine(s); }
+
+        // ================================================================ CREATE
+        /// <summary>User property written on every view the macro creates.</summary>
+        public const string TAG_PROP = "P142_WF_SEC";
+        const double BEHIND = 150, ABOVE = 50, DEFAULT_SCALE = 15;
+
+        static bool IsSectionDrawing(Drawing d)
+        {
+            if (d == null) return false;
+            foreach (string t in new[] { d.Title1, d.Title2, d.Title3, d.Name })
+                if (!string.IsNullOrEmpty(t) && t.IndexOf(WfSectionRules.SectionTitle, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            return false;
+        }
+
+        static bool IsOurs(View v)
+        {
+            string val = "";
+            try { v.GetUserProperty(TAG_PROP, ref val); } catch (Exception) { }
+            return val == "1";
+        }
+
+        static void Create(Drawing dr, WfSectionResult result, bool save, List<View> ours)
+        {
+            var log = new StringBuilder();
+            int made = 0, failed = 0;
+            try
+            {
+                if (ours.Count > 0)
+                {
+                    if (MessageBox.Show("Drawing " + dr.Mark + " already holds " + ours.Count + " section view(s) made by this macro.\n\n" +
+                                        "YES = delete them and create them again.\nNO / CANCEL = do nothing.",
+                                        "P142 Sectional elevation", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question) != DialogResult.Yes)
+                    { result.Ok = true; result.Message = "Nothing done."; return; }
+                    int del = 0;
+                    foreach (View v in ours) if (v.Delete()) del++;
+                    dr.CommitChanges("P142 section views deleted for rebuild");
+                    log.AppendLine("REBUILD: " + del + " view(s) made by this macro deleted");
+                }
+                TSM.Model model = new TSM.Model();
+                if (!model.GetConnectionStatus()) { result.Ok = false; result.Message = "No connection to the Tekla model."; return; }
+                string block = WfRules.NormaliseBlock(WfSectionRules.BlockOfName(dr.Name));
+                ArrayList ids; double[] ext;
+                var cuts = WfBaseCwCore.PodSections(model, block, out ids, out ext);
+                if (cuts == null) { result.Ok = false; result.Message = "Block " + block + " has no wall BOTTOM_TRACK in the model - nothing done."; return; }
+                log.AppendLine("drawing " + dr.Mark + " " + dr.Name + ", block " + block + ": " + ids.Count + " part(s), z " + ext[2].ToString("0", Inv) + " .. " + ext[5].ToString("0", Inv));
+                cuts = MarksOf(block, cuts, ext, log);
+
+                View style = null; var styles = StyleViews(dr, log);
+                ContainerView sheet = dr.GetSheet();
+                var views = new List<View>(); var centres = new List<double[]>();
+                foreach (var c in cuts)
+                {
+                    try
+                    {
+                        Vector x = new Vector(c.RightX - c.LeftX, c.RightY - c.LeftY, 0);
+                        double len = x.GetLength();
+                        var cs = new CoordinateSystem(new Point(c.LeftX, c.LeftY, 0), x, new Vector(0, 0, 1));
+                        View v = new View(sheet, cs, cs, ids);
+                        if (!v.Insert()) { failed++; log.AppendLine("FAIL " + c.Name + ": Insert() returned false"); continue; }
+                        v.SetUserProperty(TAG_PROP, "1");
+                        if (styles.TryGetValue(c.Name, out style) || styles.TryGetValue("", out style))
+                        {
+                            try { v.Attributes = style.Attributes; } catch (Exception ex) { log.AppendLine("     properties not taken: " + ex.Message); }
+                        }
+                        else { var a = new View.ViewAttributes(); a.Scale = DEFAULT_SCALE; v.Attributes = a; }
+                        v.Name = c.Name;
+                        // the viewer looks along -Z of the view = the look direction: the viewed wall is at z = -Ahead
+                        v.RestrictionBox = new AABB(new Point(0, ext[2] - ABOVE, -(c.Ahead + BEHIND)), new Point(len, ext[5] + ABOVE, ABOVE));
+                        v.Modify();
+                        views.Add(v);
+                        WfSectionPane pane = WfSectionRules.PaneOf(c.Name);
+                        int extra = views.Count - 6;
+                        centres.Add(pane != null ? new[] { pane.CentreX, pane.CentreY } : new[] { 780.0, 434.1 - 150 * Math.Max(0, extra) });
+                        made++;
+                        log.AppendLine("OK   " + c.Name + " looks " + (c.Look > 0 ? "+" : "-") + c.Axis + ", " + len.ToString("0", Inv) + " long, depth " +
+                                       (c.Ahead + BEHIND).ToString("0", Inv) + (pane == null ? " (no template pane: right of the sheet)" : ""));
+                    }
+                    catch (Exception ex) { failed++; log.AppendLine("FAIL " + c.Name + ": " + ex.GetType().Name + ": " + ex.Message); }
+                }
+                dr.CommitChanges("P142 section views");
+                Place(dr, views, centres);
+
+                int gone = 0;
+                for (int pass = 0; pass < 4; pass++)
+                {
+                    System.Threading.Thread.Sleep(1500);
+                    int n = 0;
+                    foreach (View v in views) n += RemoveAll(v, typeof(Mark), typeof(WeldMark), typeof(Weld));
+                    gone += n;
+                    if (n > 0) dr.CommitChanges("P142 section marks removed"); else if (pass > 0) break;
+                }
+                log.AppendLine(gone + " automatic part / weld mark(s) removed");
+                foreach (View v in views)
+                {
+                    var per = new Dictionary<string, int>();
+                    try { log.AppendLine("colours " + v.Name + ": " + WfIsometricCore.ColourParts(v, model, per) + " part(s)"); }
+                    catch (Exception ex) { log.AppendLine("colours " + v.Name + " not applied: " + ex.Message); }
+                }
+                dr.CommitChanges("P142 section colours");
+                Place(dr, views, centres);
+                if (save && made > 0) { try { new DrawingHandler().SaveActiveDrawing(); } catch (Exception) { } }
+                result.Ok = failed == 0;
+                result.Message = "SECTIONAL ELEVATION " + dr.Mark + " (" + block + "): " + made + " section view(s), " + failed + " failure(s).";
+            }
+            catch (Exception e) { failed++; result.Ok = false; result.Message = "The macro stopped: " + e.GetType().Name + ": " + e.Message; }
+            result.Made = made; result.Failed = failed;
+            result.Log = log.ToString();
+            try
+            {
+                string f = Path.Combine(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "P142"), "WallFraming");
+                File.WriteAllText(Path.Combine(f, "WF_Section_log.txt"), result.Message + "\r\n" + result.Log);
+            }
+            catch (Exception) { }
+            MessageBox.Show("P142_WF_Section: " + result.Message + "\n\n" + (result.Log.Length > 5000 ? result.Log.Substring(0, 5000) : result.Log),
+                            "P142 Sectional elevation", MessageBoxButtons.OK, result.Ok ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+
+        /// <summary>
+        /// The S marks of the block's BASE, CEILING, WALL drawing (read, not opened), as cuts:
+        /// the viewed wall = the rule cut looking the same way whose wall lies ahead
+        /// (else the pod edge).  No marks there: the rule's own cuts.
+        /// </summary>
+        static List<WfSectionRules.Cut> MarksOf(string block, List<WfSectionRules.Cut> rule, double[] ext, StringBuilder log)
+        {
+            var res = new List<WfSectionRules.Cut>();
+            DrawingEnumerator de = new DrawingHandler().GetDrawings();
+            while (de.MoveNext() && res.Count == 0)
+            {
+                Drawing d = de.Current;
+                if (!IsMarksDrawing(d) || WfRules.NormaliseBlock(WfSectionRules.BlockOfName(d.Name)) != block) continue;
+                foreach (View v in AllViews(d.GetSheet()))
+                {
+                    DrawingObjectEnumerator en = v.GetAllObjects(typeof(SectionMark));
+                    while (en.MoveNext())
+                    {
+                        SectionMark sm = en.Current as SectionMark;
+                        if (sm == null) continue;
+                        Point l = ToGlobal(v.DisplayCoordinateSystem, sm.LeftPoint), r = ToGlobal(v.DisplayCoordinateSystem, sm.RightPoint);
+                        string look = WfSectionRules.LookOf(l.X, l.Y, r.X, r.Y);
+                        var c = new WfSectionRules.Cut { Name = (sm.Attributes.MarkName ?? "").Trim(), Axis = look[1], Look = look[0] == '+' ? 1 : -1,
+                                                         LeftX = l.X, LeftY = l.Y, RightX = r.X, RightY = r.Y };
+                        c.At = c.Axis == 'x' ? (l.X + r.X) / 2 : (l.Y + r.Y) / 2;
+                        // the nearest rule wall ahead, else the pod edge
+                        c.Target = c.Axis == 'x' ? (c.Look > 0 ? ext[3] : ext[0]) : (c.Look > 0 ? ext[4] : ext[1]);
+                        foreach (var k in rule)
+                            if (k.Axis == c.Axis && k.Look == c.Look && (k.Target - c.At) * c.Look > 50 && Math.Abs(k.Target - c.At) < c.Ahead) c.Target = k.Target;
+                        res.Add(c);
+                    }
+                }
+                if (res.Count > 0) log.AppendLine(res.Count + " S mark(s) read from " + d.Mark + " " + d.Name);
+            }
+            if (res.Count == 0) { log.AppendLine("no S mark on the block's BASE, CEILING, WALL drawing - the cuts come from the section rule (" + rule.Count + ")"); return rule; }
+            res.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+            return res;
+        }
+
+        /// <summary>House style: the section views of a finished sectional elevation, by name ("" = any).</summary>
+        static Dictionary<string, View> StyleViews(Drawing current, StringBuilder log)
+        {
+            var res = new Dictionary<string, View>(StringComparer.OrdinalIgnoreCase);
+            var list = new List<Drawing>();
+            DrawingEnumerator de = new DrawingHandler().GetDrawings();
+            while (de.MoveNext()) if (de.Current != null && de.Current.Mark != current.Mark && IsSectionDrawing(de.Current)) list.Add(de.Current);
+            list.Sort((a, b) => (Array.IndexOf(WfSectionRules.PreferredReferences, b.Name) >= 0).CompareTo(Array.IndexOf(WfSectionRules.PreferredReferences, a.Name) >= 0));
+            foreach (Drawing d in list)
+            {
+                try
+                {
+                    foreach (View v in AllViews(d.GetSheet()))
+                    {
+                        if (IsOurs(v)) continue;
+                        string n = (v.Name ?? "").Trim();
+                        if (!res.ContainsKey(n)) res[n] = v;
+                        if (!res.ContainsKey("")) res[""] = v;
+                    }
+                }
+                catch (Exception) { }
+                if (res.Count > 1) { log.AppendLine("house style: the views of " + d.Mark + " " + d.Name); break; }
+            }
+            if (res.Count == 0) log.AppendLine("no finished sectional elevation in the model - default view properties 1:" + DEFAULT_SCALE);
+            return res;
+        }
+
+        static int RemoveAll(View v, params Type[] types)
+        {
+            var list = new List<DrawingObject>();
+            DrawingObjectEnumerator en = v.GetAllObjects(types);
+            while (en.MoveNext()) if (en.Current != null) list.Add(en.Current);
+            int n = 0;
+            foreach (DrawingObject o in list) { try { if (o.Delete()) n++; } catch (Exception) { } }
+            return n;
+        }
+
+        /// <summary>Moves each view so its frame centre is on its pane centre (a few passes).</summary>
+        static void Place(Drawing dr, List<View> views, List<double[]> centres)
+        {
+            for (int pass = 0; pass < 3; pass++)
+            {
+                bool moved = false;
+                for (int i = 0; i < views.Count; i++)
+                {
+                    View v = views[i];
+                    try { v.Select(); } catch (Exception) { }
+                    Vector fo = v.FrameOrigin;
+                    double fx = v.Origin.X + (fo == null ? 0 : fo.X) + v.Width / 2.0, fy = v.Origin.Y + (fo == null ? 0 : fo.Y) + v.Height / 2.0;
+                    if (Math.Abs(fx - centres[i][0]) <= 1 && Math.Abs(fy - centres[i][1]) <= 1) continue;
+                    v.Origin = new Point(v.Origin.X + centres[i][0] - fx, v.Origin.Y + centres[i][1] - fy, 0);
+                    v.Modify();
+                    moved = true;
+                }
+                dr.CommitChanges("P142 section views placed");
+                if (!moved) break;
+            }
+        }
 
         /// <summary>
         /// Every view of a container, including the views inside a ContainerView
