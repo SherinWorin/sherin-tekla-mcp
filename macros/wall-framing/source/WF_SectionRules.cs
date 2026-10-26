@@ -311,6 +311,27 @@ namespace P142.WallFraming
             return ny > 0 ? "+y" : "-y";
         }
 
+        /// <summary>One drawing of a pod's drawing set: name suffix, titles 2 / 3, sheet size (mm).</summary>
+        public sealed class PodDrawingKind
+        {
+            /// <summary>Name suffix (BP20M-<b>10001</b>).</summary>
+            public string Suffix, Title2, Title3;
+            /// <summary>Sheet size.</summary>
+            public double Width, Height;
+            /// <summary>The GA properties file the owner saves from the reference drawing once per model.</summary>
+            public string SettingsFile { get { return "P142_" + Suffix; } }
+        }
+
+        /// <summary>The drawing set of a pod (BP20M, made by the owner 2026-10-26).</summary>
+        public static readonly PodDrawingKind[] PodDrawings =
+        {
+            new PodDrawingKind { Suffix = "10001", Title2 = "BASE, CEILING, WALL", Title3 = "FRAMING LAYOUT", Width = 841, Height = 594 },
+            new PodDrawingKind { Suffix = "20001", Title2 = "SECTIONAL ELEVATION", Title3 = "", Width = 841, Height = 594 },
+            new PodDrawingKind { Suffix = "80001", Title2 = "ISOMETRIC VIEW", Title3 = "3D", Width = 841, Height = 594 },
+            new PodDrawingKind { Suffix = "CPL", Title2 = "CEILING FRAMING LAYOUT", Title3 = "", Width = 420, Height = 297 },
+            new PodDrawingKind { Suffix = "WPL", Title2 = "WALL FRAMING LAYOUT", Title3 = "", Width = 420, Height = 297 },
+        };
+
         /// <summary>
         /// Replaces the pod name <paramref name="from"/> by <paramref name="to"/> where it stands
         /// as a whole word ("BP02" is not replaced inside "BP02M"); case-insensitive.

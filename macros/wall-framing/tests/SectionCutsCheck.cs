@@ -31,4 +31,6 @@ class C {
     l.Add(new WL { X0 = 600, Y0 = 2700, X1 = 600, Y1 = 2400, Ledge = true }); l.Add(new WL { X0 = 1000, Y0 = 2700, X1 = 1000, Y1 = 2400, Ledge = true });
     var d = WfSectionRules.SectionCuts(l, 0, 0, 3000, 2800);
     T(d.Count == 5 && d[4].Axis == 'x' && d[4].Look == +1 && d[4].At == 800 && d[4].Target == 1500, "ledge cut on the ledge middle, toward the inner wall " + Sig(d));
+    T(WfSectionRules.ReplacePod("BP02M-10001 BP02 X", "BP02", "BP21") == "BP02M-10001 BP21 X", "pod name replaced as a whole word only");
+    T(WfSectionRules.PodDrawings.Length == 5 && WfSectionRules.PodDrawings[3].SettingsFile == "P142_CPL", "pod drawing set");
     Console.WriteLine(f == 0 ? "SECTION CUTS CHECK PASSED" : "SECTION CUTS CHECK FAILED"); return f; } }
