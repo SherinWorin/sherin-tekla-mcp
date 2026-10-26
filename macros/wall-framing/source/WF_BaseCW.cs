@@ -35,8 +35,7 @@
 //      drawing of the model (house style only, no geometry); none -> Tekla's
 //      default properties at scale 1:15.
 //   4. DIMENSIONS - the dimension engines:
-//        base plan    -> WfCeilDim.DimensionBase (outline steps, overall,
-//                        member chains, inner members - BP07-10001 rules)
+//        base plan    -> WfBfDim (the P142_BF_AutoDimension engine)
 //        ceiling plan -> WfCeilDim (rules from the 19 reference ceiling plans)
 //        wall plan    -> WfCore.DimensionViewAioRun (WallFramingAutoDimensionPro-
 //                        AIO: bays, bands, top outline, overall, north run,
@@ -103,7 +102,9 @@ namespace P142.WallFraming
         const double WALL_CX = 202.9, WALL_CY = 145.3;      // wall framing plan, bottom-left
 
         // the view boxes, relative to the levels read from the model (from [78])
-        const double WALL_BELOW = 326, WALL_ABOVE = 34;     // around the base top
+        // around the main wall tracks; above the track tops (C63*40: +40), else Tekla
+        // draws the cut 0.7 mm track flanges as nothing (BP20M run 2026-10-26)
+        const double WALL_BELOW = 326, WALL_ABOVE = 300;
         const double CEIL_BELOW = 50;                       // view plane under the lowest ceiling part
         const double CEIL_HANG = 20;                        // gypsum under the ceiling beams
         const double MARGIN = 100;                          // plan margin of the boxes
@@ -510,8 +511,9 @@ namespace P142.WallFraming
                     else
                     {
                         var bl = new StringBuilder(); int bf;
+                        // base plan: the P142_BF_AutoDimension engine (owner, 2026-10-26)
                         int n = role == ROLE_CEIL ? WfCeilDim.DimensionView(v, dr, bl, plans[i].Ids, out bf)
-                                                  : WfCeilDim.DimensionBase(v, dr, bl, plans[i].Ids, out bf);
+                                                  : WfBfDim.DimensionView(v, dr, bl, plans[i].Ids, out bf);
                         Say("DIM  " + role + ": " + n + " created, " + bf + " failed");
                         Say(Indent(bl.ToString()));
                         Failed += bf;
