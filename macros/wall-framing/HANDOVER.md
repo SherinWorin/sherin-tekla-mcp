@@ -37,7 +37,8 @@ Order for a new pod: P142_POD_DRAWINGS → -10001 P142_BASE_C_W → -20001 P142_
 - Sources: `macros/wall-framing/source/`. Windows build: `source\build.ps1` (csc). In the Linux container: mono `mcs -sdk:4.5` against the 2025 DLLs, e.g. WF_SectionRules → WF_BaseCW (refs Rules, License, Core, Isometric, IsometricRules, SectionRules) → WF_Section (refs SectionRules, Rules, BaseCW, Isometric, IsometricRules).
 - Checks: `tests/LoaderSignatureCheck.cs` (run in the DLL folder: ALL CHECKS PASSED), `tests/SectionCutsCheck.cs`, `tests/ColourCodeCheck.cs`, `tests/SnapPointsCheck.cs`.
 - Install on a PC: loaders `.cs/.bmp` → macro folder (`C:\TeklaStructures\2025.0\Environments\common\macros\drawings` or `<model>\macros\drawings`); DLLs → `%LOCALAPPDATA%\P142\WallFraming`. Loaders load DLLs from bytes on every run (no Tekla restart for DLL changes; a NEW macro needs a restart / Macros dialog to appear).
-- Packages (not in git, contain WF_Pro): `C:\Users\sheri\projects\sherin-tekla-mcp\macros\wall-framing\release\P142_Tekla_Macros_2026-10-26_v2.zip` (install.cmd) and `P142_Office_Macros_2026-10-26_v2.zip` (copy-only, see `INSTALL_OFFICE_PC.txt`).
+- Public office package in git (no Pro DLLs): `macros/wall-framing/dist/P142_Office_PC_2026-10-26_public.zip`.
+- Full packages (not in git, contain WF_Pro): `C:\Users\sheri\projects\sherin-tekla-mcp\macros\wall-framing\release\P142_Tekla_Macros_2026-10-26_v2.zip` (install.cmd) and `P142_Office_Macros_2026-10-26_v2.zip` (copy-only, see `INSTALL_OFFICE_PC.txt`).
 - Per model once: save drawing properties of the reference pod's drawings as `P142_10001`, `P142_20001`, `P142_80001`, `P142_CPL`, `P142_WPL` (done in RIV-MAR-3-R01).
 - Logs: `%LOCALAPPDATA%\P142\WallFraming\WF_BaseCW_log.txt`, `WF_Section_log.txt`, `WF_Isometric_log.txt`; study dumps `WF_Section_dump_<mark>.txt`, `WF_BCW_survey.txt`.
 
