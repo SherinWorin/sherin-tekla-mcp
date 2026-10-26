@@ -408,7 +408,12 @@ namespace P142.WallFraming
             foreach (var p in basePlan.Parts) { bLow = Math.Min(bLow, p.Min[2]); bHigh = Math.Max(bHigh, p.Max[2]); }
             foreach (var p in ceilPlan.Parts) { cLow = Math.Min(cLow, p.Min[2]); cHigh = Math.Max(cHigh, p.Max[2]); }
             basePlan.ZMin = (bLow == double.MaxValue ? baseTop - 150 : bLow) - 1; basePlan.ZMax = (bHigh == double.MinValue ? baseTop : bHigh) + 1;
-            wallPlan.ZMin = baseTop - WALL_BELOW; wallPlan.ZMax = baseTop + WALL_ABOVE;
+            // the wall cut follows the MAIN wall tracks (the highest wall BOTTOM_TRACK):
+            // a ledge wall sits lower (z 36 on BP20M) and would cut the main walls away
+            double wallTrack = baseTop;
+            foreach (var p in pod) if (p.Name == "BOTTOM_TRACK" && p.Min[2] < ceil - 500) wallTrack = Math.Max(wallTrack, p.Min[2]);
+            wallPlan.ZMin = wallTrack - WALL_BELOW; wallPlan.ZMax = wallTrack + WALL_ABOVE;
+            Say("wall cut: main wall tracks at " + F1(wallTrack) + " -> box z " + F1(wallPlan.ZMin) + " .. " + F1(wallPlan.ZMax));
             ceilPlan.Z0 = cLow - CEIL_BELOW; ceilPlan.ZMin = 0; ceilPlan.ZMax = cHigh - ceilPlan.Z0 + 1;
             int gyp = ceilPlan.Parts.FindAll(p => p.Name.Contains("GYPSUM")).Count;
             Say("parts: base " + basePlan.Parts.Count + ", wall " + wallPlan.Parts.Count + ", ceiling " + ceilPlan.Parts.Count +
@@ -529,6 +534,28 @@ namespace P142.WallFraming
                 else if (pass > 0) break;
             }
             Say(late + " late mark / weld object(s) removed");
+
+            // ---- 5. the standard notes of each plan (house standard) + lifting arrows
+            for (int i = 0; i < made.Count; i++)
+            {
+                View v = made[i].Key; string role = plans[i].Role;
+                View sv; style.TryGetValue(role, out sv);
+                var nl = new StringBuilder();
+                try
+                {
+                    if (role == ROLE_WALL)
+                    {
+                        // the reference notes replace the AIO engine's own notes
+                        int gone = WfCore.RemoveTagged<Text>(v, dr);
+                        if (gone > 0) nl.AppendLine("     " + gone + " AIO note(s) replaced by the standard notes");
+                    }
+                    WfBcwNotes.CopyStandard(v, sv, model, nl);
+                    if (role == ROLE_BASE) WfBcwNotes.LiftingArrows(v, sv, model, nl);
+                }
+                catch (Exception ex) { Failed++; nl.AppendLine("FAIL notes: " + ex.GetType().Name + ": " + ex.Message); }
+                Say("NOTES " + role + ":"); Say(nl.ToString().TrimEnd());
+            }
+            dr.CommitChanges("P142 BCW standard notes");
             PlaceAll(dr, made, centres, "after the dimensions");
 
             if (save && Made > 0)
@@ -562,6 +589,7 @@ namespace P142.WallFraming
                         AABB b = v.RestrictionBox;
                         // a pod plan, not the POD LOCATION PLAN of the whole floor
                         if (b == null || b.MaxPoint.X - b.MinPoint.X > POD_MAX || b.MaxPoint.Y - b.MinPoint.Y > POD_MAX) continue;
+                        if (IsOurs(v)) continue;                     // a plan this macro made is not a standard
                         string r = RoleOf(v);
                         if (!res.ContainsKey(r)) { res[r] = v; Say("house style for " + r + ": '" + v.Name + "' of " + d.Mark + " " + d.Name + ", 1:" + v.Attributes.Scale); }
                     }

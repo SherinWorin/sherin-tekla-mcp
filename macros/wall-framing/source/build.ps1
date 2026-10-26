@@ -295,7 +295,7 @@ Invoke-Csc -Refs ($framework + $teklaDlls) `
 
 Write-Output 'Building WF_BaseCW.dll (BASE, CEILING, WALL drawing) ...'
 Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'), (Join-Path $outDir 'WF_Isometric.dll'), (Join-Path $outDir 'WF_IsometricRules.dll'))) `
-            -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs')) `
+            -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs'), (Join-Path $here 'WF_BcwNotes.cs')) `
             -Out (Join-Path $outDir 'WF_BaseCW.dll')
 
 Write-Output 'Building P142_BASE_C_W.dll (the BASE, CEILING, WALL loader) ...'
@@ -413,7 +413,7 @@ function New-Package {
     foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs', 'WF_Settings.cs',
                      'WF_IsometricRules.cs', 'WF_Isometric.cs', 'P142_WF_Isometric.cs',
                      'WF_SectionRules.cs', 'WF_Section.cs', 'P142_WF_Section.cs',
-                     'WF_BaseCW.cs', 'WF_BfDim.cs', 'WF_CeilStudy.cs', 'WF_CeilDim.cs', 'P142_BASE_C_W.cs',
+                     'WF_BaseCW.cs', 'WF_BfDim.cs', 'WF_CeilStudy.cs', 'WF_CeilDim.cs', 'WF_BcwNotes.cs', 'P142_BASE_C_W.cs',
                      'P142_WF_AutoDimension.cs', 'WallFramingAutoDimensionPro-AIO.cs',
                      'WF_KeyGen.cs', 'WF_Settings.json', 'build.ps1')) {
         Copy-Item (Join-Path $here $s) $pkgSrc -Force
