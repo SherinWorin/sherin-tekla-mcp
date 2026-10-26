@@ -14,6 +14,12 @@
 #                                          layout of a GA sheet on its own,
 #                                          and it is free - it asks for no
 #                                          licence key
+#   source/bin/WF_IsometricRules.dll     - the ISOMETRIC VIEW rules, no Tekla dependency
+#   source/bin/WF_Isometric.dll          - the ISOMETRIC VIEW machinery (needs Tekla)
+#   source/bin/P142_WF_Isometric.dll     - the LOADER for ISOMETRIC VIEW macro
+#   source/bin/WF_SectionRules.dll       - the SECTIONAL ELEVATION rules, no Tekla dependency
+#   source/bin/WF_Section.dll            - the SECTIONAL ELEVATION machinery (needs Tekla)
+#   source/bin/P142_WF_Section.dll       - the LOADER for SECTIONAL ELEVATION macro
 #
 # The loader is thin: it holds no rule and no drawing logic.  Everything is
 # in the assemblies above, which are installed in
@@ -270,6 +276,46 @@ Invoke-Csc -Refs ($framework + $teklaDlls) `
             -Source (Join-Path $here 'WallFramingAutoDimensionPro-AIO.cs') `
             -Out (Join-Path $outDir 'WallFramingAutoDimensionPro-AIO.dll')
 
+# ============================================================
+# NEW MACROS: ISOMETRIC VIEW, SECTIONAL ELEVATION, BASE CEILING WALL
+# ============================================================
+
+Write-Output 'Building WF_IsometricRules.dll ...'
+Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_IsometricRules.cs') -Out (Join-Path $outDir 'WF_IsometricRules.dll')
+
+Write-Output 'Building WF_Isometric.dll ...'
+Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_IsometricRules.dll'), (Join-Path $outDir 'WF_Rules.dll'))) `
+            -Source (Join-Path $here 'WF_Isometric.cs') `
+            -Out (Join-Path $outDir 'WF_Isometric.dll')
+
+Write-Output 'Building P142_WF_Isometric.dll (the ISOMETRIC VIEW loader) ...'
+Invoke-Csc -Refs ($framework + $teklaDlls) `
+            -Source (Join-Path $here 'P142_WF_Isometric.cs') `
+            -Out (Join-Path $outDir 'P142_WF_Isometric.dll')
+
+Write-Output 'Building WF_BaseCW.dll (BASE, CEILING, WALL drawing) ...'
+Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'))) `
+            -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs')) `
+            -Out (Join-Path $outDir 'WF_BaseCW.dll')
+
+Write-Output 'Building P142_BASE_C_W.dll (the BASE, CEILING, WALL loader) ...'
+Invoke-Csc -Refs ($framework + $teklaDlls) `
+            -Source (Join-Path $here 'P142_BASE_C_W.cs') `
+            -Out (Join-Path $outDir 'P142_BASE_C_W.dll')
+
+Write-Output 'Building WF_SectionRules.dll ...'
+Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_SectionRules.cs') -Out (Join-Path $outDir 'WF_SectionRules.dll')
+
+Write-Output 'Building WF_Section.dll ...'
+Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_SectionRules.dll'), (Join-Path $outDir 'WF_Rules.dll'))) `
+            -Source (Join-Path $here 'WF_Section.cs') `
+            -Out (Join-Path $outDir 'WF_Section.dll')
+
+Write-Output 'Building P142_WF_Section.dll (the SECTIONAL ELEVATION loader) ...'
+Invoke-Csc -Refs ($framework + $teklaDlls) `
+            -Source (Join-Path $here 'P142_WF_Section.cs') `
+            -Out (Join-Path $outDir 'P142_WF_Section.dll')
+
 $proBuilt = $false
 if ($proPath) {
     Write-Output 'Building WF_Rules_Pro.dll (the Pro rules, no Tekla dependency) ...'
@@ -292,6 +338,11 @@ else {
 # in the build output as well.
 New-IconFile -Path (Join-Path $outDir 'P142_WF_AutoDimension.bmp') -Force
 New-IconFile -Path (Join-Path $outDir 'WallFramingAutoDimensionPro-AIO.bmp') -Force -Red 0 -Green 110 -Blue 60
+
+# Icons for new macros
+New-IconFile -Path (Join-Path $outDir 'P142_WF_Isometric.bmp') -Force -Red 180 -Green 100 -Blue 0
+New-IconFile -Path (Join-Path $outDir 'P142_WF_Section.bmp') -Force -Red 0 -Green 150 -Blue 180
+New-IconFile -Path (Join-Path $outDir 'P142_BASE_C_W.bmp') -Force -Red 200 -Green 40 -Blue 40
 
 # ---------------------------------------------------------------------------
 # The packages.
@@ -335,13 +386,24 @@ function New-Package {
     # the loaders, which the Tekla macro catalog compiles
     Copy-Item (Join-Path $here 'P142_WF_AutoDimension.cs') $pkgSrc -Force
     Copy-Item (Join-Path $here 'WallFramingAutoDimensionPro-AIO.cs') $pkgSrc -Force
+    Copy-Item (Join-Path $here 'P142_WF_Isometric.cs') $pkgSrc -Force
+    Copy-Item (Join-Path $here 'P142_WF_Section.cs') $pkgSrc -Force
+    Copy-Item (Join-Path $here 'P142_BASE_C_W.cs') $pkgSrc -Force
+    Copy-Item (Join-Path $outDir 'P142_BASE_C_W.bmp') $pkgSrc -Force
     # the icons of the macros
     $bmpOut = Join-Path $pkgSrc 'P142_WF_AutoDimension.bmp'
     New-IconFile -Path $bmpOut -Force
     $bmpAio = Join-Path $pkgSrc 'WallFramingAutoDimensionPro-AIO.bmp'
     New-IconFile -Path $bmpAio -Force -Red 0 -Green 110 -Blue 60
+    $bmpIso = Join-Path $pkgSrc 'P142_WF_Isometric.bmp'
+    New-IconFile -Path $bmpIso -Force -Red 180 -Green 100 -Blue 0
+    $bmpSec = Join-Path $pkgSrc 'P142_WF_Section.bmp'
+    New-IconFile -Path $bmpSec -Force -Red 0 -Green 150 -Blue 180
     # the assemblies, which are installed next to the licence
-    foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll')) {
+    foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll',
+                       'WF_Isometric.dll', 'WF_IsometricRules.dll',
+                       'WF_Section.dll', 'WF_SectionRules.dll',
+                       'WF_BaseCW.dll')) {
         Copy-Item (Join-Path $outDir $dll) $pkgSrc -Force
     }
     foreach ($f in $ExtraFiles) {
@@ -349,6 +411,9 @@ function New-Package {
     }
     # the sources and the build script, for a re-build on the other computer
     foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs', 'WF_Settings.cs',
+                     'WF_IsometricRules.cs', 'WF_Isometric.cs', 'P142_WF_Isometric.cs',
+                     'WF_SectionRules.cs', 'WF_Section.cs', 'P142_WF_Section.cs',
+                     'WF_BaseCW.cs', 'WF_BfDim.cs', 'WF_CeilStudy.cs', 'WF_CeilDim.cs', 'P142_BASE_C_W.cs',
                      'P142_WF_AutoDimension.cs', 'WallFramingAutoDimensionPro-AIO.cs',
                      'WF_KeyGen.cs', 'WF_Settings.json', 'build.ps1')) {
         Copy-Item (Join-Path $here $s) $pkgSrc -Force
@@ -444,6 +509,12 @@ if ($Deploy) {
               -Destination (Join-Path $catalog 'P142_WF_AutoDimension.cs') -Force
     Copy-Item -Path (Join-Path $here 'WallFramingAutoDimensionPro-AIO.cs') `
               -Destination (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.cs') -Force
+    Copy-Item -Path (Join-Path $here 'P142_WF_Isometric.cs') `
+              -Destination (Join-Path $catalog 'P142_WF_Isometric.cs') -Force
+    Copy-Item -Path (Join-Path $here 'P142_WF_Section.cs') `
+              -Destination (Join-Path $catalog 'P142_WF_Section.cs') -Force
+    Copy-Item -Path (Join-Path $here 'P142_BASE_C_W.cs') `
+              -Destination (Join-Path $catalog 'P142_BASE_C_W.cs') -Force
 
     # The catalog shows an icon next to the macro; draw a small one if there
     # is none yet.
@@ -457,9 +528,27 @@ if ($Deploy) {
     Write-Output ("  OK  {0}" -f (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.cs'))
     Write-Output ("  OK  {0}" -f $bmpAio)
 
+    $bmpIso = Join-Path $catalog 'P142_WF_Isometric.bmp'
+    New-IconFile -Path $bmpIso -Red 180 -Green 100 -Blue 0
+    Write-Output ("  OK  {0}" -f (Join-Path $catalog 'P142_WF_Isometric.cs'))
+    Write-Output ("  OK  {0}" -f $bmpIso)
+
+    $bmpBcw = Join-Path $catalog 'P142_BASE_C_W.bmp'
+    New-IconFile -Path $bmpBcw -Red 200 -Green 40 -Blue 40
+    Write-Output ("  OK  {0}" -f (Join-Path $catalog 'P142_BASE_C_W.cs'))
+    Write-Output ("  OK  {0}" -f $bmpBcw)
+
+    $bmpSec = Join-Path $catalog 'P142_WF_Section.bmp'
+    New-IconFile -Path $bmpSec -Red 0 -Green 150 -Blue 180
+    Write-Output ("  OK  {0}" -f (Join-Path $catalog 'P142_WF_Section.cs'))
+    Write-Output ("  OK  {0}" -f $bmpSec)
+
     Write-Output 'Deploying the modules ...'
     if (-not (Test-Path $appFolder)) { New-Item -ItemType Directory -Path $appFolder -Force | Out-Null }
-    foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll')) {
+    foreach ($dll in @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll',
+                       'WF_Isometric.dll', 'WF_IsometricRules.dll',
+                       'WF_Section.dll', 'WF_SectionRules.dll',
+                       'WF_BaseCW.dll')) {
         Copy-Item (Join-Path $outDir $dll) $appFolder -Force
         Write-Output ("  OK  {0}" -f (Join-Path $appFolder $dll))
     }

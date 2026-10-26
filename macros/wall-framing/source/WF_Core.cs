@@ -853,6 +853,52 @@ namespace P142.WallFraming
         /// <param name="result">Receives the outcome of the run.</param>
         /// <param name="args">The arguments of the entry point.</param>
         /// <returns>True when the module was called.</returns>
+        static Assembly _proAsm;
+        static string _proFolder = "";
+
+        /// <summary>
+        /// Loads the Pro module so that it binds to THIS WF_Core (and its rules
+        /// and licence assemblies), whatever way this WF_Core was loaded.
+        ///
+        /// Assembly.LoadFrom would let the module bind to a second copy of
+        /// WF_Core.dll from the folder; that copy has its own (empty) static
+        /// state - the panels, the view, the drawing - so the Pro stages would
+        /// draw nothing when this WF_Core was loaded from bytes (P142_BASE_C_W).
+        /// The module is loaded from its bytes and its WF_* references are
+        /// answered with the assemblies already in use.
+        /// </summary>
+        static Assembly LoadPro(string path)
+        {
+            if (_proAsm != null) return _proAsm;
+            _proFolder = Path.GetDirectoryName(path);
+            AppDomain.CurrentDomain.AssemblyResolve -= ResolveForPro;
+            AppDomain.CurrentDomain.AssemblyResolve += ResolveForPro;
+            _proAsm = Assembly.Load(File.ReadAllBytes(path));
+            return _proAsm;
+        }
+
+        static readonly Dictionary<string, Assembly> _proDeps = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
+
+        static Assembly ResolveForPro(object sender, ResolveEventArgs args)
+        {
+            // answer ONLY the Pro module and its own dependencies: a handler of an
+            // earlier run stays registered and must not answer a later run
+            Assembly req = args.RequestingAssembly;
+            if (req == null || _proAsm == null || (req != _proAsm && !_proDeps.ContainsValue(req))) return null;
+            string name = new AssemblyName(args.Name).Name;
+            if (string.Equals(name, "WF_Core", StringComparison.OrdinalIgnoreCase)) return typeof(WfCore).Assembly;
+            if (string.Equals(name, "WF_Rules", StringComparison.OrdinalIgnoreCase)) return typeof(WfRules).Assembly;
+            if (string.Equals(name, "WF_License", StringComparison.OrdinalIgnoreCase)) return typeof(WfLicense).Assembly;
+            if (!name.StartsWith("WF_", StringComparison.OrdinalIgnoreCase)) return null;
+            Assembly a;
+            if (_proDeps.TryGetValue(name, out a)) return a;
+            string f = Path.Combine(_proFolder, name + ".dll");
+            if (!File.Exists(f)) return null;
+            a = Assembly.Load(File.ReadAllBytes(f));
+            _proDeps[name] = a;
+            return a;
+        }
+
         static bool CallPro(string entry, WfResult result, object[] args)
         {
             try
@@ -863,7 +909,7 @@ namespace P142.WallFraming
                     ProNote(result, "the Pro module is not installed");
                     return false;
                 }
-                Assembly asm = Assembly.LoadFrom(path);
+                Assembly asm = LoadPro(path);
                 Type t = asm.GetType("P142.WallFraming.WfPro");
                 if (t == null)
                 {
@@ -1166,6 +1212,43 @@ namespace P142.WallFraming
                 Say("no plan view was found in this drawing - it is left alone");
                 return false;
             }
+            return DimensionView(view, dr, model, result, edition);
+        }
+
+        /// <summary>
+        /// Dimensions ONE given wall-layout plan view as a run of its own (the
+        /// counters, the log and the model read are reset first; the drawing
+        /// is NOT saved).  For a macro that builds the view itself - P142_BASE_C_W.
+        /// </summary>
+        /// <param name="edition">1 for Pro, 0 for the free edition (use LicenceEdition()).</param>
+        public static bool DimensionViewRun(View view, Drawing dr, WfResult result, int edition)
+        {
+            Log.Length = 0;
+            Made = Failed = Skipped = 0;
+            ProNoteSaid = false;
+            Layouts = 0;
+            ReadCoordinateSystem = null;
+            DimHandler = new StraightDimensionSetHandler();
+            bool ok = false;
+            try { ok = DimensionView(view, dr, new TSM.Model(), result, edition); }
+            catch (Exception e) { Failed++; Say("EXCEPTION " + e.GetType().Name + ": " + e.Message); }
+            try { dr.CommitChanges("P142 wall plan dimensions"); } catch (Exception) { }
+            result.Ok = ok && Failed == 0;
+            result.Made = Made;
+            result.Failed = Failed;
+            result.Log = Log.ToString();
+            return ok;
+        }
+
+        /// <summary>
+        /// Dimensions ONE given wall-layout plan view (the body of the wall
+        /// layout macro, without the search for the plan view).  Used by the
+        /// wall layout macros through DimensionDrawing and by P142_BASE_C_W for
+        /// the wall framing plan of a BASE, CEILING, WALL drawing.
+        /// </summary>
+        /// <returns>False when the view shows no wall panel.</returns>
+        public static bool DimensionView(View view, Drawing dr, TSM.Model model, WfResult result, int edition)
+        {
             ActiveView = view;
             ActiveDrawing = dr;
 
@@ -1348,6 +1431,38 @@ namespace P142.WallFraming
                 Say("no plan view was found in this drawing - it is left alone");
                 return false;
             }
+            return DimensionLayoutsOf(view, dr, model, result);
+        }
+
+        /// <summary>
+        /// The AIO macro's work on ONE given plan view, as a run of its own:
+        /// counters, log and model read reset first; the drawing is NOT saved.
+        /// For a macro that builds the view itself - P142_BASE_C_W uses it for
+        /// the wall framing plan of a BASE, CEILING, WALL drawing.
+        /// </summary>
+        public static bool DimensionViewAioRun(View view, Drawing dr, WfResult result)
+        {
+            Log.Length = 0;
+            Made = Failed = Skipped = 0;
+            ProNoteSaid = false;
+            Layouts = 0;
+            ReadCoordinateSystem = null;
+            DimHandler = new StraightDimensionSetHandler();
+            bool ok = false;
+            try { ok = DimensionLayoutsOf(view, dr, new TSM.Model(), result); }
+            catch (Exception e) { Failed++; Say("EXCEPTION " + e.GetType().Name + ": " + e.Message); }
+            try { dr.CommitChanges("P142 wall plan annotations (AIO)"); } catch (Exception) { }
+            result.Ok = ok && Failed == 0;
+            result.Made = Made;
+            result.Failed = Failed;
+            if (string.IsNullOrEmpty(result.Message)) result.Message = "Wall framing annotations: " + Made + " created, " + Failed + " failed, " + Skipped + " skipped.";
+            result.Log = Log.ToString();
+            return ok;
+        }
+
+        /// <summary>The body of DimensionLayouts, for a given plan view.</summary>
+        static bool DimensionLayoutsOf(View view, Drawing dr, TSM.Model model, WfResult result)
+        {
             ActiveView = view;
             ActiveDrawing = dr;
 

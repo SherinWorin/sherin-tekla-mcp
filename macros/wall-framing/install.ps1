@@ -1,9 +1,14 @@
-# Installs the wall-framing auto-dimension macro into the macro catalog of
-# Tekla Structures 2025 on THIS computer.
+# Installs the P142 drawing macros into Tekla Structures 2025 on THIS computer:
+#   P142_WF_AutoDimension, WallFramingAutoDimensionPro-AIO, P142_WF_Isometric,
+#   P142_BASE_C_W, P142_WF_Section.
 #
-#   powershell -NoProfile -File install.ps1
-#   powershell -NoProfile -File install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
-#   powershell -NoProfile -File install.ps1 -WhatIfOnly
+#   powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
+#   powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
+#   powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -MacroFolder "D:\Models\P142\macros"
+#   powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 -WhatIfOnly
+#
+# -MacroFolder puts the loaders in <MacroFolder>\drawings instead of the Tekla
+# environment catalog; add that folder to XS_MACRO_DIRECTORY yourself.
 #
 # What it does:
 #   1. finds the Tekla Structures installation (no hard coded path)
@@ -22,6 +27,7 @@
 # without a new installation.
 param(
     [string]$TeklaPath = '',
+    [string]$MacroFolder = '',
     [switch]$WhatIfOnly
 )
 
@@ -78,7 +84,15 @@ if ((Split-Path -Leaf $tekla) -notlike '2025*') {
 }
 
 $catalog = Join-Path $tekla 'Environments\common\macros\drawings'
-if (-not (Test-Path $catalog)) {
+if ($MacroFolder) {
+    # a macro folder of your own (e.g. in the model folder): Tekla wants modeling + drawings in it
+    $catalog = Join-Path $MacroFolder 'drawings'
+    if (-not $WhatIfOnly) {
+        New-Item -ItemType Directory -Force -Path $catalog, (Join-Path $MacroFolder 'modeling') | Out-Null
+    }
+    Write-Output ("Macro folder       : {0}  (add {1} to XS_MACRO_DIRECTORY)" -f $catalog, $MacroFolder)
+}
+if (-not (Test-Path $catalog) -and -not $WhatIfOnly) {
     Write-Output ("ERROR: the macro catalog was not found: {0}" -f $catalog)
     exit 1
 }
@@ -95,7 +109,13 @@ $catalogFiles = @(
     @{ Name = 'P142_WF_AutoDimension.cs'; To = (Join-Path $catalog 'P142_WF_AutoDimension.cs') },
     @{ Name = 'P142_WF_AutoDimension.bmp'; To = (Join-Path $catalog 'P142_WF_AutoDimension.bmp') },
     @{ Name = 'WallFramingAutoDimensionPro-AIO.cs'; To = (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.cs') },
-    @{ Name = 'WallFramingAutoDimensionPro-AIO.bmp'; To = (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.bmp') }
+    @{ Name = 'WallFramingAutoDimensionPro-AIO.bmp'; To = (Join-Path $catalog 'WallFramingAutoDimensionPro-AIO.bmp') },
+    @{ Name = 'P142_WF_Isometric.cs'; To = (Join-Path $catalog 'P142_WF_Isometric.cs') },
+    @{ Name = 'P142_WF_Isometric.bmp'; To = (Join-Path $catalog 'P142_WF_Isometric.bmp') },
+    @{ Name = 'P142_BASE_C_W.cs'; To = (Join-Path $catalog 'P142_BASE_C_W.cs') },
+    @{ Name = 'P142_BASE_C_W.bmp'; To = (Join-Path $catalog 'P142_BASE_C_W.bmp') },
+    @{ Name = 'P142_WF_Section.cs'; To = (Join-Path $catalog 'P142_WF_Section.cs') },
+    @{ Name = 'P142_WF_Section.bmp'; To = (Join-Path $catalog 'P142_WF_Section.bmp') }
 )
 
 foreach ($f in $catalogFiles) {
@@ -147,6 +167,8 @@ foreach ($f in $catalogFiles) {
 # the version handshake of the macro.
 # ---------------------------------------------------------------------------
 $moduleFiles = @('WF_Core.dll', 'WF_Rules.dll', 'WF_License.dll',
+                  'WF_Isometric.dll', 'WF_IsometricRules.dll',
+                  'WF_BaseCW.dll', 'WF_Section.dll', 'WF_SectionRules.dll',
                   'WF_Pro.dll', 'WF_Rules_Pro.dll')
 $proModules = @('WF_Pro.dll', 'WF_Rules_Pro.dll')
 
@@ -198,8 +220,28 @@ foreach ($f in $modules) {
     Write-Output ("  OK  {0}" -f $f.To)
 }
 
+# Data files: installed only when missing, so your own settings and the
+# isometric reference you captured are never overwritten.
+foreach ($name in @('WF_Settings.json', 'WF_Isometric_Reference_v2.txt')) {
+    $to = Join-Path $appFolder $name
+    $from = $null
+    foreach ($dir in @($src, (Join-Path $src 'bin'), (Join-Path $here 'bin'))) {
+        if (Test-Path (Join-Path $dir $name)) { $from = Join-Path $dir $name; break }
+    }
+    if (-not $from) { Write-Output ("  --  {0} is not in the package" -f $name); continue }
+    if (Test-Path $to) { Write-Output ("  --  {0} kept (already there)" -f $to); continue }
+    Copy-Item -Path $from -Destination $to
+    Write-Output ("  OK  {0}" -f $to)
+}
+
 Write-Output ''
-Write-Output 'The macro is installed.  It is on the ribbon:'
+Write-Output 'The P142 macros are installed:'
+Write-Output '  P142_BASE_C_W     - BASE, CEILING, WALL drawing (-10001)'
+Write-Output '  P142_WF_Isometric - isometric drawing (-80001)'
+Write-Output '  P142_WF_Section   - sectional elevation (-20001; study mode for now)'
+Write-Output 'Restart Tekla Structures if it was running.'
+Write-Output ''
+Write-Output 'The wall framing macro is on the ribbon:'
 Write-Output '  Applications > Macros > P142_WF_AutoDimension'
 Write-Output ''
 Write-Output 'There is a second macro on the ribbon, which asks for no licence:'

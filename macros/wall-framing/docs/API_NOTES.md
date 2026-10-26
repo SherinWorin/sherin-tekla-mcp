@@ -363,3 +363,63 @@ written **without a byte-order mark**: Windows PowerShell's
 `Set-Content -Encoding UTF8` writes one, and Tekla's own macro compiler
 is stricter than Roslyn about a BOM at the start of a file.  The build
 uses `File.WriteAllText` with `UTF8Encoding($false)` instead.
+
+## 3D views on a GA drawing (checked 2026-10-24, Tekla 2025.0 `Tekla.Structures.Drawing.xml`)
+
+**Trap: `View.Create3dView(...)` cannot be used on a GA drawing.**  Both
+overloads (`Drawing, Point, ViewAttributes, out View` and
+`Drawing, CoordinateSystem, CoordinateSystem, AABB, Point, ViewAttributes, out View`)
+document `InvalidTypeException` *"Thrown if given drawing is GA drawing"*.
+The isometric drawings of the project are GA drawings.
+
+The GA route is the constructor on the sheet, then `Insert()`:
+
+```csharp
+View v = new View(drawing.GetSheet(), viewCS, displayCS, partIdentifiers /* ArrayList of Identifier */);
+v.Insert();
+v.Attributes.Scale = 20;  v.Origin = new Point(x, y, 0);  v.Modify();
+drawing.CommitChanges();
+```
+
+Other overloads: `(ContainerView, CS, CS, AABB restrictionBox[, string attributesFile])`
+and `(ContainerView, CS, CS, ArrayList[, string attributesFile])`.
+`View.ViewAttributes` has `LoadAttributes(string)` but **no save** - a
+view's attributes cannot be written to a file from the API, so the
+isometric macro copies geometry, scale, position and name only.
+Read back from an existing view: `ViewCoordinateSystem`,
+`DisplayCoordinateSystem`, `RestrictionBox` (AABB in view coordinates),
+`ViewBase.Origin`, `Attributes.Scale`, `Name`, `ViewType`
+(`ModelView` / `_3DView`).  Compile-checked against the 2025.0 DLLs;
+**not yet run live**.
+
+## Isometric views - traps found live on 2026-10-24 (Tekla 2025.0, drawing [184] BP20M-80001)
+
+1. **A view of a drawing that is NOT open reports no sheet geometry.**
+   `GetSheet().GetViews()` works on a non-active drawing (HANDOVER trap 7), and
+   `ViewCoordinateSystem`, `DisplayCoordinateSystem`, `RestrictionBox`,
+   `Attributes` and `Name` read correctly - but `Origin` is meaningless and
+   `FrameOrigin` / `Width` / `Height` read as 0.  Do not take sheet positions
+   from a reference drawing that is not open; place by role instead.
+2. **Right after `Insert()`, the first new view can report a stale frame**
+   (921 x 991 instead of 182 x 237 - the frame at a default scale).  Create all
+   views, `CommitChanges()`, THEN `Select()` each view and measure; correct in
+   passes with a commit between passes.
+3. **The view origin is not the frame centre** - with a global view plane it is
+   a model-related point far from the frame (offsets of -4900 mm seen).  Place a
+   view by moving its frame centre: `Origin + FrameOrigin + (Width, Height)/2`.
+4. **The depth cut of ISOMETRIC VIEW 3** is the `RestrictionBox` (z up to 1500
+   of 2600 on BP01/BP02M).  It is recorded as a fraction of the reference
+   block's extent in the view coordinates and applied to the target block.
+5. **Part marks are created in the background** ("Creating marks...") after
+   `Insert()` returns: remove them, wait, and remove again.
+6. **A failed Tekla remote connection poisons the macro session**: once
+   `DelegateProxy`'s type initializer throws ("Remote connection to Tekla
+   Structures channel ... failed"), every later macro call fails the same way
+   until Tekla restarts.  Do not drive Tekla's UI from outside while a macro
+   is waiting on a dialog.
+7. **Assembly.LoadFrom keeps the first build in memory** (and locks the DLL)
+   until Tekla restarts.  The isometric loader loads `Assembly.Load(bytes)`
+   with an `AssemblyResolve` handler for the `WF_*` dependencies, so a rebuild
+   is picked up on the next run without a restart.
+8. `Part.PartAttributes` has no `DrawInnerContours` in 2025, and `LineTypes`
+   is a class (static members), not an enum.

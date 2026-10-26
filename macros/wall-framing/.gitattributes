@@ -9,3 +9,4 @@
 source/*.cs        -text
 source/*.ps1       -text
 install.ps1        -text
+install.cmd        -text
