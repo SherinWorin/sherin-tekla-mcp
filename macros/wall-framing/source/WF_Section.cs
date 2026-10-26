@@ -433,8 +433,13 @@ namespace P142.WallFraming
                         {
                             StraightDimension d = ce.Current as StraightDimension;
                             if (d == null) continue;
-                            d.Attributes.MiddleLowerTag.Add(new TextElement(tag));
-                            d.Modify();
+                            // Attributes is a copy: change it, assign it back, then Modify (the first try only changed the copy)
+                            var da = d.Attributes;
+                            var tc = new ContainerElement();
+                            tc.Add(new TextElement(tag));
+                            da.MiddleLowerTag = tc;
+                            d.Attributes = da;
+                            if (!d.Modify()) log.AppendLine("     OPENING tag not set");
                         }
                     }
                     n++; return true;
