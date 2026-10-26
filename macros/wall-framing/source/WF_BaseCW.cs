@@ -35,12 +35,14 @@
 //      drawing of the model (house style only, no geometry); none -> Tekla's
 //      default properties at scale 1:15.
 //   4. DIMENSIONS - the dimension engines:
-//        base plan    -> WfBfDim   (P142_BF_AutoDimension)
+//        base plan    -> WfCeilDim.DimensionBase (outline steps, overall,
+//                        member chains, inner members - BP07-10001 rules)
 //        ceiling plan -> WfCeilDim (rules from the 19 reference ceiling plans)
 //        wall plan    -> WfCore.DimensionViewAioRun (WallFramingAutoDimensionPro-
 //                        AIO: bays, bands, top outline, overall, north run,
-//                        wall-panel marks, section marks, notes)
-//      Part marks: none - Tekla's automatic marks are removed (BP07 reference).
+//                        notes); its wall-panel marks and section marks are
+//                        removed (not on the BP07 reference)
+//      Part marks / weld marks: none - Tekla's automatic ones are removed (BP07).
 //      Colours: the owner's colour code (WfIsoColours, as on the isometric):
 //      HRS green, LGS grey, wall gypsum orange, ceiling gypsum violet, no
 //      hidden lines.
@@ -450,12 +452,12 @@ namespace P142.WallFraming
             {
                 System.Threading.Thread.Sleep(1500);
                 int n = 0;
-                foreach (var kv in made) n += WfIsometricCore.RemoveMarks(kv.Key);
+                foreach (var kv in made) n += RemoveAll(kv.Key, typeof(Mark), typeof(WeldMark));
                 auto += n;
                 if (n == 0 && pass > 0) break;
             }
             if (auto > 0) dr.CommitChanges("P142 BCW automatic marks removed");
-            Say(auto + " automatic part mark(s) of Tekla removed");
+            Say(auto + " automatic part / weld mark(s) of Tekla removed");
 
             // ---- the colour code
             foreach (var kv in made)
@@ -483,14 +485,17 @@ namespace P142.WallFraming
                         Say("DIM  " + role + " (AIO wall engine): " + wr.Made + " created, " + wr.Failed + " failed" + (ok ? "" : " - no wall panel found") +
                             (string.IsNullOrEmpty(wr.Message) ? "" : "  [" + wr.Message + "]"));
                         if (wr.Failed > 0) { Failed += wr.Failed; Say(Indent(wr.Log)); }
+                        // BP07 reference: no wall-panel marks, no section marks on the wall plan
+                        int rm = RemoveAll(v, typeof(Mark), typeof(SectionMark), typeof(WeldMark));
+                        Say("     wall plan: " + rm + " panel / section / weld mark(s) removed (not on the reference)");
                     }
                     else
                     {
                         var bl = new StringBuilder(); int bf;
                         int n = role == ROLE_CEIL ? WfCeilDim.DimensionView(v, dr, bl, plans[i].Ids, out bf)
-                                                  : WfBfDim.DimensionView(v, dr, bl, plans[i].Ids, out bf);
+                                                  : WfCeilDim.DimensionBase(v, dr, bl, plans[i].Ids, out bf);
                         Say("DIM  " + role + ": " + n + " created, " + bf + " failed");
-                        if (bf > 0 || n == 0 || role == ROLE_CEIL) Say(Indent(bl.ToString()));
+                        Say(Indent(bl.ToString()));
                         Failed += bf;
                     }
                 }
@@ -537,6 +542,17 @@ namespace P142.WallFraming
                 catch (Exception) { }
             }
             return res;
+        }
+
+        /// <summary>Deletes every object of the given drawing types in the view.</summary>
+        static int RemoveAll(View v, params Type[] types)
+        {
+            var list = new List<DrawingObject>();
+            DrawingObjectEnumerator en = v.GetAllObjects(types);
+            while (en.MoveNext()) if (en.Current != null) list.Add(en.Current);
+            int n = 0;
+            foreach (DrawingObject o in list) if (o.Delete()) n++;
+            return n;
         }
 
         static string Indent(string s) { return "     " + (s ?? "").Trim().Replace("\n", "\n     "); }

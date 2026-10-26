@@ -107,6 +107,24 @@ namespace P142.WallFraming
             return e;
         }
 
+        /// <summary>
+        /// The outer face (in direction s) of the nearest frame beam beyond
+        /// <paramref name="from"/> that crosses the line at <paramref name="at"/>
+        /// (along the side); NaN when there is none.
+        /// </summary>
+        static double FrameFace(int s, double at, double from)
+        {
+            double best = double.NaN, bd = double.MaxValue;
+            foreach (B b in Frame)
+            {
+                if (at < A0(b, s) - TOL || at > A1(b, s) + TOL) continue;
+                double inner = Key(b, s ^ 1), d = Sign(s) * (inner - from);
+                if (d < -TOL || d >= bd) continue;
+                bd = d; best = Key(b, s);
+            }
+            return best;
+        }
+
         static double GlobalExt(int s)
         {
             double e = double.NaN;
@@ -163,7 +181,10 @@ namespace P142.WallFraming
         }
 
         // ---------------------------------------------------------------- read
-        static void Read(View view, HashSet<int> only)
+        static void Read(View view, HashSet<int> only) { Read(view, only, false); }
+
+        /// <param name="allFrame">True for the base plan: every part is frame (HRS).</param>
+        static void Read(View view, HashSet<int> only, bool allFrame)
         {
             Frame.Clear(); Gyp.Clear(); Panel.Clear(); Openings.Clear();
             var model = new TSM.Model();
@@ -184,7 +205,7 @@ namespace P142.WallFraming
                     try { so = mp.GetSolid(); } catch (Exception) { continue; }
                     string apos = ""; mp.GetReportProperty("ASSEMBLY_POS", ref apos);
                     var b = new B { x0 = so.MinimumPoint.X, y0 = so.MinimumPoint.Y, x1 = so.MaximumPoint.X, y1 = so.MaximumPoint.Y, name = (mp.Name ?? "").ToUpperInvariant(), apos = apos ?? "" };
-                    if (b.name == "CEILING BEAM") Frame.Add(b);
+                    if (allFrame || b.name == "CEILING BEAM") Frame.Add(b);
                     else if (b.name.Contains("GYPSUM"))
                     {
                         Gyp.Add(b);
@@ -201,7 +222,7 @@ namespace P142.WallFraming
                                 double cx = (os.MinimumPoint.X + os.MaximumPoint.X) / 2, cy = (os.MinimumPoint.Y + os.MaximumPoint.Y) / 2;
                                 bool inside = cx > b.x0 + 20 && cx < b.x1 - 20 && cy > b.y0 + 20 && cy < b.y1 - 20;
                                 log.AppendLine("     cut in " + apos + " " + (op.Name ?? "") + " centre (" + cx.ToString("F0") + "," + cy.ToString("F0") + ") size " + w.ToString("F0") + " x " + hh.ToString("F0") + (inside && w < OPEN_MAX && hh < OPEN_MAX ? "" : " - ignored"));
-                                if (inside && w < OPEN_MAX && hh < OPEN_MAX) Openings.Add(new[] { cx, cy });
+                                if (inside && w < OPEN_MAX && hh < OPEN_MAX) Openings.Add(new[] { cx, cy, Gyp.Count - 1 });
                             }
                         }
                         catch (Exception e) { log.AppendLine("     cuts of " + apos + " not read: " + e.Message); }
@@ -333,23 +354,157 @@ namespace P142.WallFraming
                     Dim(view, dr, h, "gypsum " + g.apos + " " + SN[s] + " " + gap.ToString("F1"), pts, AlongX(s) ? new Vector(1, 0, 0) : new Vector(0, -1, 0), P_GYP * sc);
                 }
 
-            // ---- 5. openings in the gypsum
-            if (Openings.Count > 0)
+            // ---- 5. openings in the gypsum - per board (one room each), from the
+            //         nearest frame face (BP07-10001: 482/383/415 + 360/187/584 ...)
+            for (int gi = 0; gi < Gyp.Count; gi++)
             {
+                var ops = Openings.FindAll(o => (int)o[2] == gi);
+                if (ops.Count == 0) continue;
+                B g = Gyp[gi];
                 double cx = 0, cy = 0, minY = double.MaxValue, maxX = double.MinValue;
-                foreach (var o in Openings) { cx += o[0]; cy += o[1]; minY = Math.Min(minY, o[1]); maxX = Math.Max(maxX, o[0]); }
-                cx /= Openings.Count; cy /= Openings.Count;
-                double fx = (cx - FX0) <= (FX1 - cx) ? FX0 : FX1, fy = (cy - FY0) <= (FY1 - cy) ? FY0 : FY1;
-                var xs = new List<double> { fx }; var ys = new List<double> { fy };
-                foreach (var o in Openings) { xs.Add(o[0]); ys.Add(o[1]); }
+                foreach (var o in ops) { cx += o[0]; cy += o[1]; minY = Math.Min(minY, o[1]); maxX = Math.Max(maxX, o[0]); }
+                cx /= ops.Count; cy /= ops.Count;
+                int sx = (cx - g.x0) <= (g.x1 - cx) ? 2 : 3, sy = (cy - g.y0) <= (g.y1 - cy) ? 0 : 1;
+                double fx = FrameFace(sx, cy, sx == 2 ? g.x0 : g.x1), fy = FrameFace(sy, cx, sy == 0 ? g.y0 : g.y1);
+                var xs = new List<double>(); var ys = new List<double>();
+                if (!double.IsNaN(fx)) xs.Add(fx);
+                if (!double.IsNaN(fy)) ys.Add(fy);
+                foreach (var o in ops) { xs.Add(o[0]); ys.Add(o[1]); }
                 xs = Uniq(xs); ys = Uniq(ys);
                 var px = new List<Point>(); foreach (double x in xs) px.Add(new Point(x, minY, 0));
                 var py = new List<Point>(); foreach (double y in ys) py.Add(new Point(maxX, y, 0));
-                Dim(view, dr, h, "openings X", px, new Vector(0, -1, 0), P_OPEN * sc);
-                Dim(view, dr, h, "openings Y", py, new Vector(1, 0, 0), P_OPEN * sc);
+                Dim(view, dr, h, "openings X " + g.apos, px, new Vector(0, -1, 0), P_OPEN * sc);
+                Dim(view, dr, h, "openings Y " + g.apos, py, new Vector(1, 0, 0), P_OPEN * sc);
             }
 
             log.AppendLine("Ceiling dimensions: " + made + " created, " + failed + " failed.");
+            outLog.Append(log);
+            failedOut = failed;
+            return made;
+        }
+
+        // ================================================================ BASE PLAN
+        /// <summary>
+        /// The BASE HRS FRAMING PLAN of a BASE, CEILING, WALL drawing, by the rules
+        /// read off BP07-10001 (2026-10-26):
+        ///   MEMBER CHAIN  an inner member (not on the outline) within 300 mm of a
+        ///                 side: outline segment end | member ends | segment end,
+        ///                 just outside the frame (684/856/129, 130/956/134)
+        ///   OUTLINE       each side: the steps of the outer faces (1769/1000,
+        ///                 450/550/1219/550, 1669/1250/250, 500/2419/250)
+        ///   OVERALL       each side (2769, 3169)
+        ///   INNER MEMBER  further inside: the members on one line end to end
+        ///                 (474/150/471) + the offset from the frame face (122)
+        /// The tube thicknesses (the 60 / 20 steps) are NOT dimensioned.
+        /// </summary>
+        /// <returns>The number of dimension sets created.</returns>
+        public static int DimensionBase(View view, Drawing dr, StringBuilder outLog, HashSet<int> only, out int failedOut)
+        {
+            log = new StringBuilder(); made = failed = 0; failedOut = 0;
+            if (view == null || dr == null) return 0;
+            sc = view.Attributes.Scale;
+            Read(view, only, true);
+            log.Insert(0, "base plan: " + Frame.Count + " HRS part(s)\r\n");
+            if (Frame.Count < 2) { log.AppendLine("no base frame - no dimensions"); outLog.Append(log); return 0; }
+            var h = new StraightDimensionSetHandler();
+
+            // the outline members: they set the silhouette of a side somewhere
+            var outline = new HashSet<B>();
+            var segsOf = new List<Seg>[4];
+            for (int s = 0; s < 4; s++)
+            {
+                segsOf[s] = Silhouette(Frame, s);
+                foreach (B b in Frame)
+                    foreach (Seg g in segsOf[s])
+                        if (Ov(A0(b, s), A1(b, s), g.a, g.b) > TOL && Math.Abs(Key(b, s) - g.ext) < TOL) outline.Add(b);
+            }
+
+            // ---- inner members: to the nearest side (member chain) or inside
+            var sideVals = new List<double>[4];
+            var sidePerp = new double[4];
+            for (int s = 0; s < 4; s++) { sideVals[s] = new List<double>(); sidePerp[s] = double.NaN; }
+            var inner = new List<B>();
+            foreach (B m in Frame)
+            {
+                if (outline.Contains(m)) continue;
+                bool horiz = !m.Vert;
+                int best = -1; double bd = double.MaxValue;
+                foreach (int s in horiz ? new[] { 0, 1 } : new[] { 2, 3 })
+                {
+                    double ext = LocalExt(s, A0(m, s), A1(m, s));
+                    if (double.IsNaN(ext)) continue;
+                    double d = Sign(s) * (ext - Key(m, s));
+                    if (d >= -TOL && d < bd) { bd = d; best = s; }
+                }
+                if (best < 0 || bd > 300) { inner.Add(m); continue; }
+                double mid = (A0(m, best) + A1(m, best)) / 2;
+                foreach (Seg g in segsOf[best])
+                    if (mid >= g.a - TOL && mid <= g.b + TOL) { sideVals[best].Add(g.a); sideVals[best].Add(g.b); break; }
+                sideVals[best].Add(A0(m, best)); sideVals[best].Add(A1(m, best));
+                double k = Key(m, best);
+                sidePerp[best] = double.IsNaN(sidePerp[best]) ? k : (Sign(best) > 0 ? Math.Max(sidePerp[best], k) : Math.Min(sidePerp[best], k));
+            }
+
+            for (int s = 0; s < 4; s++)
+            {
+                List<Seg> segs = segsOf[s];
+                if (segs.Count == 0) continue;
+                double level = Sign(s) * GlobalExt(s);
+                double memberLine = double.NaN;
+                if (sideVals[s].Count > 0)
+                {
+                    var vals = Uniq(sideVals[s]);
+                    double local = LocalExt(s, vals[0], vals[vals.Count - 1]);
+                    memberLine = Sign(s) * (double.IsNaN(local) ? GlobalExt(s) : local) + P_PANEL * sc;
+                    var pts = new List<Point>();
+                    foreach (double v in vals) pts.Add(Pt(s, v, sidePerp[s]));
+                    DimAt(view, dr, h, "member chain " + SN[s], pts, s, memberLine);
+                }
+                double outlineLine = level + P_FRAME_MIN * sc;
+                if (!double.IsNaN(memberLine)) outlineLine = Math.Max(outlineLine, memberLine + P_STEP * sc);
+                if (segs.Count >= 2)
+                {
+                    var t2 = new List<Point> { Pt(s, segs[0].a, segs[0].ext) };
+                    for (int i = 0; i < segs.Count; i++)
+                    {
+                        double e = segs[i].ext;
+                        if (i + 1 < segs.Count) e = Sign(s) > 0 ? Math.Max(e, segs[i + 1].ext) : Math.Min(e, segs[i + 1].ext);
+                        t2.Add(Pt(s, segs[i].b, e));
+                    }
+                    DimAt(view, dr, h, "outline " + SN[s], t2, s, outlineLine);
+                }
+                else outlineLine -= P_STEP * sc;
+                var ov = new List<Point> { Pt(s, segs[0].a, segs[0].ext), Pt(s, segs[segs.Count - 1].b, segs[segs.Count - 1].ext) };
+                DimAt(view, dr, h, "overall " + SN[s], ov, s, outlineLine + P_STEP * sc);
+            }
+
+            // ---- inner members: end to end along their line + offset from the frame
+            var done = new HashSet<B>();
+            foreach (B m in inner)
+            {
+                if (done.Contains(m)) continue;
+                bool vert = m.Vert;
+                double c = vert ? (m.x0 + m.x1) / 2 : (m.y0 + m.y1) / 2;
+                var row = inner.FindAll(o => o.Vert == vert && Math.Abs((vert ? (o.x0 + o.x1) / 2 : (o.y0 + o.y1) / 2) - c) < 5);
+                var vals = new List<double>();
+                foreach (B o in row) { done.Add(o); vals.Add(vert ? o.y0 : o.x0); vals.Add(vert ? o.y1 : o.x1); }
+                vals = Uniq(vals);
+                var pts = new List<Point>();
+                foreach (double v in vals) pts.Add(vert ? new Point(m.x1, v, 0) : new Point(v, m.y1, 0));
+                Dim(view, dr, h, "inner member " + (vert ? "x=" : "y=") + c.ToString("F0"), pts, vert ? new Vector(1, 0, 0) : new Vector(0, 1, 0), P_GYP * sc);
+                // offset: member outer face -> the nearest parallel frame face on its outer side
+                int so = vert ? ((m.x0 + m.x1) / 2 - GlobalExt(2) <= GlobalExt(3) - (m.x0 + m.x1) / 2 ? 2 : 3)
+                              : ((m.y0 + m.y1) / 2 - GlobalExt(0) <= GlobalExt(1) - (m.y0 + m.y1) / 2 ? 0 : 1);
+                double at = (A0(m, so) + A1(m, so)) / 2;
+                double face = FrameFace(so, at, Key(m, so));
+                if (!double.IsNaN(face))
+                {
+                    var op = new List<Point> { Pt(so, at, Key(m, so)), Pt(so, at, face) };
+                    Dim(view, dr, h, "inner offset " + SN[so], op, AlongX(so) ? new Vector(1, 0, 0) : new Vector(0, -1, 0), P_GYP * sc);
+                }
+            }
+
+            log.AppendLine("Base dimensions: " + made + " created, " + failed + " failed.");
             outLog.Append(log);
             failedOut = failed;
             return made;
