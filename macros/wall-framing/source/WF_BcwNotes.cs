@@ -253,65 +253,31 @@ namespace P142.WallFraming
             return made;
         }
 
-        /// <summary>
-        /// Sections: re-creates the level lines and the dimension chains of the style
-        /// view on <paramref name="v"/> (positions mapped as in CopyStandard).  A chain
-        /// point is snapped to the nearest part edge of the new view (40 mm) along the
-        /// measured direction, so the values are measured, not copied.  Returns the number made.
-        /// </summary>
-        public static int CopyLinesAndDims(View v, View sv, TSM.Model model, StringBuilder log)
+        /// <summary>Sections: re-creates the level lines (T.O.S / FFL / SSL) of the style view, mapped as in CopyStandard.  Returns the y levels.</summary>
+        public static List<double> CopyLevelLines(View v, View sv, TSM.Model model, StringBuilder log)
         {
-            if (sv == null) return 0;
+            var ys = new List<double>();
+            if (sv == null) return ys;
             var src = Parts(sv, model); var dst = Parts(v, model);
-            if (src.Count == 0 || dst.Count == 0) return 0;
+            if (src.Count == 0 || dst.Count == 0) return ys;
             double[] a = Box(src), b = Box(dst);
-            var xs = new List<double>(); var ys = new List<double>();
-            foreach (var p in dst) { xs.Add(p.X0); xs.Add(p.X1); ys.Add(p.Y0); ys.Add(p.Y1); }
-            int lines = 0, sets = 0, failed = 0;
-            var h = new StraightDimensionSetHandler();
-            DrawingObjectEnumerator en = sv.GetAllObjects(new[] { typeof(DLine), typeof(StraightDimensionSet) });
-            var objs = new List<DrawingObject>();
-            while (en.MoveNext()) if (en.Current != null) objs.Add(en.Current);
-            foreach (var o in objs)
+            int n = 0;
+            DrawingObjectEnumerator en = sv.GetAllObjects(typeof(DLine));
+            var list = new List<DLine>();
+            while (en.MoveNext()) if (en.Current is DLine) list.Add((DLine)en.Current);
+            foreach (DLine l in list)
             {
                 try
                 {
-                    DLine l = o as DLine;
-                    if (l != null)
-                    {
-                        if (new DLine(v, Map(l.StartPoint, a, b), Map(l.EndPoint, a, b), l.Attributes as DLine.LineAttributes).Insert()) lines++;
-                        continue;
-                    }
-                    var set = (StraightDimensionSet)o;
-                    var pts = new List<Point>(); Vector up = null; double dist = 0;
-                    DrawingObjectEnumerator ce = set.GetObjects();
-                    while (ce.MoveNext())
-                    {
-                        StraightDimension d = ce.Current as StraightDimension;
-                        if (d == null) continue;
-                        if (up == null) { up = d.UpDirection; dist = d.Distance; }
-                        pts.Add(d.StartPoint); pts.Add(d.EndPoint);
-                    }
-                    if (up == null || pts.Count < 2) continue;
-                    bool alongY = Math.Abs(up.X) > Math.Abs(up.Y);       // up = +-x: the chain measures heights
-                    var pl = new PointList();
-                    var seen = new List<double>();
-                    foreach (Point q in pts)
-                    {
-                        Point m = Map(q, a, b);
-                        if (alongY) m.Y = WfSectionRules.Snap(m.Y, ys, 40); else m.X = WfSectionRules.Snap(m.X, xs, 40);
-                        double k = alongY ? m.Y : m.X;
-                        if (seen.Exists(s0 => Math.Abs(s0 - k) < 1)) continue;
-                        seen.Add(k); pl.Add(m);
-                    }
-                    if (pl.Count < 2) continue;
-                    StraightDimensionSet ns = h.CreateDimensionSet(v, pl, up, dist, set.Attributes as StraightDimensionSet.StraightDimensionSetAttributes);
-                    if (ns != null) sets++; else failed++;
+                    Point p0 = Map(l.StartPoint, a, b), p1 = Map(l.EndPoint, a, b);
+                    if (new DLine(v, p0, p1, l.Attributes as DLine.LineAttributes).Insert()) n++;
+                    if (Math.Abs(p0.Y - p1.Y) < 1) ys.Add(p0.Y);
                 }
-                catch (Exception e) { failed++; log.AppendLine("     not copied (" + o.GetType().Name + "): " + e.Message); }
+                catch (Exception e) { log.AppendLine("     level line not copied: " + e.Message); }
             }
-            log.AppendLine("     from '" + sv.Name + "': " + lines + " level line(s), " + sets + " dimension chain(s)" + (failed > 0 ? ", " + failed + " failed" : ""));
-            return lines + sets;
+            ys.Sort();
+            log.AppendLine("     from '" + sv.Name + "': " + n + " level line(s)");
+            return ys;
         }
 
         /// <summary>The lifting arrows of the base plan (see the header).  Returns the number made.</summary>

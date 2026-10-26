@@ -227,6 +227,8 @@ namespace P142.WallFraming
                     try { log.AppendLine("colours " + v.Name + ": " + WfIsometricCore.ColourParts(v, model, per) + " part(s)"); }
                     catch (Exception ex) { log.AppendLine("colours " + v.Name + " not applied: " + ex.Message); }
                 }
+                // LGS behind the gypsum boards: hidden lines on, dashed in the part colour (BP02M-20001)
+                foreach (View v in views) log.AppendLine("hidden lines " + v.Name + ": " + HiddenLinesOn(v) + " part(s)");
                 dr.CommitChanges("P142 section colours");
 
                 // notes, level lines, dimension chains: re-created from the style view of the same name
@@ -238,10 +240,12 @@ namespace P142.WallFraming
                     try
                     {
                         WfBcwNotes.CopyStandard(v, sv, model, nl);
-                        WfBcwNotes.CopyLinesAndDims(v, sv, model, nl);
+                        var levels = WfBcwNotes.CopyLevelLines(v, sv, model, nl);
+                        WfSectionRules.Cut c = cuts.Find(k => k.Name == v.Name);
+                        nl.AppendLine("     level line" + SecDims(v, sv, model, levels, c == null ? 0 : c.Ahead, nl));
                     }
                     catch (Exception ex) { failed++; nl.AppendLine("FAIL notes: " + ex.GetType().Name + ": " + ex.Message); }
-                    log.AppendLine("notes " + v.Name + ":"); foreach (string ln in nl.ToString().Split('\n')) if (ln.Contains("standard notes") || ln.Contains("level line") || ln.Contains("FAIL") || ln.Contains("not copied")) log.AppendLine(ln.TrimEnd());
+                    log.AppendLine("notes " + v.Name + ":"); foreach (string ln in nl.ToString().Split('\n')) if (ln.Contains("standard notes") || ln.Contains("level line") || ln.Contains("dim") || ln.Contains("FAIL") || ln.Contains("not copied")) log.AppendLine(ln.TrimEnd());
                 }
                 dr.CommitChanges("P142 section notes and dimensions");
                 Place(dr, views, centres);
@@ -328,6 +332,142 @@ namespace P142.WallFraming
             }
             if (res.Count == 0) log.AppendLine("no finished sectional elevation in the model - default view properties 1:" + DEFAULT_SCALE);
             return res;
+        }
+
+        static int HiddenLinesOn(View v)
+        {
+            int n = 0;
+            DrawingObjectEnumerator en = v.GetAllObjects(typeof(Tekla.Structures.Drawing.Part));
+            while (en.MoveNext())
+            {
+                var dp = en.Current as Tekla.Structures.Drawing.Part;
+                if (dp == null) continue;
+                try { dp.Attributes.DrawHiddenLines = true; dp.Attributes.DrawOwnHiddenLines = true; if (dp.Modify()) n++; } catch (Exception) { }
+            }
+            return n;
+        }
+
+        /// <summary>A part of a section view, extent in view coordinates (x along, y = global Z, z depth).</summary>
+        sealed class SP { public string Name = ""; public double X0, Y0, Z0, X1, Y1, Z1; }
+
+        static List<SP> SecParts(View v, TSM.Model model)
+        {
+            var res = new List<SP>();
+            TSM.WorkPlaneHandler wph = model.GetWorkPlaneHandler();
+            TSM.TransformationPlane original = wph.GetCurrentTransformationPlane();
+            try
+            {
+                wph.SetCurrentTransformationPlane(new TSM.TransformationPlane(v.DisplayCoordinateSystem));
+                DrawingObjectEnumerator en = v.GetAllObjects(typeof(Tekla.Structures.Drawing.Part));
+                while (en.MoveNext())
+                {
+                    var dp = en.Current as Tekla.Structures.Drawing.Part;
+                    if (dp == null) continue;
+                    TSM.Part mp = model.SelectModelObject(dp.ModelIdentifier) as TSM.Part;
+                    if (mp == null) continue;
+                    try
+                    {
+                        TSM.Solid so = mp.GetSolid();
+                        res.Add(new SP { Name = (mp.Name ?? "").ToUpperInvariant(), X0 = so.MinimumPoint.X, Y0 = so.MinimumPoint.Y, Z0 = so.MinimumPoint.Z,
+                                         X1 = so.MaximumPoint.X, Y1 = so.MaximumPoint.Y, Z1 = so.MaximumPoint.Z });
+                    }
+                    catch (Exception) { }
+                }
+            }
+            finally { wph.SetCurrentTransformationPlane(original); }
+            return res;
+        }
+
+        /// <summary>
+        /// The dimensions of a section, by rule (BP02M-20001, owner 2026-10-26):
+        /// left: overall height (base underside .. T.O.S); right: base | wall | ceiling
+        /// and, further out, FFL | rest; inside: the middle track heights of the viewed
+        /// wall (bottom track .. top track); every door / window opening of the viewed
+        /// wall: width and height, tagged OPENING.  Dimension properties of the style view.
+        /// </summary>
+        static string SecDims(View v, View sv, TSM.Model model, List<double> levels, double ahead, StringBuilder log)
+        {
+            var ps = SecParts(v, model);
+            if (ps.Count == 0) return "s - no parts, no dims";
+            double s = v.Attributes.Scale;
+            StraightDimensionSet.StraightDimensionSetAttributes sa = null;
+            if (sv != null)
+            {
+                DrawingObjectEnumerator de = sv.GetAllObjects(typeof(StraightDimensionSet));
+                if (de.MoveNext()) sa = ((StraightDimensionSet)de.Current).Attributes as StraightDimensionSet.StraightDimensionSetAttributes;
+            }
+            if (sa == null) sa = new StraightDimensionSet.StraightDimensionSetAttributes();
+            double x0 = double.MaxValue, x1 = double.MinValue, yB = double.MaxValue, yT = double.MinValue;
+            foreach (var p in ps) { x0 = Math.Min(x0, p.X0); x1 = Math.Max(x1, p.X1); yB = Math.Min(yB, p.Y0); yT = Math.Max(yT, p.Y1); }
+            // the viewed wall: parts around z = -ahead (the viewer looks along -z)
+            var wall = ps.FindAll(p => Math.Abs((p.Z0 + p.Z1) / 2 + ahead) < 150);
+            double wB = double.MaxValue, wT = double.MinValue;
+            foreach (var p in wall) { if (p.Name == "BOTTOM_TRACK") wB = Math.Min(wB, p.Y0); if (p.Name == "TOP_TRACK") wT = Math.Max(wT, p.Y1); }
+            if (wB == double.MaxValue || wT == double.MinValue)
+                foreach (var p in ps) { if (p.Name == "BOTTOM_TRACK") wB = Math.Min(wB, p.Y0); if (p.Name == "TOP_TRACK") wT = Math.Max(wT, p.Y1); }
+            double ffl = double.NaN;
+            foreach (double y in levels) if (y > yB + 10 && y < yB + 300) { ffl = y; break; }
+            var h = new StraightDimensionSetHandler();
+            int n = 0, f = 0;
+            Func<double[][], Vector, double, string, bool> dim = (pts, up, dist, tag) =>
+            {
+                var pl = new PointList();
+                foreach (var q in pts) pl.Add(new Point(q[0], q[1], 0));
+                try
+                {
+                    StraightDimensionSet set = h.CreateDimensionSet(v, pl, up, dist, sa);
+                    if (set == null) { f++; return false; }
+                    if (tag != null)
+                    {
+                        DrawingObjectEnumerator ce = set.GetObjects();
+                        while (ce.MoveNext())
+                        {
+                            StraightDimension d = ce.Current as StraightDimension;
+                            if (d == null) continue;
+                            d.Attributes.MiddleLowerTag.Add(new TextElement(tag));
+                            d.Modify();
+                        }
+                    }
+                    n++; return true;
+                }
+                catch (Exception e) { f++; log.AppendLine("     dim failed: " + e.Message); return false; }
+            };
+            dim(new[] { new[] { x0, yB }, new[] { x0, yT } }, new Vector(-1, 0, 0), 6 * s, null);
+            if (wB < wT) dim(new[] { new[] { x1, yB }, new[] { x1, wB }, new[] { x1, wT }, new[] { x1, yT } }, new Vector(1, 0, 0), 6 * s, null);
+            if (!double.IsNaN(ffl)) dim(new[] { new[] { x1, yB }, new[] { x1, ffl }, new[] { x1, yT } }, new Vector(1, 0, 0), 14 * s, null);
+
+            // middle tracks of the viewed wall: one chain over their distinct heights
+            var mids = wall.FindAll(p => p.Name == "MIDDLE_TRACK" && p.X1 - p.X0 > p.Y1 - p.Y0);
+            if (mids.Count > 0 && wB < wT)
+            {
+                var ys = new List<double>();
+                double mx = double.MaxValue;
+                foreach (var p in mids) { mx = Math.Min(mx, p.X0); if (!ys.Exists(y => Math.Abs(y - p.Y0) < 20)) ys.Add(p.Y0); }
+                ys.Add(wB); ys.Add(wT); ys.Sort();
+                var pts = new List<double[]>(); foreach (double y in ys) pts.Add(new[] { mx + 100, y });
+                dim(pts.ToArray(), new Vector(-1, 0, 0), 0, null);
+            }
+
+            // openings: between the jambs under each lintel of the viewed wall
+            int nOpen = 0;
+            foreach (var li in wall.FindAll(p => p.Name == "LINTEL"))
+            {
+                SP left = null, right = null;
+                foreach (var j in wall)
+                {
+                    if (!j.Name.StartsWith("JAMB") || j.Y1 < li.Y0 - 50) continue;
+                    if (j.X1 <= li.X0 + (li.X1 - li.X0) / 2 && (left == null || j.X1 > left.X1)) left = j;
+                    if (j.X0 >= li.X0 + (li.X1 - li.X0) / 2 && (right == null || j.X0 < right.X0)) right = j;
+                }
+                if (left == null || right == null || right.X0 - left.X1 < 300) continue;
+                double ox0 = left.X1, ox1 = right.X0, top = li.Y0, bot = double.IsNaN(ffl) ? wB : ffl;
+                foreach (var sl in wall) if (sl.Name == "SILL" && sl.X0 < ox1 && sl.X1 > ox0 && sl.Y1 < top) bot = Math.Max(bot, sl.Y1);
+                double cx = (ox0 + ox1) / 2, cy = bot + (top - bot) * 0.55;
+                dim(new[] { new[] { ox0, cy }, new[] { ox1, cy } }, new Vector(0, 1, 0), 0, "OPENING");
+                dim(new[] { new[] { cx, bot }, new[] { cx, top } }, new Vector(-1, 0, 0), 0, "OPENING");
+                nOpen++;
+            }
+            return "s; dims: " + n + " chain(s), " + nOpen + " opening(s)" + (f > 0 ? ", " + f + " failed" : "") + ", viewed wall " + wall.Count + " part(s)";
         }
 
         static int RemoveAll(View v, params Type[] types)
