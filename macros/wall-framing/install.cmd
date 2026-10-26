@@ -38,7 +38,7 @@ for %%F in (WF_Settings.json WF_Isometric_Reference_v2.txt) do (
 )
 echo.
 echo Installed: P142_BASE_C_W, P142_WF_Isometric, P142_WF_Section,
-echo            P142_WF_AutoDimension, WallFramingAutoDimensionPro-AIO
+echo            P142_WF_AutoDimension, WallFramingAutoDimensionPro-AIO, P142_POD_DRAWINGS
 if not "%~2"=="" echo Add "%~2" to the advanced option XS_MACRO_DIRECTORY.
 echo Restart Tekla Structures, open a drawing: Applications ^> Macros.
 exit /b 0

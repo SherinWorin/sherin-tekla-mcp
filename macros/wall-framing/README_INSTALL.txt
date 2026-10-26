@@ -9,6 +9,9 @@ Five drawing macros (Applications > Macros, drawing mode):
 
   Macro                               Drawing it works on
   ----------------------------------  ------------------------------------------
+  P142_POD_DRAWINGS                   any drawing of a pod: asks a new pod name and
+                                        makes its empty drawings (-10001, -20001, -80001,
+                                        -CPL, -WPL ...) with titles and title block
   P142_BASE_C_W                       BASE, CEILING, WALL drawing (e.g. BP20M-10001)
                                       - 3 plans built from the pod's own parts,
                                         base / ceiling / wall dimensions,

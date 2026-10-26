@@ -311,6 +311,17 @@ namespace P142.WallFraming
             return ny > 0 ? "+y" : "-y";
         }
 
+        /// <summary>
+        /// Replaces the pod name <paramref name="from"/> by <paramref name="to"/> where it stands
+        /// as a whole word ("BP02" is not replaced inside "BP02M"); case-insensitive.
+        /// </summary>
+        public static string ReplacePod(string text, string from, string to)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(from)) return text;
+            return System.Text.RegularExpressions.Regex.Replace(text, "(?<![A-Za-z0-9])" + System.Text.RegularExpressions.Regex.Escape(from) + "(?![A-Za-z0-9])",
+                                                                to, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+
         /// <summary>The block of a drawing name: the part before the first dash.</summary>
         public static string BlockOfName(string name)
         {

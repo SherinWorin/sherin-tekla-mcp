@@ -115,7 +115,9 @@ $catalogFiles = @(
     @{ Name = 'P142_BASE_C_W.cs'; To = (Join-Path $catalog 'P142_BASE_C_W.cs') },
     @{ Name = 'P142_BASE_C_W.bmp'; To = (Join-Path $catalog 'P142_BASE_C_W.bmp') },
     @{ Name = 'P142_WF_Section.cs'; To = (Join-Path $catalog 'P142_WF_Section.cs') },
-    @{ Name = 'P142_WF_Section.bmp'; To = (Join-Path $catalog 'P142_WF_Section.bmp') }
+    @{ Name = 'P142_WF_Section.bmp'; To = (Join-Path $catalog 'P142_WF_Section.bmp') },
+    @{ Name = 'P142_POD_DRAWINGS.cs'; To = (Join-Path $catalog 'P142_POD_DRAWINGS.cs') },
+    @{ Name = 'P142_POD_DRAWINGS.bmp'; To = (Join-Path $catalog 'P142_POD_DRAWINGS.bmp') }
 )
 
 foreach ($f in $catalogFiles) {
@@ -237,6 +239,7 @@ foreach ($name in @('WF_Settings.json', 'WF_Isometric_Reference_v2.txt')) {
 Write-Output ''
 Write-Output 'The P142 macros are installed:'
 Write-Output '  P142_BASE_C_W     - BASE, CEILING, WALL drawing (-10001)'
+Write-Output '  P142_POD_DRAWINGS - the empty drawing set of a new pod'
 Write-Output '  P142_WF_Isometric - isometric drawing (-80001)'
 Write-Output '  P142_WF_Section   - sectional elevation (-20001; study mode for now)'
 Write-Output 'Restart Tekla Structures if it was running.'

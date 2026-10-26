@@ -298,7 +298,7 @@ Invoke-Csc -Refs $framework -Source (Join-Path $here 'WF_SectionRules.cs') -Out 
 
 Write-Output 'Building WF_BaseCW.dll (BASE, CEILING, WALL drawing) ...'
 Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'), (Join-Path $outDir 'WF_Isometric.dll'), (Join-Path $outDir 'WF_IsometricRules.dll'), (Join-Path $outDir 'WF_SectionRules.dll'))) `
-            -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs'), (Join-Path $here 'WF_BcwNotes.cs')) `
+            -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs'), (Join-Path $here 'WF_BcwNotes.cs'), (Join-Path $here 'WF_PodDrawings.cs')) `
             -Out (Join-Path $outDir 'WF_BaseCW.dll')
 
 Write-Output 'Building P142_BASE_C_W.dll (the BASE, CEILING, WALL loader) ...'
@@ -389,6 +389,8 @@ function New-Package {
     Copy-Item (Join-Path $here 'P142_WF_Isometric.cs') $pkgSrc -Force
     Copy-Item (Join-Path $here 'P142_WF_Section.cs') $pkgSrc -Force
     Copy-Item (Join-Path $here 'P142_BASE_C_W.cs') $pkgSrc -Force
+    Copy-Item (Join-Path $here 'P142_POD_DRAWINGS.cs') $pkgSrc -Force
+    Copy-Item (Join-Path $outDir 'P142_BASE_C_W.bmp') (Join-Path $pkgSrc 'P142_POD_DRAWINGS.bmp') -Force
     Copy-Item (Join-Path $outDir 'P142_BASE_C_W.bmp') $pkgSrc -Force
     # the icons of the macros
     $bmpOut = Join-Path $pkgSrc 'P142_WF_AutoDimension.bmp'
@@ -413,7 +415,7 @@ function New-Package {
     foreach ($s in @('WF_Core.cs', 'WF_Rules.cs', 'WF_License.cs', 'WF_Settings.cs',
                      'WF_IsometricRules.cs', 'WF_Isometric.cs', 'P142_WF_Isometric.cs',
                      'WF_SectionRules.cs', 'WF_Section.cs', 'P142_WF_Section.cs',
-                     'WF_BaseCW.cs', 'WF_BfDim.cs', 'WF_CeilStudy.cs', 'WF_CeilDim.cs', 'WF_BcwNotes.cs', 'P142_BASE_C_W.cs',
+                     'WF_BaseCW.cs', 'WF_BfDim.cs', 'WF_CeilStudy.cs', 'WF_CeilDim.cs', 'WF_BcwNotes.cs', 'WF_PodDrawings.cs', 'P142_BASE_C_W.cs', 'P142_POD_DRAWINGS.cs',
                      'P142_WF_AutoDimension.cs', 'WallFramingAutoDimensionPro-AIO.cs',
                      'WF_KeyGen.cs', 'WF_Settings.json', 'build.ps1')) {
         Copy-Item (Join-Path $here $s) $pkgSrc -Force
@@ -515,6 +517,8 @@ if ($Deploy) {
               -Destination (Join-Path $catalog 'P142_WF_Section.cs') -Force
     Copy-Item -Path (Join-Path $here 'P142_BASE_C_W.cs') `
               -Destination (Join-Path $catalog 'P142_BASE_C_W.cs') -Force
+    Copy-Item -Path (Join-Path $here 'P142_POD_DRAWINGS.cs') `
+              -Destination (Join-Path $catalog 'P142_POD_DRAWINGS.cs') -Force
 
     # The catalog shows an icon next to the macro; draw a small one if there
     # is none yet.
