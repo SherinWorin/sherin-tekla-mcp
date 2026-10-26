@@ -211,6 +211,7 @@ namespace P142.WallFraming
         {
             public TSM.Part Part;
             public string Name = "", Block = "", Profile = "";
+            public int AsmId;
             public double[] Min = new double[3], Max = new double[3];
         }
 
@@ -251,6 +252,7 @@ namespace P142.WallFraming
                             apos = ""; asm.GetReportProperty("ASSEMBLY_POS", ref apos); posOf[asm.Identifier.ID] = apos ?? "";
                         }
                         apos = apos ?? "";
+                        if (asm != null) bp.AsmId = asm.Identifier.ID;
                         int dash = apos.IndexOf('-');
                         bp.Block = WfRules.NormaliseBlock(dash > 0 ? apos.Substring(0, dash) : apos);
                         res.Add(bp);
@@ -321,14 +323,14 @@ namespace P142.WallFraming
                 // ceiling framing plans of every BASE, CEILING, WALL drawing
                 DialogResult st = MessageBox.Show(
                     "Drawing " + mark + " already has views this macro did not make, so it is not changed.\n\n" +
-                    "YES = READ-ONLY study: record the dimensions and parts of the ceiling framing plan of EVERY\n" +
-                    "BASE, CEILING, WALL drawing in WF_CeilDim_study.txt (nothing is written to any drawing).\n" +
+                    "YES = READ-ONLY study: record the parts, colours, dimensions, texts, symbols and section marks of the\n" +
+                    "three plans of EVERY BASE, CEILING, WALL drawing in WF_BCW_study.txt (nothing is written).\n" +
                     "NO / CANCEL = do nothing.",
                     "P142 Base, ceiling, wall", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (st != DialogResult.Yes) { result.Ok = true; result.Message = "Nothing done."; return; }
                 string file = WfCeilStudy.Run(new TSM.Model(), LogB);
                 result.Ok = true;
-                result.Message = "Ceiling study written (read only): " + file;
+                result.Message = "Study written (read only): " + file;
                 return;
             }
             if (ours.Count > 0)
@@ -391,6 +393,17 @@ namespace P142.WallFraming
                 pl.Parts.Add(p);
                 pl.Ids.Add(p.Part.Identifier.ID);
             }
+            // the base plan shows the BASE FRAME assembly only (the one holding the
+            // BASE_FRAME tubes) - not vanity posts, sheets, plywood (BP20M run 2026-10-26)
+            var baseAsm = new HashSet<int>();
+            foreach (var p in basePlan.Parts) if (p.Name == "BASE_FRAME" && p.AsmId != 0) baseAsm.Add(p.AsmId);
+            if (baseAsm.Count > 0)
+            {
+                int before = basePlan.Parts.Count;
+                basePlan.Parts = basePlan.Parts.FindAll(p => baseAsm.Contains(p.AsmId));
+                basePlan.Ids = new HashSet<int>(); foreach (var p in basePlan.Parts) basePlan.Ids.Add(p.Part.Identifier.ID);
+                Say("base plan: the base frame assembly only - " + basePlan.Parts.Count + " of " + before + " part(s)");
+            }
             double bLow = double.MaxValue, bHigh = double.MinValue, cLow = double.MaxValue, cHigh = double.MinValue;
             foreach (var p in basePlan.Parts) { bLow = Math.Min(bLow, p.Min[2]); bHigh = Math.Max(bHigh, p.Max[2]); }
             foreach (var p in ceilPlan.Parts) { cLow = Math.Min(cLow, p.Min[2]); cHigh = Math.Max(cHigh, p.Max[2]); }
@@ -452,12 +465,12 @@ namespace P142.WallFraming
             {
                 System.Threading.Thread.Sleep(1500);
                 int n = 0;
-                foreach (var kv in made) n += RemoveAll(kv.Key, typeof(Mark), typeof(WeldMark));
+                foreach (var kv in made) n += RemoveAll(kv.Key, typeof(Mark), typeof(WeldMark), typeof(Weld));
                 auto += n;
                 if (n == 0 && pass > 0) break;
             }
             if (auto > 0) dr.CommitChanges("P142 BCW automatic marks removed");
-            Say(auto + " automatic part / weld mark(s) of Tekla removed");
+            Say(auto + " automatic part mark(s), weld mark(s) and weld symbol(s) of Tekla removed");
 
             // ---- the colour code
             foreach (var kv in made)
@@ -486,7 +499,7 @@ namespace P142.WallFraming
                             (string.IsNullOrEmpty(wr.Message) ? "" : "  [" + wr.Message + "]"));
                         if (wr.Failed > 0) { Failed += wr.Failed; Say(Indent(wr.Log)); }
                         // BP07 reference: no wall-panel marks, no section marks on the wall plan
-                        int rm = RemoveAll(v, typeof(Mark), typeof(SectionMark), typeof(WeldMark));
+                        int rm = RemoveAll(v, typeof(Mark), typeof(SectionMark), typeof(WeldMark), typeof(Weld));
                         Say("     wall plan: " + rm + " panel / section / weld mark(s) removed (not on the reference)");
                     }
                     else
@@ -502,6 +515,20 @@ namespace P142.WallFraming
                 catch (Exception ex) { Failed++; Say("FAIL dimensions of " + role + ": " + ex.GetType().Name + ": " + ex.Message); }
             }
             dr.CommitChanges("P142 BCW dimensions");
+            // Tekla keeps creating marks / welds in the background: one more sweep
+            int late = 0;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                System.Threading.Thread.Sleep(2000);
+                int n = 0;
+                for (int i = 0; i < made.Count; i++)
+                    n += plans[i].Role == ROLE_WALL ? RemoveAll(made[i].Key, typeof(Mark), typeof(SectionMark), typeof(WeldMark), typeof(Weld))
+                                                    : RemoveAll(made[i].Key, typeof(Mark), typeof(WeldMark), typeof(Weld));
+                late += n;
+                if (n > 0) dr.CommitChanges("P142 BCW late marks removed");
+                else if (pass > 0) break;
+            }
+            Say(late + " late mark / weld object(s) removed");
             PlaceAll(dr, made, centres, "after the dimensions");
 
             if (save && Made > 0)
@@ -551,7 +578,7 @@ namespace P142.WallFraming
             DrawingObjectEnumerator en = v.GetAllObjects(types);
             while (en.MoveNext()) if (en.Current != null) list.Add(en.Current);
             int n = 0;
-            foreach (DrawingObject o in list) if (o.Delete()) n++;
+            foreach (DrawingObject o in list) { try { if (o.Delete()) n++; } catch (Exception) { } }
             return n;
         }
 
