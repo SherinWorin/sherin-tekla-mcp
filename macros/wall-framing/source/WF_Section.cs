@@ -400,11 +400,20 @@ namespace P142.WallFraming
             double x0 = double.MaxValue, x1 = double.MinValue, yB = double.MaxValue, yT = double.MinValue;
             foreach (var p in ps) { x0 = Math.Min(x0, p.X0); x1 = Math.Max(x1, p.X1); yB = Math.Min(yB, p.Y0); yT = Math.Max(yT, p.Y1); }
             // the viewed wall: parts around z = -ahead (the viewer looks along -z)
-            var wall = ps.FindAll(p => Math.Abs((p.Z0 + p.Z1) / 2 + ahead) < 150);
+            // = the depth band of its longest bottom track (a ledge wall in front is not the wall)
+            SP main = null;
+            foreach (var p in ps)
+                if (p.Name == "BOTTOM_TRACK" && Math.Abs((p.Z0 + p.Z1) / 2 + ahead) < 150 && p.X1 - p.X0 > p.Z1 - p.Z0 && (main == null || p.X1 - p.X0 > main.X1 - main.X0)) main = p;
+            var wall = main == null ? ps.FindAll(p => Math.Abs((p.Z0 + p.Z1) / 2 + ahead) < 150)
+                                    : ps.FindAll(p => (p.Z0 + p.Z1) / 2 > main.Z0 - 20 && (p.Z0 + p.Z1) / 2 < main.Z1 + 20);
             double wB = double.MaxValue, wT = double.MinValue;
-            foreach (var p in wall) { if (p.Name == "BOTTOM_TRACK") wB = Math.Min(wB, p.Y0); if (p.Name == "TOP_TRACK") wT = Math.Max(wT, p.Y1); }
+            if (main != null) wB = main.Y0;
+            foreach (var p in wall) { if (main == null && p.Name == "BOTTOM_TRACK") wB = Math.Min(wB, p.Y0); if (p.Name == "TOP_TRACK") wT = Math.Max(wT, p.Y1); }
             if (wB == double.MaxValue || wT == double.MinValue)
                 foreach (var p in ps) { if (p.Name == "BOTTOM_TRACK") wB = Math.Min(wB, p.Y0); if (p.Name == "TOP_TRACK") wT = Math.Max(wT, p.Y1); }
+            // the overall height starts at SSL, 3 mm under the base skid (owner, BP02M-20001: 2554)
+            double ssl = yB - 3;
+            foreach (double y in levels) if (Math.Abs(y - yB) < 10) { ssl = y; break; }
             double ffl = double.NaN;
             foreach (double y in levels) if (y > yB + 10 && y < yB + 300) { ffl = y; break; }
             var h = new StraightDimensionSetHandler();
@@ -432,20 +441,19 @@ namespace P142.WallFraming
                 }
                 catch (Exception e) { f++; log.AppendLine("     dim failed: " + e.Message); return false; }
             };
-            dim(new[] { new[] { x0, yB }, new[] { x0, yT } }, new Vector(-1, 0, 0), 6 * s, null);
-            if (wB < wT) dim(new[] { new[] { x1, yB }, new[] { x1, wB }, new[] { x1, wT }, new[] { x1, yT } }, new Vector(1, 0, 0), 6 * s, null);
-            if (!double.IsNaN(ffl)) dim(new[] { new[] { x1, yB }, new[] { x1, ffl }, new[] { x1, yT } }, new Vector(1, 0, 0), 14 * s, null);
+            dim(new[] { new[] { x0, ssl }, new[] { x0, yT } }, new Vector(-1, 0, 0), 14 * s, null);
+            if (wB < wT) dim(new[] { new[] { x1, ssl }, new[] { x1, wB }, new[] { x1, wT }, new[] { x1, yT } }, new Vector(1, 0, 0), 6 * s, null);
+            if (!double.IsNaN(ffl)) dim(new[] { new[] { x1, ssl }, new[] { x1, ffl }, new[] { x1, yT } }, new Vector(1, 0, 0), 14 * s, null);
 
-            // middle tracks of the viewed wall: one chain over their distinct heights
+            // left: bottom of the LGS wall | middle track mid-heights | top of the wall (owner, BP02M-20001)
             var mids = wall.FindAll(p => p.Name == "MIDDLE_TRACK" && p.X1 - p.X0 > p.Y1 - p.Y0);
-            if (mids.Count > 0 && wB < wT)
+            if (wB < wT)
             {
-                var ys = new List<double>();
-                double mx = double.MaxValue;
-                foreach (var p in mids) { mx = Math.Min(mx, p.X0); if (!ys.Exists(y => Math.Abs(y - p.Y0) < 20)) ys.Add(p.Y0); }
-                ys.Add(wB); ys.Add(wT); ys.Sort();
-                var pts = new List<double[]>(); foreach (double y in ys) pts.Add(new[] { mx + 100, y });
-                dim(pts.ToArray(), new Vector(-1, 0, 0), 0, null);
+                var ys = new List<double> { wB, wT };
+                foreach (var p in mids) { double m = (p.Y0 + p.Y1) / 2; if (!ys.Exists(y => Math.Abs(y - m) < 30)) ys.Add(m); }
+                ys.Sort();
+                var pts = new List<double[]>(); foreach (double y in ys) pts.Add(new[] { x0, y });
+                dim(pts.ToArray(), new Vector(-1, 0, 0), 6 * s, null);
             }
 
             // openings: between the jambs under each lintel of the viewed wall
