@@ -418,7 +418,7 @@ namespace P142.WallFraming
             foreach (double y in levels) if (y > yB + 10 && y < yB + 300) { ffl = y; break; }
             var h = new StraightDimensionSetHandler();
             int n = 0, f = 0;
-            Func<double[][], Vector, double, string, bool> dim = (pts, up, dist, tag) =>
+            Func<double[][], Vector, double, string, bool> dim = (pts, up, dist, unused) =>
             {
                 var pl = new PointList();
                 foreach (var q in pts) pl.Add(new Point(q[0], q[1], 0));
@@ -426,22 +426,6 @@ namespace P142.WallFraming
                 {
                     StraightDimensionSet set = h.CreateDimensionSet(v, pl, up, dist, sa);
                     if (set == null) { f++; return false; }
-                    if (tag != null)
-                    {
-                        DrawingObjectEnumerator ce = set.GetObjects();
-                        while (ce.MoveNext())
-                        {
-                            StraightDimension d = ce.Current as StraightDimension;
-                            if (d == null) continue;
-                            // Attributes is a copy: change it, assign it back, then Modify (the first try only changed the copy)
-                            var da = d.Attributes;
-                            var tc = new ContainerElement();
-                            tc.Add(new TextElement(tag));
-                            da.MiddleLowerTag = tc;
-                            d.Attributes = da;
-                            if (!d.Modify()) log.AppendLine("     OPENING tag not set");
-                        }
-                    }
                     n++; return true;
                 }
                 catch (Exception e) { f++; log.AppendLine("     dim failed: " + e.Message); return false; }
@@ -476,8 +460,16 @@ namespace P142.WallFraming
                 double ox0 = left.X1, ox1 = right.X0, top = li.Y0, bot = double.IsNaN(ffl) ? wB : ffl;
                 foreach (var sl in wall) if (sl.Name == "SILL" && sl.X0 < ox1 && sl.X1 > ox0 && sl.Y1 < top) bot = Math.Max(bot, sl.Y1);
                 double cx = (ox0 + ox1) / 2, cy = bot + (top - bot) * 0.55;
-                dim(new[] { new[] { ox0, cy }, new[] { ox1, cy } }, new Vector(0, 1, 0), 0, "OPENING");
-                dim(new[] { new[] { cx, bot }, new[] { cx, top } }, new Vector(-1, 0, 0), 0, "OPENING");
+                dim(new[] { new[] { ox0, cy }, new[] { ox1, cy } }, new Vector(0, 1, 0), 0, null);
+                dim(new[] { new[] { cx, bot }, new[] { cx, top } }, new Vector(-1, 0, 0), 0, null);
+                // "OPENING" under the width and beside the height (BP02M-20001); a dimension tag
+                // set through the API did not show (2026-10-26), so these are plain texts
+                var ta = new Text.TextAttributes();
+                ta.Font.Height = 2.5;
+                new Text(v, new Point((ox0 + ox1) / 2, cy - 3 * s, 0), "OPENING", ta).Insert();
+                var tv = new Text.TextAttributes();
+                tv.Font.Height = 2.5; tv.Angle = 90;
+                new Text(v, new Point(cx + 3 * s, (bot + top) / 2, 0), "OPENING", tv).Insert();
                 nOpen++;
             }
             return "s; dims: " + n + " chain(s), " + nOpen + " opening(s)" + (f > 0 ? ", " + f + " failed" : "") + ", viewed wall " + wall.Count + " part(s)";
