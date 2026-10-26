@@ -423,3 +423,15 @@ Read back from an existing view: `ViewCoordinateSystem`,
    is picked up on the next run without a restart.
 8. `Part.PartAttributes` has no `DrawInnerContours` in 2025, and `LineTypes`
    is a class (static members), not an enum.
+
+## Verified 2026-10-26 (Tekla 2025 XML docs + compile against the 2025 DLLs)
+- `SectionMark(View, Point, Point, SectionMarkBase.SectionMarkAttributes)`; `SectionMarkAttributes.MarkName`.
+- `MatrixFactory.ToCoordinateSystem(CoordinateSystem)` + `Matrix.Transform(Point)`.
+- `GADrawing(string name, string AttributeFile)`, `GADrawing(string, Size)`; `Drawing.Layout` getter only; `LayoutAttributes.InternalTableLayoutId/InternalLayout` internal.
+- `DrawingHandler.SetActiveDrawing(Drawing, bool)`, `SaveActiveDrawing()`, `CloseActiveDrawing(bool)`; `GADrawing.Insert()` fails while a drawing is open.
+- `DatabaseObject.GetStringUserProperties / GetIntegerUserProperties / GetDoubleUserProperties(out Dictionary)`, `SetUserProperty`.
+- `Image(ViewBase, Point, Size, string, EmbeddedObjectAttributes)`; `EmbeddedObjectBase.FileName/Size/InsertionPoint/Attributes`.
+- `StraightDimension.Attributes` (StraightDimensionAttributes) settable, `.MiddleLowerTag` settable (ContainerElement); `TextElement(string)`, `TextElement(string, FontAttributes)`; `ContainerElement.Add`.
+- `StraightDimensionSetAttributes.IncludePartCountInTag` and `...TagA..G`.
+- `View.ViewMarkTagsAttributes(TagA1..TagA5)`, `View.ViewMarkTagAttributes(Vector, TagLocation, TextAlignment, ContainerElement)`, `ViewMarkBasicTagAttributes.TagContent/Offset/Location`.
+- `Text.TextAttributes.Angle/Font`; `Model.GetInfo().ModelPath`.

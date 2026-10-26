@@ -7,3 +7,4 @@
 - stdout is the MCP protocol: write logs to stderr only.
 - After changes: `dotnet test tests/SherinTeklaMcp.Core.Tests`, update `docs/TOOLS.md` and `CHANGELOG.md`.
 - Terminal instructions for the owner: label them **Command Prompt (Windows)** or **Ubuntu (WSL)**; PowerShell is blocked on the owner's PC.
+- P142 drawing macros (`macros/wall-framing/`): start with `macros/wall-framing/HANDOVER.md` (state, owner rules, build/deploy, API traps, open items).
