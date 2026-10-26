@@ -1,0 +1,116 @@
+================================================================================
+P142 TEKLA 2025 DRAWING MACROS  -  OFFICE PC  (no PowerShell, no C:\ admin)
+Package date: 2026-10-26 (v2: section views, pod drawing set)
+================================================================================
+Nothing to run: you only copy two folders.
+
+Tekla reads macros from the MODEL FOLDER first (<model>\macros\drawings), so the
+macros need no Tekla installation folder and no advanced option.  The macro
+logic (DLLs) goes to your own user folder %LOCALAPPDATA%, which needs no admin.
+
+--------------------------------------------------------------------------------
+STEP 0  -  Unblock the zip  (important on a company PC)
+--------------------------------------------------------------------------------
+Before unzipping: right-click the zip > Properties > tick "Unblock" (bottom of
+the General tab, if it is shown) > OK.  Then unzip.
+(Windows marks downloaded DLLs as "from the internet"; two of the macros
+refuse to load such DLLs.)
+
+Close Tekla Structures.
+
+--------------------------------------------------------------------------------
+STEP 1  -  Macros into the MODEL folder
+--------------------------------------------------------------------------------
+Open  STEP1_copy_into_MODEL_FOLDER  and copy its  macros  folder into your
+Tekla model folder (the folder that holds the model's .db1 file).
+
+Result:
+   <model folder>\macros\drawings\P142_BASE_C_W.cs                + .bmp
+   <model folder>\macros\drawings\P142_WF_Isometric.cs            + .bmp
+   <model folder>\macros\drawings\P142_WF_Section.cs              + .bmp
+   <model folder>\macros\drawings\P142_WF_AutoDimension.cs        + .bmp
+   <model folder>\macros\drawings\WallFramingAutoDimensionPro-AIO.cs + .bmp
+   <model folder>\macros\drawings\P142_POD_DRAWINGS.cs           + .bmp
+   <model folder>\macros\modeling\          (empty - Tekla expects it)
+
+If the model already has a  macros\drawings  folder, just add these 12 files.
+The macros show only in THIS model.  For another model, copy the same
+macros folder into that model folder too.
+
+--------------------------------------------------------------------------------
+STEP 2  -  Macro logic into %LOCALAPPDATA%
+--------------------------------------------------------------------------------
+1. In File Explorer click the address bar, type   %LOCALAPPDATA%   and press
+   Enter  (it opens  C:\Users\<you>\AppData\Local ).
+2. Open  STEP2_copy_into_LOCALAPPDATA  and copy its  P142  folder into it.
+   If a P142 folder is already there: copy the 10 .dll files over the old
+   ones, and keep your existing WF_Settings.json and
+   WF_Isometric_Reference_v2.txt.
+
+Result:
+   %LOCALAPPDATA%\P142\WallFraming\
+       WF_Core.dll        WF_Rules.dll         WF_License.dll
+       WF_Isometric.dll   WF_IsometricRules.dll
+       WF_BaseCW.dll      WF_Section.dll       WF_SectionRules.dll
+       WF_Pro.dll         WF_Rules_Pro.dll
+       WF_Settings.json   WF_Isometric_Reference_v2.txt
+
+The folder name must be exactly  P142\WallFraming  - every macro looks there.
+
+--------------------------------------------------------------------------------
+STEP 3  -  Check
+--------------------------------------------------------------------------------
+1. Start Tekla, open the model, open any drawing.
+2. Applications & components (or Applications > Macros): the six macros are
+   listed.  The first run of each compiles it (a few seconds).
+3. Quick test: open a finished BASE, CEILING, WALL drawing (e.g. BP02M-10001)
+   and run P142_BASE_C_W.  It must answer with a message (a read-only study
+   question, or "issued or frozen") - answer NO.  If it says
+   "WF_BaseCW.dll not found", STEP 2 went to the wrong folder.
+
+--------------------------------------------------------------------------------
+THE MACROS
+--------------------------------------------------------------------------------
+  P142_BASE_C_W                    BASE, CEILING, WALL drawing (-10001)
+  P142_WF_Isometric                ISOMETRIC drawing (-80001)
+  P142_POD_DRAWINGS                any drawing: asks a new pod name, makes its
+                                   empty -10001 / -20001 / -80001 / -CPL / -WPL
+  P142_WF_Section                  SECTIONAL ELEVATION (-20001): S1..Sn views from
+                                   the base plan section marks, notes, dimensions
+  P142_WF_AutoDimension            WALL FRAMING LAYOUT (one block)
+  WallFramingAutoDimensionPro-AIO  GA sheet with many wall framing layouts
+
+Licence: P142_WF_AutoDimension's Pro features are tied to each computer - on
+this PC it runs a 3-day trial, then the free edition, until a key is issued
+for it.  The other five macros need no licence.
+
+--------------------------------------------------------------------------------
+ONCE PER MODEL  -  drawing settings for P142_POD_DRAWINGS
+--------------------------------------------------------------------------------
+Open the properties of each finished reference drawing of one pod (Document
+manager > select > drawing properties), click Get, then Save as:
+   <pod>-10001 -> P142_10001     <pod>-20001 -> P142_20001
+   <pod>-80001 -> P142_80001     <pod>-CPL   -> P142_CPL     <pod>-WPL -> P142_WPL
+Without these files the new drawings get the 'standard' settings.
+
+ORDER for a new pod: P142_POD_DRAWINGS (from any drawing) -> open -10001: P142_BASE_C_W
+(places the section marks) -> open -20001: P142_WF_Section -> open -80001: P142_WF_Isometric.
+
+--------------------------------------------------------------------------------
+IF SOMETHING GOES WRONG
+--------------------------------------------------------------------------------
+  * Macro not in the list     -> the files are not in <model>\macros\drawings
+                                 (check the path; restart Tekla).
+  * "...dll not found"        -> STEP 2 folder is not exactly
+                                 %LOCALAPPDATA%\P142\WallFraming.
+  * "could not load" / "operation is not supported" / "blocked by group
+    policy"                    -> the DLLs are still blocked: right-click each
+                                 .dll > Properties > Unblock; if it is a
+                                 company policy, ask IT to allow DLLs in
+                                 %LOCALAPPDATA%\P142\WallFraming.
+
+To update later: replace the files the same way (Tekla can stay open for the
+DLLs of P142_BASE_C_W / Isometric / Section; restart Tekla for the
+AutoDimension / AIO macros).
+To remove: delete <model>\macros\drawings\ the 12 P142 / WallFraming files,
+and the folder %LOCALAPPDATA%\P142.
