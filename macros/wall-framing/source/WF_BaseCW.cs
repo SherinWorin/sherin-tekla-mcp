@@ -301,6 +301,12 @@ namespace P142.WallFraming
             result.Made = Made;
             result.Failed = Failed;
             result.Log = LogB.ToString();
+            try
+            {
+                string f = System.IO.Path.Combine(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "P142"), "WallFraming");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(f, "WF_BaseCW_log.txt"), result.Log);
+            }
+            catch (Exception) { }
             if (result.Ok)
                 MessageBox.Show("P142_BASE_C_W: " + result.Message + "\n\nLog:\n" + Trim(result.Log, 6000),
                                 "P142 Base, ceiling, wall", MessageBoxButtons.OK, MessageBoxIcon.Information);

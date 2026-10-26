@@ -73,6 +73,9 @@ namespace P142.WallFraming
             return res;
         }
 
+        static string P(Point p) { return "(" + p.X.ToString("F0") + "," + p.Y.ToString("F0") + ")"; }
+        static string B(double[] b) { return "[" + b[0].ToString("F0") + "," + b[1].ToString("F0") + " .. " + b[2].ToString("F0") + "," + b[3].ToString("F0") + "]"; }
+
         static double[] Box(List<PB> ps)
         {
             var b = new[] { double.MaxValue, double.MaxValue, double.MinValue, double.MinValue };
@@ -127,6 +130,9 @@ namespace P142.WallFraming
             var src = Parts(sv, model); var dst = Parts(v, model);
             if (src.Count == 0 || dst.Count == 0) { log.AppendLine("     notes: no parts to anchor to"); return 0; }
             double[] a = Box(src), b = Box(dst);
+            log.AppendLine("     outline: reference '" + sv.Name + "' " + B(a) + " (" + src.Count + " parts, display CS origin " + P(sv.DisplayCoordinateSystem.Origin) +
+                           ", view CS origin " + P(sv.ViewCoordinateSystem.Origin) + ") -> new " + B(b) + " (" + dst.Count + " parts, display CS origin " +
+                           P(v.DisplayCoordinateSystem.Origin) + ", view CS origin " + P(v.ViewCoordinateSystem.Origin) + ")");
             var objs = new List<DrawingObject>();
             DrawingObjectEnumerator en = sv.GetAllObjects();
             while (en.MoveNext()) if (en.Current != null) objs.Add(en.Current);
@@ -179,6 +185,7 @@ namespace P142.WallFraming
                         }
                         else nt = new DText(v, Map(t.InsertionPoint, a, b), t.TextString, ta);
                         if (nt.Insert()) { made++; texts++; }
+                        log.AppendLine("       text '" + t.TextString.Replace("\n", " ") + "' " + P(t.InsertionPoint) + " -> " + P(nt.InsertionPoint));
                         continue;
                     }
                     DMark mk = o as DMark;
