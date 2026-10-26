@@ -772,6 +772,39 @@ namespace P142.WallFraming
             h.DrawBackgroundColor = false;
         }
 
+        /// <summary>
+        /// Sets the "ISOMETRIC VIEW n" text of the view label (a text element in a label
+        /// tag, copied from the reference) to this view's pane number.  True when changed.
+        /// </summary>
+        static bool LabelText(View v, string text)
+        {
+            View.ViewAttributes a = v.Attributes;
+            View.ViewMarkTagsAttributes ta = a.TagsAttributes;
+            if (ta == null) return false;
+            bool changed = false;
+            var tags = new[] { ta.TagA1, ta.TagA2, ta.TagA3, ta.TagA4, ta.TagA5 };
+            for (int k = 0; k < tags.Length; k++)
+            {
+                if (tags[k] == null || tags[k].TagContent == null) continue;
+                var c = new ContainerElement();
+                bool hit = false;
+                foreach (object e in tags[k].TagContent)
+                {
+                    TextElement te = e as TextElement;
+                    if (te != null && te.Value != null && te.Value.ToUpperInvariant().Contains("ISOMETRIC VIEW"))
+                    { c.Add(new TextElement(text, te.Font)); hit = true; }
+                    else c.Add((ElementBase)e);
+                }
+                if (!hit) continue;
+                tags[k] = new View.ViewMarkTagAttributes(tags[k].Offset, tags[k].Location, tags[k].TagAlignment, c);
+                changed = true;
+            }
+            if (!changed) return false;
+            a.TagsAttributes = new View.ViewMarkTagsAttributes(tags[0], tags[1], tags[2], tags[3], tags[4]);
+            v.Attributes = a;
+            return v.Modify();
+        }
+
         /// <summary>Deletes every mark in the view (no part marks on isometric views).</summary>
         public static int RemoveMarks(View v)
         {
@@ -850,6 +883,7 @@ namespace P142.WallFraming
 
                     // the position on the sheet
                     string where = "ISOMETRIC VIEW " + (panes[i] + 1);
+                    if (LabelText(v, where)) Say("  label of '" + s.Name + "': " + where);
                     made.Add(new KeyValuePair<View, int>(v, panes[i]));
 
                     // colour code and no part marks
@@ -1094,6 +1128,19 @@ namespace P142.WallFraming
             }
 
             List<View> live = LiveReferenceViews(r);
+            if (live == null)
+            {
+                // the captured reference is not in this model (R00 -> R01): the view properties
+                // (label "3d ISOMETRIC VIEW n / SCALE") of another finished isometric drawing
+                List<View> other;
+                Drawing od = FindReferenceDrawing(dr, out other);
+                if (od != null && other != null && other.Count > 0)
+                {
+                    live = new List<View>();
+                    for (int k = 0; k < r.Specs.Count; k++) live.Add(other[Math.Min(k, other.Count - 1)]);
+                    Say("view properties from " + od.Mark + " " + od.Name + " (finished isometric drawing of this model)");
+                }
+            }
             CreateViews(dr, model, r, live, parts);
 
             if (save && Made > 0)
