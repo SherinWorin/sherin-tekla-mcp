@@ -12,9 +12,10 @@
 //     per model from the reference drawing (Drawing properties > Get > Save as
 //     P142_10001 ...).  The 2025 API cannot read a drawing's properties, so this file
 //     is the only way to copy them.  No such file: "standard" at the set's sheet size.
+//   * Tekla inserts a drawing only when none is open: the open drawing is SAVED and
+//     closed first and reopened at the end;
 //   * optionally (YES) the sheet-level items of the reference drawing (key plan, frame
-//     lines, texts): each new drawing is opened once - the open drawing is SAVED first
-//     and reopened at the end.
+//     lines, texts): each new drawing is opened once.
 // No view is made: the views come from the P142 drawing macros afterwards.
 // API (2025, Tekla.Structures.Drawing.xml): GADrawing(string name, string AttributeFile),
 // GADrawing(string, Size), Title1..3, Insert(); DatabaseObject.Get*UserProperties /
@@ -78,14 +79,17 @@ namespace P142.WallFraming
                 }
                 DialogResult go = MessageBox.Show("Drawings of pod " + dst + ":\n\n" + plan +
                     (inModel ? "" : "\nWARNING: no wall of block " + dst + " (ASSEMBLY_POS " + dst + "-...) was found in the model.\n") +
-                    "\nYES = create them and ALSO copy the sheet items of the reference drawings (key plan, frame\n" +
-                    "         lines, texts): the open drawing is SAVED, each new drawing is opened once, and the\n" +
-                    "         open drawing is reopened at the end.\n" +
-                    "NO = create them only (nothing is opened).\nCANCEL = do nothing.",
+                    "\nTekla creates drawings only when no drawing is open: the open drawing is SAVED and\n" +
+                    "closed first, and opened again at the end.\n\n" +
+                    "YES = create them and ALSO copy the sheet items of the reference drawings\n" +
+                    "         (key plan, frame lines, texts) - each new drawing is opened once.\n" +
+                    "NO = create them only.\nCANCEL = do nothing.",
                     "P142 Pod drawings", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (go == DialogResult.Cancel) { result.Ok = true; result.Message = "Nothing done."; return; }
                 bool sheets = go == DialogResult.Yes;
 
+                // CannotInsertDrawingException: "Drawing cannot be inserted when another drawing is active"
+                if (open != null) { dh.SaveActiveDrawing(); dh.CloseActiveDrawing(true); }
                 var made = new List<KeyValuePair<Drawing, Drawing>>();
                 int failed = 0;
                 foreach (var k in WfSectionRules.PodDrawings)
@@ -112,7 +116,6 @@ namespace P142.WallFraming
 
                 if (sheets && made.Count > 0)
                 {
-                    if (open != null) { dh.SaveActiveDrawing(); dh.CloseActiveDrawing(true); }
                     foreach (var kv in made)
                     {
                         try
@@ -127,8 +130,8 @@ namespace P142.WallFraming
                         }
                         catch (Exception e) { failed++; log.AppendLine("FAIL sheet items " + kv.Value.Name + ": " + e.Message); }
                     }
-                    if (open != null) { try { dh.SetActiveDrawing(open, true); } catch (Exception) { } }
                 }
+                if (open != null) { try { dh.SetActiveDrawing(open, true); } catch (Exception) { } }
                 result.Failed = failed;
                 result.Ok = failed == 0;
                 result.Message = "pod " + dst + ": " + failed + " failure(s) - see the list.";
