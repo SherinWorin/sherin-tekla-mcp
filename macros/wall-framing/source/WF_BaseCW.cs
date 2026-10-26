@@ -417,8 +417,17 @@ namespace P142.WallFraming
             basePlan.ZMin = (bLow == double.MaxValue ? baseTop - 150 : bLow) - 1; basePlan.ZMax = (bHigh == double.MinValue ? baseTop : bHigh) + 1;
             // the wall cut follows the MAIN wall tracks (the highest wall BOTTOM_TRACK):
             // a ledge wall sits lower (z 36 on BP20M) and would cut the main walls away
-            double wallTrack = baseTop;
-            foreach (var p in pod) if (p.Name == "BOTTOM_TRACK" && p.Min[2] < ceil - 500) wallTrack = Math.Max(wallTrack, p.Min[2]);
+            // main wall level = the bottom-track level with the most track length (a raised
+            // vanity wall track at z 804 must not set it - BP20M 2026-10-26)
+            var lenAt = new Dictionary<double, double>();
+            foreach (var p in pod)
+            {
+                if (p.Name != "BOTTOM_TRACK" || p.Min[2] >= ceil - 500) continue;
+                double z = Math.Round(p.Min[2]), len = Math.Max(p.Max[0] - p.Min[0], p.Max[1] - p.Min[1]), l0;
+                lenAt.TryGetValue(z, out l0); lenAt[z] = l0 + len;
+            }
+            double wallTrack = baseTop, most = -1;
+            foreach (var kv in lenAt) if (kv.Value > most) { most = kv.Value; wallTrack = kv.Key; }
             // view depth: 50 mm under the underside of the lowest LGS bottom track (owner, 2026-10-26)
             double lowTrack = wallTrack;
             foreach (var p in pod) if (p.Name == "BOTTOM_TRACK" && p.Min[2] < ceil - 500) lowTrack = Math.Min(lowTrack, p.Min[2]);
@@ -498,6 +507,8 @@ namespace P142.WallFraming
                 Say("colours '" + kv.Key.Name + "': " + n + " part(s)  " + string.Join(", ", l.ToArray()));
                 if (plans[made.IndexOf(kv)].Role == ROLE_BASE)
                     Say("     base frame hidden lines on: " + HiddenLinesOn(kv.Key) + " part(s)");
+                if (plans[made.IndexOf(kv)].Role == ROLE_CEIL)
+                    Say("     ceiling LGS studs with a grey centre line: " + StudCentreLines(kv.Key, model) + " part(s)");
             }
             dr.CommitChanges("P142 BCW colours");
 
@@ -625,6 +636,28 @@ namespace P142.WallFraming
                 {
                     dp.Attributes.DrawHiddenLines = true;
                     dp.Attributes.DrawOwnHiddenLines = true;
+                    if (dp.Modify()) n++;
+                }
+                catch (Exception) { }
+            }
+            return n;
+        }
+
+        /// <summary>Ceiling plan: a grey (LGS_GREY) centre line on the LGS studs only (owner, 2026-10-26).</summary>
+        static int StudCentreLines(View v, TSM.Model model)
+        {
+            int n = 0;
+            DrawingObjectEnumerator en = v.GetAllObjects(typeof(Part));
+            while (en.MoveNext())
+            {
+                Part dp = en.Current as Part;
+                if (dp == null) continue;
+                TSM.Part mp = model.SelectModelObject(dp.ModelIdentifier) as TSM.Part;
+                if (mp == null || !string.Equals(mp.Name, "STUD", StringComparison.OrdinalIgnoreCase)) continue;
+                try
+                {
+                    dp.Attributes.DrawCenterLine = true;
+                    dp.Attributes.CenterLine = new LineTypeAttributes(LineTypes.DashDot, (DrawingColors)159);
                     if (dp.Modify()) n++;
                 }
                 catch (Exception) { }

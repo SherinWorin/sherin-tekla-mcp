@@ -201,11 +201,27 @@ namespace P142.WallFraming
                         foreach (var to in targets)
                         {
                             if (to == null || to.Drawn == null || !marked.Add(to.Id + "|" + owner.Key)) continue;
-                            Point ns = keyCount[owner.Key] > 1 ? Mid(to) : Clamp(to, ms);
                             var nm = new DMark(to.Drawn);
                             nm.Attributes = mk.Attributes as DMark.MarkAttributes;
-                            nm.InsertionPoint = new Point(ns.X + mk.InsertionPoint.X - s0.X, ns.Y + mk.InsertionPoint.Y - s0.Y, 0);
-                            if (mlp != null) nm.Placing = new LeaderLinePlacing(ns);
+                            if (mlp == null)
+                            {
+                                // a profile label: along the member (AlongLinePlacing, as on the
+                                // reference), on its centre line, offset as on the reference
+                                bool vert = (to.Y1 - to.Y0) > (to.X1 - to.X0);
+                                bool overt = (owner.Y1 - owner.Y0) > (owner.X1 - owner.X0);
+                                Point om = Mid(owner), nmid = Mid(to);
+                                double off = overt ? mk.InsertionPoint.X - om.X : mk.InsertionPoint.Y - om.Y;
+                                Point a0 = vert ? new Point(nmid.X, to.Y0, 0) : new Point(to.X0, nmid.Y, 0);
+                                Point a1 = vert ? new Point(nmid.X, to.Y1, 0) : new Point(to.X1, nmid.Y, 0);
+                                nm.Placing = new AlongLinePlacing(a0, a1);
+                                nm.InsertionPoint = vert ? new Point(nmid.X + off, nmid.Y, 0) : new Point(nmid.X, nmid.Y + off, 0);
+                            }
+                            else
+                            {
+                                Point ns = keyCount[owner.Key] > 1 ? Mid(to) : Clamp(to, ms);
+                                nm.InsertionPoint = new Point(ns.X + mk.InsertionPoint.X - s0.X, ns.Y + mk.InsertionPoint.Y - s0.Y, 0);
+                                nm.Placing = new LeaderLinePlacing(ns);
+                            }
                             if (nm.Insert()) { made++; marks++; }
                         }
                         continue;

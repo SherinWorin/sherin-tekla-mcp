@@ -342,9 +342,44 @@ namespace P142.WallFraming
         /// Creates a dimension set.  The points must be given in the order
         /// they appear along the dimension line.
         /// </summary>
+        /// <summary>
+        /// True while P142_BASE_C_W dimensions its wall plan: every dimension
+        /// point is moved onto the first wall face inward from it, so the
+        /// extension lines start at the walls and not at the layout's bounding
+        /// box (an L-shaped pod, BP20M 2026-10-26).  False for the wall layout
+        /// macros, which are unchanged.
+        /// </summary>
+        public static bool SnapToWalls;
+
+        /// <summary>Moves each point onto the first wall face inward from it (see SnapToWalls).</summary>
+        public static List<Point> SnapPoints(List<Point> pts, Vector up)
+        {
+            var res = new List<Point>();
+            bool alongX = Math.Abs(up.Y) > 0.5;
+            double sg = alongX ? Math.Sign(up.Y) : Math.Sign(up.X);
+            foreach (Point p in pts)
+            {
+                double best = double.NaN;
+                foreach (WfPart w in AllParts)
+                {
+                    if (!string.Equals(w.Name, "BOTTOM_TRACK", StringComparison.OrdinalIgnoreCase)) continue;   // owner: from the base track edge
+                    double a = alongX ? p.X : p.Y, lo = alongX ? w.X0 : w.Y0, hi = alongX ? w.X1 : w.Y1;
+                    if (a < lo - 1 || a > hi + 1) continue;
+                    // the face that looks in the up direction, at or inward of the point
+                    double face = alongX ? (sg < 0 ? w.Y0 : w.Y1) : (sg < 0 ? w.X0 : w.X1);
+                    double here = alongX ? p.Y : p.X;
+                    if (sg * (face - here) > 1) continue;
+                    if (double.IsNaN(best) || sg * (face - best) > 0) best = face;
+                }
+                res.Add(double.IsNaN(best) ? p : (alongX ? new Point(p.X, best, 0) : new Point(best, p.Y, 0)));
+            }
+            return res;
+        }
+
         public static void Dim(View view, Drawing dr, string what, List<Point> pts, Vector up, double paperDist)
         {
             if (pts.Count < 2) { Failed++; Say("FAIL " + what + " : fewer than 2 points"); return; }
+            if (SnapToWalls) pts = SnapPoints(pts, up);
             PointList pl = new PointList();
             foreach (Point p in pts) pl.Add(p);
             try
@@ -1449,8 +1484,10 @@ namespace P142.WallFraming
             ReadCoordinateSystem = null;
             DimHandler = new StraightDimensionSetHandler();
             bool ok = false;
+            SnapToWalls = true;
             try { ok = DimensionLayoutsOf(view, dr, new TSM.Model(), result); }
             catch (Exception e) { Failed++; Say("EXCEPTION " + e.GetType().Name + ": " + e.Message); }
+            finally { SnapToWalls = false; }
             try { dr.CommitChanges("P142 wall plan annotations (AIO)"); } catch (Exception) { }
             result.Ok = ok && Failed == 0;
             result.Made = Made;
