@@ -187,7 +187,7 @@ namespace P142.WallFraming
             {
                 f.Text = "P142 Pod drawings"; f.FormBorderStyle = FormBorderStyle.FixedDialog; f.MaximizeBox = f.MinimizeBox = false;
                 f.StartPosition = FormStartPosition.CenterScreen; f.ClientSize = new System.Drawing.Size(340, 90);
-                var l1 = new Label { Text = "New pod name (e.g. BP21M):", Left = 12, Top = 15, Width = 170 };
+                var l1 = new Label { Text = "New pod name:", Left = 12, Top = 15, AutoSize = true };
                 var t1 = new TextBox { Left = 190, Top = 12, Width = 135, CharacterCasing = CharacterCasing.Upper };
                 var ok = new Button { Text = "OK", Left = 170, Top = 52, Width = 75, DialogResult = DialogResult.OK };
                 var ca = new Button { Text = "Cancel", Left = 250, Top = 52, Width = 75, DialogResult = DialogResult.Cancel };
