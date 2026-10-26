@@ -10,8 +10,9 @@ Five drawing macros (Applications > Macros, drawing mode):
   Macro                               Drawing it works on
   ----------------------------------  ------------------------------------------
   P142_BASE_C_W                       BASE, CEILING, WALL drawing (e.g. BP20M-10001)
-                                      - 3 plans from the twin pod, base / ceiling /
-                                        wall dimensions, CEILING_GYPSUM shown
+                                      - 3 plans built from the pod's own parts,
+                                        base / ceiling / wall dimensions,
+                                        CEILING_GYPSUM shown
   P142_WF_Isometric                   ISOMETRIC drawing (e.g. BP20M-80001)
   P142_WF_Section                     SECTIONAL ELEVATION (-20001) - READ-ONLY study
                                         mode for now (the create mode is next)

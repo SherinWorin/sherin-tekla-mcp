@@ -4,6 +4,7 @@
 
 ### Added
 
+- 2026-10-26 **P142_BASE_C_W is rule-based**: the three plans are built from the pod's own parts (block extent from ASSEMBLY_POS, levels from the lowest wall BOTTOM_TRACK and the lowest CEILING BEAM, part lists by level, boxes by rule) - no twin pod, nothing copied. View properties from any finished BASE, CEILING, WALL drawing of the model (house style), else defaults at 1:15. Not yet rule-based: base-plan S1..S5 section marks, notes, lifting arrows.
 - 2026-10-26 **Release package for a second computer**: `macros/wall-framing/install.cmd` (Command Prompt, no PowerShell) and `install.ps1` now install all five macros; `README_INSTALL.txt`; `-MacroFolder` option for a macro folder of your own (XS_MACRO_DIRECTORY). The zip itself (it contains the Pro module) is NOT in this public repository.
 - `tests/LoaderSignatureCheck.cs` - checks that every type / method / field each loader finds by reflection exists with the right signature, that WF_Pro matches the rules API version, and that all WF_Pro member references resolve.
 - **P142_BASE_C_W** (`WF_BaseCW.cs` + loader `P142_BASE_C_W.cs`): builds the BASE, CEILING, WALL drawing (-10001) of a pod from its twin pod's drawing - base HRS plan, ceiling framing plan (with CEILING_GYPSUM, view 50 mm below the ceiling), wall framing plan; notes, section marks, symbols copied; dimensions by the engines below. Read-only ceiling study mode on a finished drawing.
