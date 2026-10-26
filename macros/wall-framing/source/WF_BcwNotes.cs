@@ -32,6 +32,7 @@ using DText = Tekla.Structures.Drawing.Text;
 using DSymbol = Tekla.Structures.Drawing.Symbol;
 using DRect = Tekla.Structures.Drawing.Rectangle;
 using DMark = Tekla.Structures.Drawing.Mark;
+using DLine = Tekla.Structures.Drawing.Line;
 using DModelObject = Tekla.Structures.Drawing.ModelObject;
 
 namespace P142.WallFraming
@@ -250,6 +251,67 @@ namespace P142.WallFraming
             }
             log.AppendLine("     standard notes from '" + sv.Name + "': " + texts + " text(s), " + marks + " profile label(s), " + syms + " legend symbol(s), " + rects + " frame(s)");
             return made;
+        }
+
+        /// <summary>
+        /// Sections: re-creates the level lines and the dimension chains of the style
+        /// view on <paramref name="v"/> (positions mapped as in CopyStandard).  A chain
+        /// point is snapped to the nearest part edge of the new view (40 mm) along the
+        /// measured direction, so the values are measured, not copied.  Returns the number made.
+        /// </summary>
+        public static int CopyLinesAndDims(View v, View sv, TSM.Model model, StringBuilder log)
+        {
+            if (sv == null) return 0;
+            var src = Parts(sv, model); var dst = Parts(v, model);
+            if (src.Count == 0 || dst.Count == 0) return 0;
+            double[] a = Box(src), b = Box(dst);
+            var xs = new List<double>(); var ys = new List<double>();
+            foreach (var p in dst) { xs.Add(p.X0); xs.Add(p.X1); ys.Add(p.Y0); ys.Add(p.Y1); }
+            int lines = 0, sets = 0, failed = 0;
+            var h = new StraightDimensionSetHandler();
+            DrawingObjectEnumerator en = sv.GetAllObjects(new[] { typeof(DLine), typeof(StraightDimensionSet) });
+            var objs = new List<DrawingObject>();
+            while (en.MoveNext()) if (en.Current != null) objs.Add(en.Current);
+            foreach (var o in objs)
+            {
+                try
+                {
+                    DLine l = o as DLine;
+                    if (l != null)
+                    {
+                        if (new DLine(v, Map(l.StartPoint, a, b), Map(l.EndPoint, a, b), l.Attributes as DLine.LineAttributes).Insert()) lines++;
+                        continue;
+                    }
+                    var set = (StraightDimensionSet)o;
+                    var pts = new List<Point>(); Vector up = null; double dist = 0;
+                    DrawingObjectEnumerator ce = set.GetObjects();
+                    while (ce.MoveNext())
+                    {
+                        StraightDimension d = ce.Current as StraightDimension;
+                        if (d == null) continue;
+                        if (up == null) { up = d.UpDirection; dist = d.Distance; }
+                        pts.Add(d.StartPoint); pts.Add(d.EndPoint);
+                    }
+                    if (up == null || pts.Count < 2) continue;
+                    bool alongY = Math.Abs(up.X) > Math.Abs(up.Y);       // up = +-x: the chain measures heights
+                    var pl = new PointList();
+                    var seen = new List<double>();
+                    foreach (Point q in pts)
+                    {
+                        Point m = Map(q, a, b);
+                        if (alongY) m.Y = WfSectionRules.Snap(m.Y, ys, 40); else m.X = WfSectionRules.Snap(m.X, xs, 40);
+                        double k = alongY ? m.Y : m.X;
+                        if (seen.Exists(s0 => Math.Abs(s0 - k) < 1)) continue;
+                        seen.Add(k); pl.Add(m);
+                    }
+                    if (pl.Count < 2) continue;
+                    StraightDimensionSet ns = h.CreateDimensionSet(v, pl, up, dist, set.Attributes as StraightDimensionSet.StraightDimensionSetAttributes);
+                    if (ns != null) sets++; else failed++;
+                }
+                catch (Exception e) { failed++; log.AppendLine("     not copied (" + o.GetType().Name + "): " + e.Message); }
+            }
+            log.AppendLine("     from '" + sv.Name + "': " + lines + " level line(s), " + sets + " dimension chain(s)" + (failed > 0 ? ", " + failed + " failed" : ""));
+            return lines + sets;
         }
 
         /// <summary>The lifting arrows of the base plan (see the header).  Returns the number made.</summary>

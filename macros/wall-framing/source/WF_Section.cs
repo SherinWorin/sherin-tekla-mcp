@@ -11,7 +11,9 @@
 //   * the parts = every part of the pod; the view properties come from a
 //     finished sectional elevation (house style, BP02M-20001 first); the
 //     views go into the template panes S1 ... S5 (more: right of the sheet);
-//   * colour code, no part / weld marks.  Notes and dimensions: not yet.
+//   * colour code, no part / weld marks; the notes, level lines and dimension
+//     chains of the style view of the same name, mapped onto the new view, chain
+//     points snapped to the new part edges (WfBcwNotes, part of WF_BaseCW.dll).
 // It writes ONLY into the open drawing, never switches drawings, never
 // touches the model.  Anything else (issued / frozen drawing, a finished
 // sectional elevation, a BASE, CEILING, WALL drawing) gets the READ-ONLY study:
@@ -226,6 +228,22 @@ namespace P142.WallFraming
                     catch (Exception ex) { log.AppendLine("colours " + v.Name + " not applied: " + ex.Message); }
                 }
                 dr.CommitChanges("P142 section colours");
+
+                // notes, level lines, dimension chains: re-created from the style view of the same name
+                foreach (View v in views)
+                {
+                    View sv;
+                    if (!styles.TryGetValue(v.Name, out sv)) { log.AppendLine("notes " + v.Name + ": no finished view of that name - none"); continue; }
+                    var nl = new StringBuilder();
+                    try
+                    {
+                        WfBcwNotes.CopyStandard(v, sv, model, nl);
+                        WfBcwNotes.CopyLinesAndDims(v, sv, model, nl);
+                    }
+                    catch (Exception ex) { failed++; nl.AppendLine("FAIL notes: " + ex.GetType().Name + ": " + ex.Message); }
+                    log.AppendLine("notes " + v.Name + ":"); foreach (string ln in nl.ToString().Split('\n')) if (ln.Contains("standard notes") || ln.Contains("level line") || ln.Contains("FAIL") || ln.Contains("not copied")) log.AppendLine(ln.TrimEnd());
+                }
+                dr.CommitChanges("P142 section notes and dimensions");
                 Place(dr, views, centres);
                 if (save && made > 0) { try { new DrawingHandler().SaveActiveDrawing(); } catch (Exception) { } }
                 result.Ok = failed == 0;
@@ -290,7 +308,9 @@ namespace P142.WallFraming
             var list = new List<Drawing>();
             DrawingEnumerator de = new DrawingHandler().GetDrawings();
             while (de.MoveNext()) if (de.Current != null && de.Current.Mark != current.Mark && IsSectionDrawing(de.Current)) list.Add(de.Current);
-            list.Sort((a, b) => (Array.IndexOf(WfSectionRules.PreferredReferences, b.Name) >= 0).CompareTo(Array.IndexOf(WfSectionRules.PreferredReferences, a.Name) >= 0));
+            // the owner's reference first
+            var pref = list.FindAll(d => Array.Exists(WfSectionRules.PreferredReferences, n => string.Equals(n, (d.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase)));
+            list.RemoveAll(pref.Contains); pref.AddRange(list); list = pref;
             foreach (Drawing d in list)
             {
                 try
