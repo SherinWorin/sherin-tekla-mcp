@@ -49,3 +49,37 @@ All four take `intent` (the user's request, logged), `apply` (false = preview) a
 ```
 
 Risk rules: create/modify up to `HighRiskObjectCount` objects = MEDIUM, more = HIGH, delete = HIGH. Refused when `ReadOnly` is true, when delete is not allowed, above `MaxObjectsPerWrite`, for unknown GUIDs, unknown profiles/materials, invalid points, members shorter than `MinMemberLengthMm`, or a missing/expired/mismatched token.
+
+---
+
+## Not an MCP tool: the wall-framing auto-dimensioner
+
+`macros/wall-framing/` holds a **standalone drawing macro** for Tekla Structures
+2025. It is not called through this server: it is run from the Tekla ribbon
+(*Applications ▸ Macros ▸ P142_WF_AutoDimension*) and it writes **drawing**
+objects, not model objects.
+
+It draws the annotations of a `WALL FRAMING LAYOUT` GA drawing. The drawing is
+found by its **title**, never by a fixed mark, and a drawing that is **issued or
+frozen is never written to**.
+
+It is sold in two editions: a **free** one that draws the dimension chains, and
+a **Pro** one that draws everything. A licence key unlocks the Pro edition;
+without a key the Pro features are free for three days. The Pro stages are not
+in the public repository - they are a separate module, loaded only when the
+licence allows it.
+
+See [macros/wall-framing/README.md](../macros/wall-framing/README.md) and
+[macros/wall-framing/docs/LICENSING.md](../macros/wall-framing/docs/LICENSING.md).
+
+---
+
+## Not an MCP tool: the hand-over pack
+
+`HANDOVER/` documents the state of the work for anyone continuing it on
+another computer: what is done, what is open, the rules that must not be
+broken, the Tekla 2025 traps, the build-and-verify commands, and the prompt
+to paste into a fresh Claude session.
+
+It is documentation, not code. Start at
+[HANDOVER/00-START-HERE.md](../HANDOVER/00-START-HERE.md).

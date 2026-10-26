@@ -61,7 +61,50 @@ tests/                      Unit tests (no Tekla needed)
 config/                     settings.json and rules/*.json
 scripts/smoke_test.py       Talks to the server like an MCP client (used by CI)
 docs/                       SETUP, ARCHITECTURE, TOOLS, API_NOTES, TESTING
+macros/wall-framing/        A standalone Tekla 2025 drawing macro (see below)
+HANDOVER/                   Hand-over pack: the state of the work, the hard
+                            rules, the Tekla 2025 traps, and how to continue
+                            this project on another computer
 ```
+
+## Also in this repository: the wall-framing auto-dimensioner
+
+A **standalone drawing macro** for Tekla Structures 2025, independent of the MCP
+server: it reproduces the annotations of a `WALL FRAMING LAYOUT` GA drawing
+(stud chains, band chains, top outline, overall dimensions, north run,
+wall-panel marks, section marks, notes).
+
+- It finds the drawing by its **title**, not by a fixed mark, so the same file
+  works on every computer of a project. When the model has one wall layout
+  drawing per block, it works on **all** of them, one after the other, and it
+  dimensions only the walls that the drawing actually shows.
+- It **never writes into an issued or frozen drawing** - the macro refuses it.
+- The rules and the licence engine live in their own assemblies with **no
+  Tekla reference**; the macro catalog gets a **thin loader** that loads the
+  modules at run time.
+- Two editions: a **free** one (the dimension chains) and a **Pro** one
+  (everything), unlocked by a licence key. Without a key the Pro features are
+  free for three days. See
+  [macros/wall-framing/docs/LICENSING.md](macros/wall-framing/docs/LICENSING.md).
+- A deployment package (`macros/wall-framing/package/WallFramingAutoDimension.zip`,
+  and the Pro one beside it) installs it on another computer.
+- A **second macro**, `WallFramingAutoDimensionPro-AIO`, is **free** - it asks
+  for no licence key - and it is for a GA sheet that carries **many** wall
+  framing layouts: it dimensions every block on its own, so that the chain of
+  one block does not run into the next one.
+
+See [macros/wall-framing/README.md](macros/wall-framing/README.md) and
+[macros/wall-framing/INSTALL_NOTES.txt](macros/wall-framing/INSTALL_NOTES.txt).
+
+## Handing the project over to another computer
+
+[HANDOVER/](HANDOVER/README.md) is the hand-over pack. It is written for a
+fresh Claude instance on another PC: what the project is, what state it is
+in, the rules that must not be broken, the Tekla 2025 behaviour that cost
+the most time to find, every command to rebuild and re-verify, and the
+prompt to paste into the new session.
+
+Start at [HANDOVER/00-START-HERE.md](HANDOVER/00-START-HERE.md).
 
 ## Status
 

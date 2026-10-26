@@ -1,0 +1,23 @@
+# The build output of the macro (the DLLs, the icon).
+source/bin/
+
+# The exploded deployment packages - the zipped free one next to it is the
+# one that is published.
+package/WallFramingAutoDimension/
+
+# The PRO package is NOT published.  It holds WF_Pro.dll, the compiled Pro
+# stages - the very thing the free edition withholds.  The Pro package is
+# built in the dev tree and handed to a customer directly; see
+# docs/LICENSING.md and HANDOVER/03-HARD-RULES.md (R10).
+package/WallFramingAutoDimensionPro/
+package/WallFramingAutoDimensionPro.zip
+
+# The package of the AIO macro is NOT published either: it holds the same
+# two Pro modules, because the AIO macro draws everything and asks for no
+# key.  It is handed to a customer directly, like the Pro package.
+package/WallFramingAutoDimensionAIO/
+package/WallFramingAutoDimensionAIO.zip
+
+# The reference dumps of the project model (see tests/reference/README.md).
+tests/reference/*.txt
+tests/reference/*.json

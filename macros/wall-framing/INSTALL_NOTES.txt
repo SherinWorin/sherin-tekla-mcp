@@ -1,0 +1,342 @@
+================================================================================
+INSTALLATION NOTES
+Wall Framing Auto-Dimension macro  -  Tekla Structures 2025
+================================================================================
+
+WHAT THIS IS
+------------
+A macro that draws the wall framing dimensions of a "WALL FRAMING LAYOUT"
+GA drawing, the way they are drawn in the issued reference drawing of the
+P142 COREL REEF project.
+
+The macro does NOT work on a fixed drawing number.  It finds the drawing by
+its TITLE, so it works on every computer of the project, whatever mark the
+wall layout drawing happens to have there.
+
+  * it works on the drawing that is open, when that drawing is a wall layout
+  * otherwise it activates the wall layout drawing of the model
+  * it NEVER writes into a drawing that is issued or frozen
+    (the issued reference drawing of the project is frozen, so it is safe)
+
+Two editions:
+  * FREE - the dimension chains: the stud chain of every wall panel and the
+           band chains of the layout
+  * PRO  - everything: the chains, the top outline, the overall dimensions,
+           the north run, the wall-panel marks, the section marks, the notes
+
+Without a licence key the Pro features are free for THREE DAYS, from the
+first run of the macro on that computer.  See docs\LICENSING.md.
+
+
+WHAT IS IN THE FOLDER
+---------------------
+  README.txt                            this overview, in brief
+  INSTALL_NOTES.txt                     this file
+  install.ps1                           the installer (method B, optional)
+  source\
+    P142_WF_AutoDimension.cs              THE LOADER - the file that goes
+                                           into the Tekla macro catalog
+    P142_WF_AutoDimension.bmp            the icon for the ribbon
+    WF_Core.dll                           the shared drawing machinery
+    WF_Rules.dll                          the free rules
+    WF_License.dll                        the licence engine
+    WF_Pro.dll                            the Pro stages (Pro package only)
+    WF_Rules_Pro.dll                      the Pro rules (Pro package only)
+    WF_Core.cs, WF_Rules.cs,              the sources (only for a re-build)
+    WF_License.cs, WF_KeyGen.cs,
+    build.ps1
+  docs\                                 the documentation set
+
+TWO things are installed:
+
+  1. THE LOADER and its icon, into the macro catalog of Tekla:
+         <Tekla>\Environments\common\macros\drawings\
+
+  2. THE MODULES, into:
+         %LOCALAPPDATA%\P142\WallFraming\
+
+Nothing else is needed.  There is no DLL to register, no NuGet package, no
+MSBuild project and no Python.
+
+The loader is a THIN file: it holds no rule and no drawing logic.  It loads
+the modules at run time.  That is what keeps the Pro stages out of the
+published package - they live in a separate module (WF_Pro.dll) that is
+only loaded when the licence allows it.
+
+
+================================================================================
+METHOD A  -  MANUAL  (Command Prompt (Windows) or Explorer, no scripts)
+================================================================================
+
+STEP 1 - Get the files
+-----------------------
+  Either
+
+    a) build them from source (needs Visual Studio 2022 or the Build Tools):
+
+         cd source
+         powershell -NoProfile -File build.ps1
+
+       and use the files it writes into  source\bin\ :
+
+         P142_WF_AutoDimension.cs     (the loader)
+         P142_WF_AutoDimension.bmp     (the icon)
+         WallFramingAutoDimensionPro-AIO.cs   (the AIO loader)
+         WallFramingAutoDimensionPro-AIO.bmp  (the AIO icon)
+         WF_Core.dll  WF_Rules.dll  WF_License.dll
+         (WF_Pro.dll and WF_Rules_Pro.dll as well, in the Pro package)
+
+    b) or take them out of the deployment package:
+
+         WallFramingAutoDimension.zip
+           -> source\P142_WF_AutoDimension.cs
+           -> source\P142_WF_AutoDimension.bmp
+           -> source\WallFramingAutoDimensionPro-AIO.cs
+           -> source\WallFramingAutoDimensionPro-AIO.bmp
+           -> source\WF_Core.dll
+           -> source\WF_Rules.dll
+           -> source\WF_License.dll
+           -> source\WF_Pro.dll            (Pro package only)
+           -> source\WF_Rules_Pro.dll      (Pro package only)
+
+  >> THE FILE THAT GOES INTO TEKLA IS "P142_WF_AutoDimension.cs"  (about
+     8000 bytes).  It is the LOADER.  It must NOT contain the word
+     "namespace P142.WallFraming" - the installer checks that and refuses a
+     file that holds the whole logic.
+
+STEP 2 - Find the macro catalog folder
+---------------------------------------
+  It is
+
+      <Tekla installation>\Environments\common\macros\drawings\
+
+  for example
+
+      C:\TeklaStructures\2025.0\Environments\common\macros\drawings\
+
+  If you are not sure where Tekla is installed, look in the Start menu, or
+  in Tekla itself:  File > Catalog > Drawings > Macros.
+
+STEP 3 - Copy the loader and the icon in
+----------------------------------------
+  Command Prompt (Windows)
+
+      copy "<folder>\P142_WF_AutoDimension.cs" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.cs"
+      copy "<folder>\P142_WF_AutoDimension.bmp" "%TEKLA%\Environments\common\macros\drawings\P142_WF_AutoDimension.bmp"
+
+  where %TEKLA% is the Tekla installation, for example
+
+      set TEKLA=C:\TeklaStructures\2025.0
+
+  In Explorer: open the two folders and copy the two files.  The loader is
+  already called P142_WF_AutoDimension.cs - the name of the .cs file IS the
+  name of the macro on the ribbon.
+
+STEP 4 - Copy the modules
+-------------------------
+  Command Prompt (Windows)
+
+      set APP=%LOCALAPPDATA%\P142\WallFraming
+      if not exist "%APP%" mkdir "%APP%"
+      copy "<folder>\WF_Core.dll"      "%APP%\"
+      copy "<folder>\WF_Rules.dll"     "%APP%\"
+      copy "<folder>\WF_License.dll"   "%APP%\"
+      copy "<folder>\WF_Pro.dll"       "%APP%\"
+      copy "<folder>\WF_Rules_Pro.dll" "%APP%\"
+
+  The last two lines are only in the Pro package.  Copy ALL the modules of
+  the package, never only some of them: they are one build, and a mixed
+  set is refused by the macro with "install the modules again".
+
+STEP 5 - Check for a hidden extension
+--------------------------------------
+  Make sure the file is not "P142_WF_AutoDimension.cs.txt" or similar.
+  In Explorer:  View > Show > File name extensions.
+
+
+================================================================================
+METHOD B  -  THE INSTALLER SCRIPT  (where PowerShell is available)
+================================================================================
+
+  Command Prompt (Windows)
+
+      powershell -NoProfile -File install.ps1 -WhatIfOnly     (dry run)
+      powershell -NoProfile -File install.ps1                 (install)
+
+  The script finds the Tekla installation by itself (TEKLA_HOME,
+  C:\TeklaStructures\*, C:\Program Files\Tekla Structures\*, the other
+  drives; a 2025 installation is preferred) and copies the loader and the
+  icon into the macro catalog, and the modules into
+  %LOCALAPPDATA%\P142\WallFraming\.
+
+  If it does not find it:
+
+      powershell -NoProfile -File install.ps1 -TeklaPath "C:\TeklaStructures\2025.0"
+
+
+================================================================================
+THE LICENCE  -  the Pro edition
+================================================================================
+
+  The Pro features are free for THREE DAYS, from the first run of the macro
+  on this computer.  No licence is needed to try the macro.
+
+  To use the Pro edition after that, the customer needs a key.  The key is
+  one line of text, and it is put in this file:
+
+      %LOCALAPPDATA%\P142\WallFraming\license.txt
+
+  The file holds the key and nothing else, for example:
+
+      WF1.eyJ2PTEiLCJjdXN0b21lciI6IkFDTUUifQ.AbCdEf...
+
+  The macro takes the key into use on the next run, and says so in the log
+  and in the message box.
+
+  The customer can also be given the key tool, which does the same thing:
+
+      WF_KeyGen.exe install "WF1....."
+
+  The whole workflow - the owner's key tool, the machine binding, the trial
+  and the clock-rollback rule - is in  docs\LICENSING.md.
+
+
+================================================================================
+AFTER THE INSTALL
+================================================================================
+
+1. START TEKLA STRUCTURES 2025.
+   If Tekla was already open while you copied the files, RESTART it - the
+   macro catalog is read only at start-up.
+
+2. Open the GA drawing whose title holds "WALL FRAMING LAYOUT".
+   It does NOT matter what mark that drawing has.
+
+3. Run the macro:
+       Applications > Macros > P142_WF_AutoDimension
+   or, on a sheet with many wall framing layouts:
+       Applications > Macros > WallFramingAutoDimensionPro-AIO
+
+4. A message box appears:
+       "Wall framing annotations: 37 created, 0 failed, 0 skipped."
+   and the path of the log file.
+   (In the free edition: "14 created".)
+
+5. The drawing is saved by the macro itself.  Nothing else to do.
+
+
+THE SECOND MACRO - "WallFramingAutoDimensionPro-AIO"
+----------------------------------------------------
+  On the ribbon:
+
+      Applications > Macros > WallFramingAutoDimensionPro-AIO
+
+  It asks for NO licence key - there is no trial and no key: it is free.
+
+  It is the macro for a GA sheet that carries MANY wall framing layouts.
+  A sheet that holds the layout of 19 blocks side by side is such a
+  sheet, and the macro above would draw one long chain across all of
+  them.  The AIO macro groups the panels of the sheet into their blocks
+  (the part of the assembly position before the first dash, so BP1-WP3
+  belongs to BP1) and dimensions every group with the box of its own
+  panels: its band chains, its top outline, its overall dimensions, its
+  north run, its wall-panel marks, its section marks and its notes.  The
+  chain of one block never runs into the next one.
+
+  The section marks of the sheet are kept: the macro only copies the
+  section marks of the drawing of a block into a layout that has none of
+  its own.
+
+
+FIRST-RUN CHECKLIST
+-------------------
+  what to look at              what it should say
+  ---------------------------  ------------------------------------------------
+  first line of the log        "the active drawing [xx] is the wall layout
+                                drawing"
+  the panel count              "wall panels: 11"  (or however many that model
+                                has)
+  the result                   "0 failed"
+  the issued drawing           UNTOUCHED - the macro refuses a frozen drawing
+                                and says so
+
+  If the log says
+      "no part matched the prefix 'BP4-WP' - the wall panels were found
+       automatically"
+  that is fine and expected on a project with a different naming: the macro
+  detected the wall panels by themselves.
+
+  The log is written next to the macro file, or in the temporary folder when
+  the macro was started from the catalog.  The name is
+  wfdim_log_<mark>.txt
+
+
+TROUBLESHOOTING
+---------------
+  nothing appears on the ribbon
+      Tekla was already open when you copied the files -> RESTART TEKLA.
+
+  Tekla refuses to compile the macro
+      open  File > Catalog > Drawings > Macros,  right-click the macro,
+      choose "Compile" and read the error.
+      The file must be UTF-8 WITHOUT a byte-order mark.  If you edited it
+      in Notepad and saved it, check the encoding.
+
+  "the module WF_Core.dll was not found"
+      the modules are not in %LOCALAPPDATA%\P142\WallFraming\ - see step 4.
+      The loader cannot work without them.
+
+  "No wall layout drawing to work on"
+      the active drawing is issued or frozen, or the model has no wall
+      layout drawing.  The message says which case it is.
+
+  the macro creates nothing
+      the drawing has no view that looks straight down.  A GA drawing has
+      one; a detail drawing may not.
+
+  the objects disappear after the run
+      the drawing was not saved.  The macro saves it, but if you ran an
+      older version of the macro, save the drawing by hand (Ctrl+S).
+
+  the message says the free edition is in use
+      there is no licence key yet, and the three day trial is over.  Put
+      the key in %LOCALAPPDATA%\P142\WallFraming\license.txt and run the
+      macro again.  See docs\LICENSING.md.
+
+  the Pro annotations do not appear although the licence is Pro
+      the module WF_Pro.dll is not in %LOCALAPPDATA%\P142\WallFraming\.
+      Only the free package was installed.
+
+  "the Pro module was built for version x of the rules"
+      the five modules in %LOCALAPPDATA%\P142\WallFraming\ are not of one
+      build.  Copy the package again, complete.  Do not try to fix it in
+      the code.
+
+
+OPTIONAL - REBUILD THE MACRO
+-----------------------------
+  Only needed if you want to change the source.  It needs Visual Studio
+  2022 (any edition) or the Visual Studio Build Tools, for the compiler.
+
+  Command Prompt (Windows)
+
+      cd source
+      powershell -NoProfile -File build.ps1
+
+  The build script finds Tekla and the C# compiler by itself.  Then copy
+  the files into place again (steps 3 and 4 of method A), or run
+  install.ps1.
+
+  The build script writes into  source\bin\  - nothing outside the macro
+  folder is touched.  The -Deploy switch writes straight into the Tekla
+  installation and into %LOCALAPPDATA%; install.ps1 does the same thing and
+  is the one to use on another computer.
+
+
+WHO TO ASK
+----------
+  The rules of the drawing are written down in  docs\WALL_FRAMING_RULES.md
+  The Tekla 2025 API facts this project relies on are in  docs\API_NOTES.md
+  The two editions and the licence are in          docs\LICENSING.md
+  The build and the test harnesses are described in  docs\SETUP.md
+                                                     and  docs\TESTING.md
