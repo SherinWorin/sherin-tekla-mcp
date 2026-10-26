@@ -350,6 +350,8 @@ namespace P142.WallFraming
         /// <summary>A part of a section view, extent in view coordinates (x along, y = global Z, z depth).</summary>
         sealed class SP { public string Name = ""; public double X0, Y0, Z0, X1, Y1, Z1; }
 
+        static bool Near(Point p, double x, double y) { return Math.Abs(p.X - x) < 1 && Math.Abs(p.Y - y) < 1; }
+
         static List<SP> SecParts(View v, TSM.Model model)
         {
             var res = new List<SP>();
@@ -447,6 +449,7 @@ namespace P142.WallFraming
 
             // openings: between the jambs under each lintel of the viewed wall
             int nOpen = 0;
+            var openPts = new List<double[]>();
             foreach (var li in wall.FindAll(p => p.Name == "LINTEL"))
             {
                 SP left = null, right = null;
@@ -462,17 +465,37 @@ namespace P142.WallFraming
                 double cx = (ox0 + ox1) / 2, cy = bot + (top - bot) * 0.55;
                 dim(new[] { new[] { ox0, cy }, new[] { ox1, cy } }, new Vector(0, 1, 0), 0, null);
                 dim(new[] { new[] { cx, bot }, new[] { cx, top } }, new Vector(-1, 0, 0), 0, null);
-                // "OPENING" under the width and beside the height (BP02M-20001); a dimension tag
-                // set through the API did not show (2026-10-26), so these are plain texts
-                var ta = new Text.TextAttributes();
-                ta.Font.Height = 2.5;
-                new Text(v, new Point((ox0 + ox1) / 2, cy - 3 * s, 0), "OPENING", ta).Insert();
-                var tv = new Text.TextAttributes();
-                tv.Font.Height = 2.5; tv.Angle = 90;
-                new Text(v, new Point(cx + 3 * s, (bot + top) / 2, 0), "OPENING", tv).Insert();
+                openPts.Add(new[] { ox0, cy, ox1, cy }); openPts.Add(new[] { cx, bot, cx, top });
                 nOpen++;
             }
-            return "s; dims: " + n + " chain(s), " + nOpen + " opening(s)" + (f > 0 ? ", " + f + " failed" : "") + ", viewed wall " + wall.Count + " part(s)";
+            // the OPENING tag (middle lower, as on BP02M-20001): set on the dimensions as
+            // read back from the view - setting it on the objects of the new set did not stick
+            int tagged = 0;
+            if (openPts.Count > 0)
+            {
+                v.GetDrawing().CommitChanges("P142 section opening dims");
+                DrawingObjectEnumerator de2 = v.GetAllObjects(typeof(StraightDimension));
+                var found = new List<StraightDimension>();
+                while (de2.MoveNext()) if (de2.Current is StraightDimension) found.Add((StraightDimension)de2.Current);
+                foreach (StraightDimension d in found)
+                {
+                    bool hit = openPts.Exists(q =>
+                        (Near(d.StartPoint, q[0], q[1]) && Near(d.EndPoint, q[2], q[3])) || (Near(d.StartPoint, q[2], q[3]) && Near(d.EndPoint, q[0], q[1])));
+                    if (!hit) continue;
+                    try
+                    {
+                        d.Select();
+                        var da = d.Attributes;
+                        var tc = new ContainerElement();
+                        tc.Add(new TextElement("OPENING"));
+                        da.MiddleLowerTag = tc;
+                        d.Attributes = da;
+                        if (d.Modify()) tagged++;
+                    }
+                    catch (Exception e) { log.AppendLine("     dim OPENING tag failed: " + e.Message); }
+                }
+            }
+            return "s; dims: " + n + " chain(s), " + nOpen + " opening(s), " + tagged + " OPENING tag(s)" + (f > 0 ? ", " + f + " failed" : "") + ", viewed wall " + wall.Count + " part(s)";
         }
 
         static int RemoveAll(View v, params Type[] types)
