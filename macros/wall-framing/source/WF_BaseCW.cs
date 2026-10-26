@@ -14,16 +14,19 @@
 //      block (walls, base frame, ceiling frame).  Every part whose centre lies
 //      in that extent belongs to the pod - the ceiling panels too, whose
 //      assembly positions carry another prefix (e.g. BP4-CP-31).
-//   2. THE LEVELS, read from the model:
+//   2. THE LEVELS and THE SPLIT (corrected 2026-10-26 on BP07-10001):
 //        base top     = the lowest wall BOTTOM_TRACK (the walls stand on it)
 //        ceiling      = the lowest CEILING BEAM
-//      base parts    = top at or below the base top
 //      ceiling parts = bottom at or above the ceiling - 20 (the gypsum hangs
 //                      12.5 under the beams)
-//      wall parts    = the rest
+//      wall parts    = the LGS: a wall part name (WfRules.WallParts) or an LGS
+//                      / wall-gypsum profile of the colour code (WfIsoColours)
+//      base parts    = the rest: the HRS base frame, its perimeter RHS120*60
+//                      included (it rises past the wall bottom tracks, so a
+//                      split by height alone put it in the wall plan)
 //   3. THE VIEWS - three plans looking down, global axes, part list = the
 //      parts of that level, restriction box = the pod extent + 100 and:
-//        BASE HRS FRAMING PLAN  z: lowest base part .. base top     ([78]: -20.66 .. 126)
+//        BASE HRS FRAMING PLAN  z: lowest .. highest base part
 //        WALL FRAMING PLAN      z: base top - 326 .. base top + 34  ([78]: -200 .. 160)
 //        CEILING FRAMING PLAN   view plane 50 below the lowest ceiling part
 //                               (CEILING_GYPSUM shows), z up to the highest one
@@ -37,7 +40,10 @@
 //        wall plan    -> WfCore.DimensionViewAioRun (WallFramingAutoDimensionPro-
 //                        AIO: bays, bands, top outline, overall, north run,
 //                        wall-panel marks, section marks, notes)
-//      Part marks: Tekla's own, from the view properties.
+//      Part marks: none - Tekla's automatic marks are removed (BP07 reference).
+//      Colours: the owner's colour code (WfIsoColours, as on the isometric):
+//      HRS green, LGS grey, wall gypsum orange, ceiling gypsum violet, no
+//      hidden lines.
 //   NOT YET RULE-BASED: the base plan's S1..S5 section marks, notes and lifting
 //   arrows (the next rule set - from the survey of the 19 finished drawings).
 //
@@ -48,6 +54,7 @@
 //
 // TEKLA 2025 API (compiled against the 2025 DLLs): View(ContainerView, CS, CS,
 // ArrayList ids) + Insert; View.Attributes / RestrictionBox / Name / Origin;
+// WfIsometricCore.ColourParts / RemoveMarks (WF_Isometric.dll);
 // View.ViewAttributes(); Part.GetSolid(); Model.GetModelObjectSelector().
 using System;
 using System.Collections;
@@ -99,6 +106,7 @@ namespace P142.WallFraming
         const double CEIL_HANG = 20;                        // gypsum under the ceiling beams
         const double MARGIN = 100;                          // plan margin of the boxes
         const double DEFAULT_SCALE = 15;
+        const double POD_MAX = 15000;                       // a view box wider than this is not a pod plan
 
         const string ROLE_BASE = "BASE HRS FRAMING PLAN", ROLE_CEIL = "CEILING FRAMING PLAN", ROLE_WALL = "WALL FRAMING PLAN";
 
@@ -200,7 +208,7 @@ namespace P142.WallFraming
         sealed class BPart
         {
             public TSM.Part Part;
-            public string Name = "", Block = "";
+            public string Name = "", Block = "", Profile = "";
             public double[] Min = new double[3], Max = new double[3];
         }
 
@@ -232,6 +240,7 @@ namespace P142.WallFraming
                             bp.Max = new[] { so.MaximumPoint.X, so.MaximumPoint.Y, so.MaximumPoint.Z };
                         }
                         catch (Exception) { continue; }
+                        string prof = ""; p.GetReportProperty("PROFILE", ref prof); bp.Profile = prof ?? "";
                         TSM.Assembly asm = null;
                         try { asm = p.GetAssembly(); } catch (Exception) { }
                         string apos = "";
@@ -248,6 +257,14 @@ namespace P142.WallFraming
             }
             finally { wph.SetCurrentTransformationPlane(original); }
             return res;
+        }
+
+        /// <summary>An LGS wall part: wall part name, or LGS / wall-gypsum profile of the colour code.</summary>
+        static bool IsLgs(BPart p)
+        {
+            if (WfRules.IsWallPart(p.Name)) return true;
+            WfIsoColourRule r = WfIsoColours.Match(p.Name, p.Profile);
+            return r != null && (r.Label == "LGS_GREY" || r.Label == "WALL_ORANGE");
         }
 
         /// <summary>One plan to create.</summary>
@@ -368,14 +385,14 @@ namespace P142.WallFraming
             var ceilPlan = new Plan { Role = ROLE_CEIL, Name = "Plan @ T-LGS", Cx = CEIL_CX, Cy = CEIL_CY };
             foreach (var p in pod)
             {
-                Plan pl = p.Max[2] <= baseTop + 1 ? basePlan : (p.Min[2] >= ceil - CEIL_HANG ? ceilPlan : wallPlan);
+                Plan pl = p.Min[2] >= ceil - CEIL_HANG ? ceilPlan : (IsLgs(p) ? wallPlan : basePlan);
                 pl.Parts.Add(p);
                 pl.Ids.Add(p.Part.Identifier.ID);
             }
-            double bLow = double.MaxValue, cLow = double.MaxValue, cHigh = double.MinValue;
-            foreach (var p in basePlan.Parts) bLow = Math.Min(bLow, p.Min[2]);
+            double bLow = double.MaxValue, bHigh = double.MinValue, cLow = double.MaxValue, cHigh = double.MinValue;
+            foreach (var p in basePlan.Parts) { bLow = Math.Min(bLow, p.Min[2]); bHigh = Math.Max(bHigh, p.Max[2]); }
             foreach (var p in ceilPlan.Parts) { cLow = Math.Min(cLow, p.Min[2]); cHigh = Math.Max(cHigh, p.Max[2]); }
-            basePlan.ZMin = (bLow == double.MaxValue ? baseTop - 150 : bLow) - 1; basePlan.ZMax = baseTop;
+            basePlan.ZMin = (bLow == double.MaxValue ? baseTop - 150 : bLow) - 1; basePlan.ZMax = (bHigh == double.MinValue ? baseTop : bHigh) + 1;
             wallPlan.ZMin = baseTop - WALL_BELOW; wallPlan.ZMax = baseTop + WALL_ABOVE;
             ceilPlan.Z0 = cLow - CEIL_BELOW; ceilPlan.ZMin = 0; ceilPlan.ZMax = cHigh - ceilPlan.Z0 + 1;
             int gyp = ceilPlan.Parts.FindAll(p => p.Name.Contains("GYPSUM")).Count;
@@ -426,6 +443,31 @@ namespace P142.WallFraming
             }
             dr.CommitChanges("P142 BCW views");
             PlaceAll(dr, made, centres, "after the views");
+
+            // ---- Tekla's own part marks come late (in the background): remove them, wait, again
+            int auto = 0;
+            for (int pass = 0; pass < 3; pass++)
+            {
+                System.Threading.Thread.Sleep(1500);
+                int n = 0;
+                foreach (var kv in made) n += WfIsometricCore.RemoveMarks(kv.Key);
+                auto += n;
+                if (n == 0 && pass > 0) break;
+            }
+            if (auto > 0) dr.CommitChanges("P142 BCW automatic marks removed");
+            Say(auto + " automatic part mark(s) of Tekla removed");
+
+            // ---- the colour code
+            foreach (var kv in made)
+            {
+                var per = new Dictionary<string, int>();
+                int n = 0;
+                try { n = WfIsometricCore.ColourParts(kv.Key, model, per); }
+                catch (Exception ex) { Say("     colours not applied: " + ex.Message); }
+                var l = new List<string>(); foreach (var e in per) l.Add(e.Key + " " + e.Value);
+                Say("colours '" + kv.Key.Name + "': " + n + " part(s)  " + string.Join(", ", l.ToArray()));
+            }
+            dr.CommitChanges("P142 BCW colours");
 
             // ---- 4. dimensions: the dimension engines measure the new plans
             for (int i = 0; i < made.Count; i++)
@@ -485,8 +527,11 @@ namespace P142.WallFraming
                 {
                     foreach (View v in AllViews(d.GetSheet()))
                     {
+                        AABB b = v.RestrictionBox;
+                        // a pod plan, not the POD LOCATION PLAN of the whole floor
+                        if (b == null || b.MaxPoint.X - b.MinPoint.X > POD_MAX || b.MaxPoint.Y - b.MinPoint.Y > POD_MAX) continue;
                         string r = RoleOf(v);
-                        if (!res.ContainsKey(r)) res[r] = v;
+                        if (!res.ContainsKey(r)) { res[r] = v; Say("house style for " + r + ": '" + v.Name + "' of " + d.Mark + " " + d.Name + ", 1:" + v.Attributes.Scale); }
                     }
                 }
                 catch (Exception) { }

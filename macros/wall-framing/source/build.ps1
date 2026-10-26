@@ -294,7 +294,7 @@ Invoke-Csc -Refs ($framework + $teklaDlls) `
             -Out (Join-Path $outDir 'P142_WF_Isometric.dll')
 
 Write-Output 'Building WF_BaseCW.dll (BASE, CEILING, WALL drawing) ...'
-Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'))) `
+Invoke-Csc -Refs ($framework + $teklaDlls + @((Join-Path $outDir 'WF_Rules.dll'), (Join-Path $outDir 'WF_License.dll'), (Join-Path $outDir 'WF_Core.dll'), (Join-Path $outDir 'WF_Isometric.dll'), (Join-Path $outDir 'WF_IsometricRules.dll'))) `
             -Source @((Join-Path $here 'WF_BaseCW.cs'), (Join-Path $here 'WF_BfDim.cs'), (Join-Path $here 'WF_CeilStudy.cs'), (Join-Path $here 'WF_CeilDim.cs')) `
             -Out (Join-Path $outDir 'WF_BaseCW.dll')
 

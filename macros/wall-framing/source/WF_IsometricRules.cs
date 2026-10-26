@@ -268,7 +268,7 @@ namespace P142.WallFraming
         {
             new WfIsoColourRule { Label = "WALL_ORANGE", Names = new[] { "GYPSUM_BOARD" },
                                   Color = 158, Hidden = false, OwnHidden = false, SymbolOffset = 10.0 },
-            new WfIsoColourRule { Label = "LGS_GREY", Profiles = new[] { "C63*40*0.7*", "CC61-0.7-7-35*" },
+            new WfIsoColourRule { Label = "LGS_GREY", Profiles = new[] { "C63*40*0.7*", "CC61-0.7-7-35*", "C61*35*0.7*" }   /* C61*35*0.7: BP07 (DAMAC) studs */,
                                   Color = 159, Hidden = false, OwnHidden = false, SymbolOffset = 0.0 },
             new WfIsoColourRule { Label = "HRS_GREEN", Profiles = new[] { "RHS40*20*3", "RHS120*60*4.0", "RHS120*60*4", "PL4*", "RHS60*30*4" },
                                   Color = 157, Hidden = false, OwnHidden = false, SymbolOffset = 10.0 },

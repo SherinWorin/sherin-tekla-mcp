@@ -710,7 +710,7 @@ namespace P142.WallFraming
         /// Applies the owner's colour code (WfIsoColours) to the parts of the view.
         /// Returns the number of parts coloured.
         /// </summary>
-        static int ColourParts(View v, TSM.Model model, Dictionary<string, int> perRule)
+        public static int ColourParts(View v, TSM.Model model, Dictionary<string, int> perRule)
         {
             int n = 0;
             DrawingObjectEnumerator en = v.GetAllObjects(new[] { typeof(DPart) });
@@ -769,7 +769,7 @@ namespace P142.WallFraming
         }
 
         /// <summary>Deletes every mark in the view (no part marks on isometric views).</summary>
-        static int RemoveMarks(View v)
+        public static int RemoveMarks(View v)
         {
             var marks = new List<DrawingObject>();
             DrawingObjectEnumerator en = v.GetAllObjects(new[] { typeof(Mark) });
