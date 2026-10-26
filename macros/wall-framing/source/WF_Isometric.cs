@@ -687,13 +687,17 @@ namespace P142.WallFraming
         /// <summary>The reference drawing named in the file, read live (or null).</summary>
         static List<View> LiveReferenceViews(WfIsoReference r)
         {
-            if (string.IsNullOrEmpty(r.SourceMark)) return null;
+            if (string.IsNullOrEmpty(r.SourceMark) && string.IsNullOrEmpty(r.SourceName)) return null;
+            // by NAME first: the mark ([118]) changes between models (R00 -> R01), the name does not
+            var cands = new List<Drawing>();
             DrawingEnumerator de = new DrawingHandler().GetDrawings();
-            while (de.MoveNext())
+            while (de.MoveNext()) if (de.Current != null) cands.Add(de.Current);
+            Drawing hit = string.IsNullOrEmpty(r.SourceName) ? null
+                : cands.Find(x => string.Equals((x.Name ?? "").Trim(), r.SourceName.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (hit == null) hit = cands.Find(x => x.Mark == r.SourceMark);
+            if (hit == null) { Say("  the reference " + r.SourceName + " " + r.SourceMark + " is not in this model"); return null; }
+            foreach (Drawing d in new[] { hit })
             {
-                Drawing d = de.Current;
-                if (d == null || d.Mark != r.SourceMark) continue;
-                if (!string.IsNullOrEmpty(r.SourceName) && d.Name != r.SourceName) continue;
                 try
                 {
                     var views = new List<View>();
@@ -944,6 +948,12 @@ namespace P142.WallFraming
             result.Made = Made;
             result.Failed = Failed;
             result.Log = Log.ToString();
+            try
+            {
+                string lf = System.IO.Path.Combine(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "P142"), "WallFraming");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(lf, "WF_Isometric_log.txt"), result.Log);
+            }
+            catch (Exception) { }
         }
 
         static void Run(Drawing dr, WfIsoResult result, bool save)
