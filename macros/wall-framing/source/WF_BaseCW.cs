@@ -413,7 +413,10 @@ namespace P142.WallFraming
             // a ledge wall sits lower (z 36 on BP20M) and would cut the main walls away
             double wallTrack = baseTop;
             foreach (var p in pod) if (p.Name == "BOTTOM_TRACK" && p.Min[2] < ceil - 500) wallTrack = Math.Max(wallTrack, p.Min[2]);
-            wallPlan.ZMin = wallTrack - WALL_BELOW; wallPlan.ZMax = wallTrack + WALL_ABOVE;
+            // view depth: 50 mm under the underside of the lowest LGS bottom track (owner, 2026-10-26)
+            double lowTrack = wallTrack;
+            foreach (var p in pod) if (p.Name == "BOTTOM_TRACK" && p.Min[2] < ceil - 500) lowTrack = Math.Min(lowTrack, p.Min[2]);
+            wallPlan.ZMin = lowTrack - 50; wallPlan.ZMax = wallTrack + WALL_ABOVE;
             Say("wall cut: main wall tracks at " + F1(wallTrack) + " -> box z " + F1(wallPlan.ZMin) + " .. " + F1(wallPlan.ZMax));
             ceilPlan.Z0 = cLow - CEIL_BELOW; ceilPlan.ZMin = 0; ceilPlan.ZMax = cHigh - ceilPlan.Z0 + 1;
             int gyp = ceilPlan.Parts.FindAll(p => p.Name.Contains("GYPSUM")).Count;
@@ -487,6 +490,8 @@ namespace P142.WallFraming
                 catch (Exception ex) { Say("     colours not applied: " + ex.Message); }
                 var l = new List<string>(); foreach (var e in per) l.Add(e.Key + " " + e.Value);
                 Say("colours '" + kv.Key.Name + "': " + n + " part(s)  " + string.Join(", ", l.ToArray()));
+                if (plans[made.IndexOf(kv)].Role == ROLE_BASE)
+                    Say("     base frame hidden lines on: " + HiddenLinesOn(kv.Key) + " part(s)");
             }
             dr.CommitChanges("P142 BCW colours");
 
@@ -599,6 +604,26 @@ namespace P142.WallFraming
                 catch (Exception) { }
             }
             return res;
+        }
+
+        /// <summary>Turns the hidden and own hidden lines of every part of the view on (base plan, BP02M reference).</summary>
+        static int HiddenLinesOn(View v)
+        {
+            int n = 0;
+            DrawingObjectEnumerator en = v.GetAllObjects(typeof(Part));
+            while (en.MoveNext())
+            {
+                Part dp = en.Current as Part;
+                if (dp == null) continue;
+                try
+                {
+                    dp.Attributes.DrawHiddenLines = true;
+                    dp.Attributes.DrawOwnHiddenLines = true;
+                    if (dp.Modify()) n++;
+                }
+                catch (Exception) { }
+            }
+            return n;
         }
 
         /// <summary>Deletes every object of the given drawing types in the view.</summary>
